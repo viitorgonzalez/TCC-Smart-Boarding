@@ -1,6 +1,5 @@
 package com.smartboarding.smartboarding_api.Configs;
 
-import org.springframework.boot.web.servlet.DispatcherType;
 import org.springframework.context.annotation.Bean;
 import org.springframework.context.annotation.Configuration;
 import org.springframework.http.HttpMethod;
