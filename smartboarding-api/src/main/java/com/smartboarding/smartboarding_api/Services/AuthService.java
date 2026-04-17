@@ -42,10 +42,10 @@ public class AuthService {
 
     public LoginResponseDTO login(LoginRequestDTO data) {
         var user = userRepository.findByEmail(data.email())
-                .orElseThrow(() -> new RuntimeException("User not found"));
+                .orElseThrow(() -> new RuntimeException("Invalid credentials"));
 
         if (!passwordEncoder.matches(data.password(), user.getPassword())) {
-            throw new RuntimeException("Invalid password");
+            throw new RuntimeException("Invalid credentials");
         }
 
         Authentication auth = new UsernamePasswordAuthenticationToken(
