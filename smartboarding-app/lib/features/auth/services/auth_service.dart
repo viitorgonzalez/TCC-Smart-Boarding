@@ -12,7 +12,10 @@ class AuthService {
         ApiConstants.login,
         data: {'email': email, 'password': password},
       );
-      return AuthToken.fromJson(response.data as Map<String, dynamic>);
+      return AuthToken.fromLogin(
+        response.data as Map<String, dynamic>,
+        email,
+      );
     } on DioException catch (e) {
       if (e.response?.statusCode == 401) {
         throw Exception('E-mail ou senha incorretos.');
