@@ -17,9 +17,28 @@ public class UserRepositoryAdapter implements UserRepositoryPort {
         this.jpa = jpa;
     }
 
-    @Override public Optional<User> findByEmail(String email) { return jpa.findByEmail(email); }
-    @Override public Optional<User> findById(UUID id) { return jpa.findById(id); }
-    @Override public List<User> findAll() { return jpa.findAll(); }
-    @Override public User save(User user) { return jpa.save(user); }
-    @Override public boolean existsByEmail(String email) { return jpa.existsByEmail(email); }
+    @Override
+    public Optional<User> findByEmail(String email) {
+        return jpa.findByEmail(email).map(UserMapper::toDomain);
+    }
+
+    @Override
+    public Optional<User> findById(UUID id) {
+        return jpa.findById(id).map(UserMapper::toDomain);
+    }
+
+    @Override
+    public List<User> findAll() {
+        return jpa.findAll().stream().map(UserMapper::toDomain).toList();
+    }
+
+    @Override
+    public User save(User user) {
+        return UserMapper.toDomain(jpa.save(UserMapper.toJpa(user)));
+    }
+
+    @Override
+    public boolean existsByEmail(String email) {
+        return jpa.existsByEmail(email);
+    }
 }

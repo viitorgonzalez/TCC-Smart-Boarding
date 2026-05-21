@@ -17,8 +17,23 @@ public class ListEntryRepositoryAdapter implements ListEntryRepositoryPort {
         this.jpa = jpa;
     }
 
-    @Override public ListEntry save(ListEntry entry) { return jpa.save(entry); }
-    @Override public Optional<ListEntry> findByUserIdAndDailyListId(UUID userId, UUID dailyListId) { return jpa.findByUserIdAndDailyListId(userId, dailyListId); }
-    @Override public List<ListEntry> findAllByDailyListIdAndIsActiveTrue(UUID dailyListId) { return jpa.findAllByDailyListIdAndIsActiveTrue(dailyListId); }
-    @Override public long countByDailyListIdAndIsActiveTrue(UUID dailyListId) { return jpa.countByDailyListIdAndIsActiveTrue(dailyListId); }
+    @Override
+    public ListEntry save(ListEntry entry) {
+        return ListEntryMapper.toDomain(jpa.save(ListEntryMapper.toJpa(entry)));
+    }
+
+    @Override
+    public Optional<ListEntry> findByUserIdAndDailyListId(UUID userId, UUID dailyListId) {
+        return jpa.findByUserIdAndDailyListId(userId, dailyListId).map(ListEntryMapper::toDomain);
+    }
+
+    @Override
+    public List<ListEntry> findAllByDailyListIdAndIsActiveTrue(UUID dailyListId) {
+        return jpa.findAllByDailyListIdAndIsActiveTrue(dailyListId).stream().map(ListEntryMapper::toDomain).toList();
+    }
+
+    @Override
+    public long countByDailyListIdAndIsActiveTrue(UUID dailyListId) {
+        return jpa.countByDailyListIdAndIsActiveTrue(dailyListId);
+    }
 }

@@ -18,12 +18,29 @@ public class DeviceTokenRepositoryAdapter implements DeviceTokenRepositoryPort {
         this.jpa = jpa;
     }
 
-    @Override public DeviceToken save(DeviceToken deviceToken) { return jpa.save(deviceToken); }
-    @Override public Optional<DeviceToken> findByUserIdAndToken(UUID userId, String token) { return jpa.findByUserIdAndToken(userId, token); }
-    @Override public List<DeviceToken> findByUserId(UUID userId) { return jpa.findByUserId(userId); }
-    @Override public List<String> findAllTokens() { return jpa.findAllTokens(); }
+    @Override
+    public DeviceToken save(DeviceToken deviceToken) {
+        return DeviceTokenMapper.toDomain(jpa.save(DeviceTokenMapper.toJpa(deviceToken)));
+    }
+
+    @Override
+    public Optional<DeviceToken> findByUserIdAndToken(UUID userId, String token) {
+        return jpa.findByUserIdAndToken(userId, token).map(DeviceTokenMapper::toDomain);
+    }
+
+    @Override
+    public List<DeviceToken> findByUserId(UUID userId) {
+        return jpa.findByUserId(userId).stream().map(DeviceTokenMapper::toDomain).toList();
+    }
+
+    @Override
+    public List<String> findAllTokens() {
+        return jpa.findAllTokens();
+    }
 
     @Override
     @Transactional
-    public void deleteByUserId(UUID userId) { jpa.deleteByUserId(userId); }
+    public void deleteByUserId(UUID userId) {
+        jpa.deleteByUserId(userId);
+    }
 }

@@ -18,7 +18,18 @@ public class ReportRepositoryAdapter implements ReportRepositoryPort {
         this.jpa = jpa;
     }
 
-    @Override public Report save(Report report) { return jpa.save(report); }
-    @Override public Optional<Report> findById(UUID id) { return jpa.findById(id); }
-    @Override public Page<Report> findAll(Pageable pageable) { return jpa.findAll(pageable); }
+    @Override
+    public Report save(Report report) {
+        return ReportMapper.toDomain(jpa.save(ReportMapper.toJpa(report)));
+    }
+
+    @Override
+    public Optional<Report> findById(UUID id) {
+        return jpa.findById(id).map(ReportMapper::toDomain);
+    }
+
+    @Override
+    public Page<Report> findAll(Pageable pageable) {
+        return jpa.findAll(pageable).map(ReportMapper::toDomain);
+    }
 }

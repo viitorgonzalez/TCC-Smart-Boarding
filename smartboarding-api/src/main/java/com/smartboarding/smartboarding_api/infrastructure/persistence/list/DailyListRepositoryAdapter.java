@@ -19,8 +19,23 @@ public class DailyListRepositoryAdapter implements DailyListRepositoryPort {
         this.jpa = jpa;
     }
 
-    @Override public DailyList save(DailyList dailyList) { return jpa.save(dailyList); }
-    @Override public Optional<DailyList> findById(UUID id) { return jpa.findById(id); }
-    @Override public List<DailyList> findAllByDateAndStatus(LocalDate date, ListStatus status) { return jpa.findAllByDateAndStatus(date, status); }
-    @Override public boolean existsByRouteIdAndDate(UUID routeId, LocalDate date) { return jpa.existsByRouteIdAndDate(routeId, date); }
+    @Override
+    public DailyList save(DailyList dailyList) {
+        return DailyListMapper.toDomain(jpa.save(DailyListMapper.toJpa(dailyList)));
+    }
+
+    @Override
+    public Optional<DailyList> findById(UUID id) {
+        return jpa.findById(id).map(DailyListMapper::toDomain);
+    }
+
+    @Override
+    public List<DailyList> findAllByDateAndStatus(LocalDate date, ListStatus status) {
+        return jpa.findAllByDateAndStatus(date, status).stream().map(DailyListMapper::toDomain).toList();
+    }
+
+    @Override
+    public boolean existsByRouteIdAndDate(UUID routeId, LocalDate date) {
+        return jpa.existsByRouteIdAndDate(routeId, date);
+    }
 }

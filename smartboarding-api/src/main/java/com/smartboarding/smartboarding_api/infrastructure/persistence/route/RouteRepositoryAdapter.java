@@ -17,9 +17,28 @@ public class RouteRepositoryAdapter implements RouteRepositoryPort {
         this.jpa = jpa;
     }
 
-    @Override public Route save(Route route) { return jpa.save(route); }
-    @Override public Optional<Route> findById(UUID id) { return jpa.findById(id); }
-    @Override public List<Route> findAllByIsActiveTrue() { return jpa.findAllByIsActiveTrue(); }
-    @Override public boolean existsByName(String name) { return jpa.existsByName(name); }
-    @Override public boolean existsByNameAndIdNot(String name, UUID id) { return jpa.existsByNameAndIdNot(name, id); }
+    @Override
+    public Route save(Route route) {
+        return RouteMapper.toDomain(jpa.save(RouteMapper.toJpa(route)));
+    }
+
+    @Override
+    public Optional<Route> findById(UUID id) {
+        return jpa.findById(id).map(RouteMapper::toDomain);
+    }
+
+    @Override
+    public List<Route> findAllByIsActiveTrue() {
+        return jpa.findAllByIsActiveTrue().stream().map(RouteMapper::toDomain).toList();
+    }
+
+    @Override
+    public boolean existsByName(String name) {
+        return jpa.existsByName(name);
+    }
+
+    @Override
+    public boolean existsByNameAndIdNot(String name, UUID id) {
+        return jpa.existsByNameAndIdNot(name, id);
+    }
 }
