@@ -1,198 +1,545 @@
-# SmartBoarding — Contexto de Domínio
+# SmartBoarding API — Documentação Técnica
 
-## O Problema
-
-Estudantes universitários que dependem do ônibus fretado da instituição (ex: Unifor) não sabem quantas vagas existem nem se haverá espaço. Administradores não têm visibilidade do número de passageiros por dia. O SmartBoarding resolve isso com uma lista diária digital de embarque.
-
-## Atores
-
-### ADMIN
-- Cria e gerencia rotas de ônibus permanentes
-- Visualiza a lista do dia de qualquer rota
-- Consulta histórico de relatórios
-- Envia notificações push broadcast para todos os estudantes
-- Registra novos usuários (estudantes)
-
-### STUDENT
-- Visualiza a lista diária de todas as rotas
-- Entra e sai da lista enquanto ela estiver aberta (00:00–16:00)
-- Recebe notificações individuais (confirmação de inscrição) e broadcast (avisos do admin, fechamento da lista)
+> Sistema de gerenciamento de embarque em ônibus universitário (Unifor).  
+> Backend: Spring Boot 4.0.5 · Java 21 · PostgreSQL 16 · JWT (HS256) · FCM
 
 ---
 
-## Entidades de Domínio
+## 1. Arquitetura
 
-### Route (Rota)
-Rota de ônibus permanente, criada pelo admin uma única vez. Serve de template para as listas diárias.
+### Estilo: Hexagonal (Ports & Adapters) + DDD
 
-| Campo | Tipo | Descrição |
-|-------|------|-----------|
-| id | UUID | PK |
-| name | String (100) | Ex: "Rota Unifor" |
-| description | String (255) | Detalhes da rota |
-| isActive | boolean | Se false, não gera listas |
-| createdAt | LocalDateTime | Auto |
-| updatedAt | LocalDateTime | Auto |
+```
+┌─────────────────────────────────────────────────────────────┐
+│  infrastructure/web        (Controllers, DTOs)              │
+│  infrastructure/persistence (JPA Entities, Adapters)        │
+│  infrastructure/config      (Security, JWT, Firebase)       │
+│  infrastructure/fcm         (FcmAdapter)                    │
+│                    ↕ via ports (interfaces)                 │
+│  application/               (Use Case Implementations)      │
+│                    ↕ via ports (interfaces)                 │
+│  domain/                    (Entities POJO, Ports)          │
+└─────────────────────────────────────────────────────────────┘
+```
 
-### DailyList (Lista Diária)
-Gerada automaticamente pelo scheduler para cada rota ativa, de segunda a sexta.
+**Regra de dependência:** `infrastructure → application → domain`. O domínio não conhece nenhuma camada externa.
 
-| Campo | Tipo | Descrição |
-|-------|------|-----------|
-| id | UUID | PK |
-| route | Route | FK para a rota |
-| date | LocalDate | Data da lista |
-| status | ListStatus | OPEN ou CLOSED |
-| closedAt | LocalDateTime | Quando foi fechada (nullable) |
+### Pacotes
 
-**Constraint:** `UNIQUE(route_id, date)` — uma lista por rota por dia.
+```
+com.smartboarding.smartboarding_api
+├── domain/
+│   ├── user/entity/          User.java, Role.java
+│   ├── user/port/in/         LoginUseCase, RegisterUseCase, FindUserUseCase
+│   ├── user/port/out/        UserRepositoryPort
+│   ├── route/entity/         Route.java
+│   ├── route/port/in/        CreateRouteUseCase, FindRouteUseCase, UpdateRouteUseCase, DeleteRouteUseCase
+│   ├── route/port/out/       RouteRepositoryPort
+│   ├── list/entity/          DailyList.java, ListEntry.java, ListStatus.java
+│   ├── list/port/in/         OpenDailyListsUseCase, CloseDailyListsUseCase, FindListUseCase,
+│   │                         AddEntryUseCase, RemoveEntryUseCase
+│   ├── list/port/out/        DailyListRepositoryPort, ListEntryRepositoryPort
+│   ├── report/entity/        Report.java
+│   ├── report/port/in/       GenerateReportUseCase, FindReportUseCase
+│   ├── report/port/out/      ReportRepositoryPort
+│   ├── notification/entity/  DeviceToken.java
+│   └── notification/port/    RegisterDeviceTokenUseCase, RemoveDeviceTokenUseCase,
+│                             SendToUserUseCase, SendBroadcastUseCase,
+│                             DeviceTokenRepositoryPort, FcmPort
+│
+├── application/
+│   ├── user/     AuthUseCaseImpl, UserUseCaseImpl, AuthToken
+│   ├── route/    RouteUseCaseImpl
+│   ├── list/     ListUseCaseImpl, SchedulerUseCaseImpl
+│   ├── report/   ReportUseCaseImpl
+│   └── notification/ DeviceTokenUseCaseImpl, NotificationUseCaseImpl
+│
+├── infrastructure/
+│   ├── config/       SecurityConfig, JwtConfig, FirebaseConfig, SchedulingConfig, AppConfig
+│   ├── persistence/
+│   │   ├── user/     UserJpaEntity, UserJpaRepository, UserMapper, UserRepositoryAdapter
+│   │   ├── route/    RouteJpaEntity, RouteJpaRepository, RouteMapper, RouteRepositoryAdapter
+│   │   ├── list/     DailyListJpaEntity, DailyListJpaRepository, DailyListMapper, DailyListRepositoryAdapter
+│   │   │             ListEntryJpaEntity, ListEntryJpaRepository, ListEntryMapper, ListEntryRepositoryAdapter
+│   │   ├── report/   ReportJpaEntity, ReportJpaRepository, ReportMapper, ReportRepositoryAdapter
+│   │   └── notification/ DeviceTokenJpaEntity, DeviceTokenJpaRepository, DeviceTokenMapper, DeviceTokenRepositoryAdapter
+│   ├── fcm/          FcmAdapter
+│   └── web/
+│       ├── common/   GlobalExceptionHandler
+│       ├── user/     AuthController, UserController + DTOs
+│       ├── route/    RouteController + DTOs
+│       ├── list/     ListController + DTOs
+│       ├── report/   ReportController + DTOs
+│       └── notification/ DeviceController, NotificationController + DTOs
+│
+└── shared/
+    ├── exception/    AppException, NotFoundException, BadRequestException,
+    │                 UnauthorizedException, ConflictException
+    └── web/          ApiResponse<T>
+```
 
-### ListEntry (Inscrição)
-Representa a inscrição de um estudante em uma lista do dia.
+### Padrão JPA (FK por UUID)
 
-| Campo | Tipo | Descrição |
-|-------|------|-----------|
-| id | UUID | PK |
-| user | User | FK para o estudante |
-| dailyList | DailyList | FK para a lista |
-| createdAt | LocalDateTime | Quando se inscreveu |
-| isActive | boolean | false = saiu da lista (soft-delete) |
+Entidades JPA usam UUID direto para writes + `insertable=false, updatable=false` para reads, evitando `TransientPropertyValueException`:
 
-**Constraint:** `UNIQUE(user_id, daily_list_id)` — uma inscrição por estudante por lista.
-
-### Report (Relatório)
-Snapshot imutável gerado no momento do fechamento da lista (16:00).
-
-| Campo | Tipo | Descrição |
-|-------|------|-----------|
-| id | UUID | PK |
-| dailyList | DailyList | OneToOne |
-| generatedAt | LocalDateTime | Momento da geração |
-| totalEntries | int | Contagem de inscritos ativos |
-| snapshotData | TEXT (JSON) | Array com nome/email dos inscritos |
-
-### DeviceToken (Token FCM)
-Token FCM do dispositivo Flutter, necessário para enviar push notifications.
-
-| Campo | Tipo | Descrição |
-|-------|------|-----------|
-| id | UUID | PK |
-| user | User | FK para o usuário |
-| token | String | Token FCM único |
-| platform | String | "android" ou "ios" |
-| createdAt | LocalDateTime | Auto |
-| updatedAt | LocalDateTime | Atualizado no login |
+```java
+@Column(name = "route_id")          UUID routeId;          // FK — write
+@ManyToOne @JoinColumn(name = "route_id", insertable=false, updatable=false)
+RouteJpaEntity route;                                       // relação — read (EAGER)
+```
 
 ---
 
-## Regras de Negócio
+## 2. Banco de Dados
 
-### Ciclo de Vida da Lista Diária
+### Schema
+
+```sql
+users
+  id UUID PK, email VARCHAR(100) UNIQUE, password VARCHAR(255),
+  role VARCHAR(20), full_name VARCHAR(150), birth_date DATE,
+  course VARCHAR(100), institution VARCHAR(100), phone VARCHAR(20),
+  address TEXT, expiry_date DATE, is_active BOOL, created_at TS, updated_at TS
+
+routes
+  id UUID PK, name VARCHAR(100), description VARCHAR(255),
+  is_active BOOL, created_at TS, updated_at TS
+
+daily_lists
+  id UUID PK, route_id UUID FK(routes), date DATE, status VARCHAR(10),
+  closed_at TS
+  UNIQUE(route_id, date)
+
+list_entries
+  id UUID PK, user_id UUID FK(users), daily_list_id UUID FK(daily_lists),
+  created_at TS, is_active BOOL
+  UNIQUE(user_id, daily_list_id)
+
+reports
+  id UUID PK, daily_list_id UUID FK(daily_lists) UNIQUE,
+  generated_at TS, total_entries INT, snapshot_data TEXT
+
+device_tokens
+  id UUID PK, user_id UUID FK(users), token VARCHAR(500) UNIQUE,
+  platform VARCHAR(10), created_at TS, updated_at TS
+  INDEX(user_id)
+```
+
+### Relacionamentos
 
 ```
-00:00 (seg-sex)
-  └─ Scheduler cria DailyList (status=OPEN) para cada Route.isActive=true
-
-00:01 – 15:59
-  └─ Estudantes podem entrar/sair livremente
-
-16:00 (seg-sex)
-  └─ Scheduler fecha todas as listas abertas (status=CLOSED)
-  └─ Gera Report com snapshot dos inscritos
-  └─ Envia FCM broadcast: "Embarque confirmado: X pessoas na [Rota]"
-
-16:01 – 23:59
-  └─ Nenhuma lista ativa — estudante não pode se inscrever
-
-Final de semana
-  └─ Scheduler não roda — sem listas
+routes ──< daily_lists ──< list_entries >── users
+                │
+                └──< reports
+users ──< device_tokens
 ```
 
-### Inscrição na Lista
-- Estudante só pode se inscrever se `DailyList.status == OPEN`
-- Ao entrar: cria `ListEntry` com `isActive=true` + envia FCM individual de confirmação
-- Ao sair: `ListEntry.isActive = false` (soft-delete)
-- Ao tentar entrar novamente: reativa o ListEntry existente (sem criar duplicata)
+### Migrations (Flyway)
+
+| Arquivo | Conteúdo |
+|---------|----------|
+| `V1__create_schema.sql` | Criação das 6 tabelas com constraints e indexes |
+| `V2__seed_data.sql` | 3 usuários iniciais (1 ADMIN, 2 STUDENT) |
+
+---
+
+## 3. Segurança
+
+### Autenticação
+
+- **Tipo:** JWT HS256 (stateless)
+- **Expiração:** 1 hora
+- **Header:** `Authorization: Bearer <token>`
+- **Claim principal:** `sub` = email do usuário; `scope` = role sem prefixo
+- **Secret:** mínimo 32 bytes (validado no startup via `@PostConstruct`)
+
+### Roles
+
+| Role | Acesso |
+|------|--------|
+| `ADMIN` | Tudo |
+| `STUDENT` | Listas (ver/inscrever/sair), dispositivos |
+| Sem auth | `GET /api/routes`, `GET /api/routes/{id}`, `POST /api/auth/login` |
+
+### Mapa de acesso por endpoint
+
+| Método | Path | Acesso |
+|--------|------|--------|
+| POST | `/api/auth/login` | Público |
+| POST | `/api/auth/register` | ADMIN |
+| GET | `/api/users` | ADMIN |
+| GET | `/api/users/{id}` | ADMIN |
+| GET | `/api/routes` | Público |
+| GET | `/api/routes/{id}` | Público |
+| POST | `/api/routes` | ADMIN |
+| PATCH | `/api/routes/{id}` | ADMIN |
+| DELETE | `/api/routes/{id}` | ADMIN |
+| GET | `/api/lists/today` | Autenticado |
+| GET | `/api/lists/{id}` | Autenticado |
+| POST | `/api/lists/{id}/entries` | Autenticado |
+| DELETE | `/api/lists/{id}/entries` | Autenticado |
+| GET | `/api/lists/{id}/entries` | ADMIN |
+| GET | `/api/reports` | ADMIN |
+| GET | `/api/reports/{id}` | ADMIN |
+| POST | `/api/notifications/broadcast` | ADMIN |
+| POST | `/api/devices/token` | Autenticado |
+| DELETE | `/api/devices/token` | Autenticado |
+
+---
+
+## 4. Endpoints — Contratos
+
+### Formato padrão de resposta
+
+**Sucesso com dado:**
+```json
+{ "data": { ... } }
+```
+
+**Sucesso sem dado:**
+```json
+{ "data": { "success": true } }
+```
+
+**Erro:**
+```json
+{ "code": "NOT_FOUND", "error": "Mensagem descritiva" }
+```
+
+---
+
+### Auth
+
+#### `POST /api/auth/login`
+```json
+// Request
+{ "email": "admin@smartboarding.com", "password": "sb@2026" }
+
+// Response 200
+{
+  "data": {
+    "token": "eyJhbGci...",
+    "fullName": "System Administrator",
+    "role": "ADMIN"
+  }
+}
+```
+
+#### `POST /api/auth/register` · ADMIN
+```json
+// Request
+{
+  "email": "novo@student.com",
+  "password": "senha123",
+  "role": "STUDENT",
+  "fullName": "Nome Completo"
+}
+
+// Response 201
+{
+  "data": {
+    "id": "uuid",
+    "email": "novo@student.com",
+    "fullName": "Nome Completo",
+    "role": "STUDENT",
+    "course": null,
+    "institution": null,
+    "phone": null,
+    "address": null,
+    "birthDate": null,
+    "expiryDate": null,
+    "isActive": true
+  }
+}
+```
+
+---
+
+### Usuários
+
+#### `GET /api/users` · ADMIN — lista todos
+#### `GET /api/users/{id}` · ADMIN — busca por ID
+```json
+// Response 200
+{
+  "data": {
+    "id": "uuid", "email": "...", "fullName": "...", "role": "STUDENT",
+    "course": "...", "institution": "...", "phone": "...",
+    "address": "...", "birthDate": "2000-05-15", "expiryDate": null, "isActive": true
+  }
+}
+```
+
+---
+
+### Rotas
+
+#### `POST /api/routes` · ADMIN
+```json
+// Request
+{ "name": "Rota Centro", "description": "Saída pelo centro" }
+// Response 201 — RouteResponse
+```
+
+#### `GET /api/routes` · Público — lista rotas ativas
+#### `GET /api/routes/{id}` · Público — busca por ID
+```json
+// Response 200
+{
+  "data": {
+    "id": "uuid", "name": "Rota Centro", "description": "...",
+    "isActive": true, "createdAt": "2026-05-20T10:00:00"
+  }
+}
+```
+
+#### `PATCH /api/routes/{id}` · ADMIN
+```json
+// Request
+{ "name": "Novo Nome", "description": "Nova descrição" }
+// Response 200 — RouteResponse atualizado
+```
+
+#### `DELETE /api/routes/{id}` · ADMIN
+```json
+// Response 200
+{ "data": { "success": true } }
+```
+> Soft-delete: marca `is_active = false`.
+
+---
+
+### Listas Diárias
+
+#### `GET /api/lists/today` · Autenticado
+```json
+// Response 200
+{
+  "data": [
+    {
+      "id": "uuid",
+      "routeId": "uuid",
+      "routeName": "Rota Centro",
+      "date": "2026-05-20",
+      "status": "OPEN",
+      "totalEntries": 12
+    }
+  ]
+}
+```
+
+#### `GET /api/lists/{id}` · Autenticado — busca lista específica
+
+#### `POST /api/lists/{id}/entries` · Autenticado
+Inscreve o usuário autenticado na lista.
+```json
+// Response 201
+{
+  "data": {
+    "id": "uuid",
+    "userId": "uuid",
+    "fullName": "Vítor Gonzalez",
+    "email": "vitor@student.com",
+    "createdAt": "2026-05-20T08:30:00"
+  }
+}
+```
+
+#### `DELETE /api/lists/{id}/entries` · Autenticado
+Sai da lista (soft-delete: `is_active = false`).
+
+#### `GET /api/lists/{id}/entries` · ADMIN
+Lista todos os inscritos ativos na lista.
+
+---
 
 ### Relatórios
-- Gerados automaticamente ao fechar a lista
-- Imutáveis após geração (snapshot)
-- Acessíveis apenas pelo ADMIN
-- Paginados (mais recentes primeiro)
 
-### Notificações FCM
-- **Individual**: enviada ao estudante quando ele se inscreve na lista
-- **Broadcast ao fechar**: enviada a todos os tokens registrados quando a lista fecha
-- **Broadcast manual (admin)**: admin envia título + corpo via endpoint, dispara para todos os tokens
+#### `GET /api/reports` · ADMIN
+Paginado. Query params: `?page=0&size=20&sort=generatedAt,desc`
+```json
+// Response 200
+{
+  "data": {
+    "content": [
+      {
+        "id": "uuid",
+        "dailyListId": "uuid",
+        "listDate": "2026-05-19",
+        "routeName": "Rota Centro",
+        "totalEntries": 15,
+        "generatedAt": "2026-05-19T16:00:05"
+      }
+    ],
+    "totalElements": 50,
+    "totalPages": 3,
+    "number": 0
+  }
+}
+```
+
+#### `GET /api/reports/{id}` · ADMIN
+Inclui `snapshotData`: JSON com array de `{id, fullName, email}` dos inscritos no momento do fechamento.
 
 ---
 
-## Fluxos Principais
+### Notificações
 
-### Fluxo 1 — Estudante se inscreve na lista
-
-```
-1. Estudante abre o app → LoginScreen
-2. Faz login → recebe JWT + role=STUDENT
-3. App obtém FCM token → POST /api/devices/token (registra/atualiza)
-4. HomeScreen carrega → GET /api/lists/today → exibe listas abertas
-5. Estudante toca em "Entrar na Lista" (Rota Unifor)
-6. App → POST /api/lists/{id}/entries
-7. Backend valida: lista OPEN? usuário já inscrito?
-8. Cria ListEntry, envia FCM individual de confirmação
-9. App exibe botão "Sair da Lista" (estado invertido)
-```
-
-### Fluxo 2 — Fechamento automático da lista (16:00)
-
-```
-1. SchedulerService.closeDailyLists() dispara
-2. Busca todas as DailyList com status=OPEN e date=today
-3. Para cada lista:
-   a. status = CLOSED, closedAt = agora
-   b. Conta ListEntries com isActive=true
-   c. Gera snapshotData JSON com nome/email dos inscritos
-   d. Persiste Report
-   e. FcmService.sendBroadcast("Lista fechada", "X pessoas confirmadas na [Rota]")
-```
-
-### Fluxo 3 — Admin envia notificação manual
-
-```
-1. Admin abre a tela "Notificações"
-2. Preenche título e corpo da mensagem
-3. Toca em "Enviar para todos"
-4. App → POST /api/notifications/broadcast {title, body}
-5. Backend → FcmService.sendBroadcast(title, body)
-6. Firebase Cloud Messaging → push para todos os DeviceTokens
-```
-
-### Fluxo 4 — Admin consulta histórico
-
-```
-1. Admin abre tela "Relatórios"
-2. App → GET /api/reports?page=0&size=20
-3. Backend retorna lista paginada de Reports (data, rota, total)
-4. Admin seleciona um relatório
-5. App → GET /api/reports/{id}
-6. Exibe lista de inscritos no dia (do snapshotData)
+#### `POST /api/notifications/broadcast` · ADMIN
+Envia push para todos os dispositivos registrados via FCM.
+```json
+// Request
+{ "title": "Aviso importante", "body": "Mensagem para todos os alunos" }
+// Response 200 — success
 ```
 
 ---
 
-## Modelo de Dados (Resumo)
+### Dispositivos
 
+#### `POST /api/devices/token` · Autenticado
+```json
+// Request
+{ "token": "fcm_token_string", "platform": "android" }
+// platform: android | ios
+// Response 200 — success
 ```
-User ──< ListEntry >── DailyList >── Route
-User ──< DeviceToken
-DailyList ──── Report (1:1)
+
+#### `DELETE /api/devices/token` · Autenticado
+Remove todos os tokens FCM do usuário (logout de notificações).
+
+---
+
+## 5. Regras de Negócio
+
+### Scheduler (automático, dias úteis)
+
+| Horário | Ação |
+|---------|------|
+| `00:00` seg-sex | Cria uma `DailyList` com `status=OPEN` para cada rota ativa |
+| `16:00` seg-sex | Fecha todas as `OPEN` → `CLOSED`, gera Report + envia broadcast FCM |
+
+- Se já existe lista para (rota + data), não recria — idempotente.
+- Entre 16:01 e 23:59: não há lista `OPEN` — estudante não pode se inscrever.
+- Erros no relatório ou FCM são logados mas não interrompem o restante.
+
+### Inscrição em Lista
+
+1. Lista deve estar com `status = OPEN`
+2. Usuário não pode ter inscrição ativa na mesma lista — `UNIQUE(user_id, daily_list_id)`
+3. Ao sair: `is_active = false` (soft-delete — histórico preservado)
+4. Contagem de inscritos: `COUNT WHERE is_active = true`
+
+### Relatório
+
+- Gerado automaticamente ao fechar a lista (16:00)
+- `snapshot_data`: JSON com `[{id, fullName, email}]` dos inscritos ativos no momento do fechamento
+- `total_entries`: total de inscritos ativos
+
+### Rotas
+
+- Nome único entre rotas ativas — conflito retorna 409
+- Delete é soft (`is_active = false`)
+
+### Usuários
+
+- E-mail único — retorna 409 se já cadastrado
+- `isAccountNonExpired()`: verifica `expiry_date < today`
+- `isEnabled()`: verifica `is_active = true`
+- Senha: mínimo 6 caracteres (validação de request)
+- JWT identifica usuário pelo `email` (claim `sub`)
+
+---
+
+## 6. Tratamento de Erros
+
+| Exceção | HTTP | Código |
+|---------|------|--------|
+| `NotFoundException` | 404 | `NOT_FOUND` |
+| `ConflictException` | 409 | Customizável (ex: `EMAIL_ALREADY_EXISTS`) |
+| `UnauthorizedException` | 401 | `UNAUTHORIZED` |
+| `BadRequestException` | 400 | Customizável |
+| `MethodArgumentNotValidException` | 400 | `VALIDATION_ERROR` |
+| `Exception` (genérico) | 500 | `INTERNAL_SERVER_ERROR` |
+
+---
+
+## 7. Firebase (FCM)
+
+- **SDK:** `firebase-admin 9.4.2`
+- **Credenciais:** JSON de service account em `FIREBASE_CREDENTIALS_PATH`
+- **Comportamento:** Se `FIREBASE_CREDENTIALS_PATH` estiver vazio, Firebase não inicializa — chamadas FCM falham silenciosamente com log de erro
+- **FcmAdapter:** envia para lista de tokens; loga tokens com falha vs sucesso
+- **Para ativar:** baixar service account JSON no Firebase Console, apontar o path na variável de ambiente
+
+---
+
+## 8. Configuração Local
+
+### Pré-requisitos
+- Java 21+
+- Docker + Docker Compose
+- Maven Wrapper incluído (`./mvnw`)
+
+### Variáveis de Ambiente
+
+| Variável | Exemplo | Descrição |
+|----------|---------|-----------|
+| `DB_NAME` | `smartboarding_db` | Nome do banco PostgreSQL |
+| `DB_USER` | `admin` | Usuário do banco |
+| `DB_PASSWORD` | `sb_pass_2026` | Senha do banco |
+| `JWT_SECRET` | `smartboarding_jwt_secret_key_2026_secure` | Mínimo 32 bytes |
+| `FIREBASE_CREDENTIALS_PATH` | `/path/service-account.json` | Opcional — FCM push |
+
+### Inicialização
+
+```bash
+# 1. Banco
+sudo docker compose up -d
+
+# 2. API (carrega application-local.properties automaticamente via profile=local)
+./mvnw spring-boot:run
+
+# API disponível em:  http://localhost:8080
+# pgAdmin disponível: http://localhost:5050
+```
+
+> `application-local.properties` tem as credenciais locais hardcoded e está no `.gitignore`.  
+> `application.properties` usa env vars — usado em produção/CI.
+
+### Usuários Seed
+
+| Email | Senha | Role |
+|-------|-------|------|
+| `admin@smartboarding.com` | `sb@2026` | ADMIN |
+| `vitor@student.com` | `sb@2026@123` | STUDENT |
+| `ana@student.com` | `sb@2026` | STUDENT |
+
+### Reset do banco
+
+```bash
+sudo docker compose down -v && sudo docker compose up -d
 ```
 
 ---
 
-## Enums
+## 9. Qualidade de Código
 
-| Enum | Valores |
-|------|---------|
-| `Role` | ADMIN, STUDENT |
-| `ListStatus` | OPEN, CLOSED |
+### Convenções
+
+- **Controllers:** recebem/devolvem DTOs (`record`), nunca entidades de domínio
+- **Use Cases:** `execute()` como método principal; lógica de negócio pura, sem JPA
+- **Repository Ports:** interfaces no domínio; adapters na infraestrutura fazem o mapeamento
+- **Mappers:** classes utilitárias estáticas com `toDomain()` e `toJpa()` — sem estado
+- **Exceções:** sempre lançar subclasse de `AppException` com código semântico
+- **Transações:** `@Transactional` nos use cases que escrevem no banco
+- **Logs:** `@Slf4j` em todos os services — logar operações críticas e erros
+
+### O que NÃO fazer
+
+- Não expor entidades JPA (`*JpaEntity`) fora da camada de persistência
+- Não injetar `*JpaRepository` diretamente nos use cases — sempre via porta de domínio
+- Não colocar lógica de negócio nos controllers
+- Não usar `@Autowired` por campo — sempre injeção por construtor
+- Não commitar `application-local.properties` ou `.env` (ambos no `.gitignore`)
+- Não adicionar anotações JPA/Jakarta Persistence nas entidades do domínio
