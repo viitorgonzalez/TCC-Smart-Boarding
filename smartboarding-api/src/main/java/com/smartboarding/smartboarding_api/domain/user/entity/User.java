@@ -1,6 +1,5 @@
 package com.smartboarding.smartboarding_api.domain.user.entity;
 
-import jakarta.persistence.*;
 import lombok.*;
 import org.springframework.security.core.GrantedAuthority;
 import org.springframework.security.core.authority.SimpleGrantedAuthority;
@@ -13,8 +12,6 @@ import java.util.List;
 import java.util.Optional;
 import java.util.UUID;
 
-@Entity
-@Table(name = "users")
 @Getter
 @Setter
 @NoArgsConstructor
@@ -22,57 +19,26 @@ import java.util.UUID;
 @Builder
 public class User implements UserDetails {
 
-    @Id
-    @GeneratedValue(strategy = GenerationType.UUID)
     private UUID id;
-
-    @Column(nullable = false, unique = true, length = 100)
     private String email;
-
-    @Column(nullable = false)
     private String password;
-
-    @Enumerated(EnumType.STRING)
-    @Column(nullable = false)
     private Role role;
-
-    @Column(name = "full_name", nullable = false, length = 150)
     private String fullName;
-
-    @Column(name = "birth_date")
     private LocalDate birthDate;
-
-    @Column(length = 100)
     private String course;
-
-    @Column(length = 100)
     private String institution;
-
-    @Column(length = 20)
     private String phone;
-
-    @Column(columnDefinition = "TEXT")
     private String address;
-
-    @Column(name = "expiry_date")
     private LocalDate expiryDate;
-
-    @Column(name = "created_at", updatable = false)
     private LocalDateTime createdAt;
-
-    @Column(name = "updated_at")
     private LocalDateTime updatedAt;
-
-    @Column(name = "is_active")
     private boolean isActive;
 
     @Override
-    public String getPassword() {
-        return password;
-    }
+    public String getPassword() { return password; }
 
     @Override
-    public @NonNull Collection<? extends GrantedAuthority> getAuthorities() {
+    public Collection<? extends GrantedAuthority> getAuthorities() {
         return Optional.ofNullable(role)
                 .map(r -> new SimpleGrantedAuthority("ROLE_" + r.name()))
                 .map(List::of)
@@ -80,9 +46,7 @@ public class User implements UserDetails {
     }
 
     @Override
-    public @NonNull String getUsername() {
-        return email;
-    }
+    public String getUsername() { return email; }
 
     @Override
     public boolean isAccountNonExpired() {
@@ -90,17 +54,11 @@ public class User implements UserDetails {
     }
 
     @Override
-    public boolean isAccountNonLocked() {
-        return true;
-    }
+    public boolean isAccountNonLocked() { return true; }
 
     @Override
-    public boolean isCredentialsNonExpired() {
-        return true;
-    }
+    public boolean isCredentialsNonExpired() { return true; }
 
     @Override
-    public boolean isEnabled() {
-        return isActive;
-    }
+    public boolean isEnabled() { return isActive; }
 }
