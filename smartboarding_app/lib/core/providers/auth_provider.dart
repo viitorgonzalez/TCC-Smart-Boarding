@@ -1,0 +1,50 @@
+import 'package:flutter/material.dart';
+import '../../features/auth/models/auth_token.dart';
+import '../../features/auth/services/auth_service.dart';
+import '../services/storage_service.dart';
+
+enum AuthStatus { unknown, authenticated, unauthenticated }
+
+class AuthProvider extends ChangeNotifier {
+  final _authService = AuthService();
+  final _storage = StorageService();
+
+  AuthStatus _status = AuthStatus.unknown;
+  AuthToken? _token;
+
+  AuthStatus get status => _status;
+  AuthToken? get token => _token;
+  bool get isAdmin => _token?.role == 'ADMIN';
+  bool get isStudent => _token?.role == 'STUDENT';
+  bool get isDriver => _token?.role == 'DRIVER';
+
+  /// Chamado no boot do app para restaurar sessão salva.
+  Future<void> init() async {
+    final storedToken = await _storage.getToken();
+    if (storedToken != null) {
+      _token = AuthToken(
+        token: storedToken,
+        fullName: await _storage.getFullName() ?? '',
+        role: await _storage.getRole() ?? '',
+        email: await _storage.getEmail() ?? '',
+      );
+      _status = AuthStatus.authenticated;
+    } else {
+      _status = AuthStatus.unauthenticated;
+    }
+    notifyListeners();
+  }
+
+  Future<void> login(String email, String password) async {
+    _token = await _authService.login(email, password);
+    _status = AuthStatus.authenticated;
+    notifyListeners();
+  }
+
+  Future<void> logout() async {
+    await _authService.logout();
+    _token = null;
+    _status = AuthStatus.unauthenticated;
+    notifyListeners();
+  }
+}
