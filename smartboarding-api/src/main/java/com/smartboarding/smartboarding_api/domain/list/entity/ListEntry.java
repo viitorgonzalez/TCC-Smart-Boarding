@@ -36,6 +36,11 @@ public class ListEntry {
     @Column(name = "is_active", nullable = false)
     private boolean isActive = true;
 
+    @Enumerated(EnumType.STRING)
+    @Column(name = "trip_type", nullable = false, length = 20)
+    @Builder.Default
+    private TripType tripType = TripType.ROUND_TRIP;
+
     @PrePersist
     void onCreate() {
         createdAt = LocalDateTime.now();

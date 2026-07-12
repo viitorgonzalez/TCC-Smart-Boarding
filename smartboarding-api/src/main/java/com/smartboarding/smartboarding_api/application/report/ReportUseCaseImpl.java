@@ -56,7 +56,8 @@ public class ReportUseCaseImpl implements FindReportUseCase, GenerateReportUseCa
                 .map(e -> Map.of(
                         "id", e.getUser().getId().toString(),
                         "fullName", e.getUser().getFullName(),
-                        "email", e.getUser().getEmail()
+                        "email", e.getUser().getEmail(),
+                        "tripType", e.getTripType().name()
                 ))
                 .toList();
 

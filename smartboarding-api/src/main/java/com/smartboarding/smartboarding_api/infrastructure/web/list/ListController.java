@@ -1,11 +1,13 @@
 package com.smartboarding.smartboarding_api.infrastructure.web.list;
 
 import com.smartboarding.smartboarding_api.domain.list.entity.DailyList;
+import com.smartboarding.smartboarding_api.domain.list.entity.TripType;
 import com.smartboarding.smartboarding_api.domain.list.port.in.AddEntryUseCase;
 import com.smartboarding.smartboarding_api.domain.list.port.in.FindListUseCase;
 import com.smartboarding.smartboarding_api.domain.list.port.in.RemoveEntryUseCase;
 import com.smartboarding.smartboarding_api.domain.list.port.out.ListEntryRepositoryPort;
 import com.smartboarding.smartboarding_api.domain.user.port.out.UserRepositoryPort;
+import com.smartboarding.smartboarding_api.infrastructure.web.list.dto.EntryRequest;
 import com.smartboarding.smartboarding_api.infrastructure.web.list.dto.EntryResponse;
 import com.smartboarding.smartboarding_api.infrastructure.web.list.dto.ListResponse;
 import com.smartboarding.smartboarding_api.shared.exception.UnauthorizedException;
@@ -41,25 +43,35 @@ public class ListController {
     }
 
     @GetMapping("/today")
-    public ResponseEntity<ApiResponse<List<ListResponse>>> getTodayLists() {
+    public ResponseEntity<ApiResponse<List<ListResponse>>> getTodayLists(Authentication auth) {
+        UUID userId = extractUserId(auth);
         List<ListResponse> lists = findListUseCase.findTodayLists().stream()
-                .map(list -> ListResponse.from(list, listEntryRepository.countByDailyListIdAndIsActiveTrue(list.getId())))
+                .map(list -> ListResponse.from(
+                        list,
+                        listEntryRepository.countByDailyListIdAndIsActiveTrue(list.getId()),
+                        listEntryRepository.findByUserIdAndDailyListId(userId, list.getId()).orElse(null)))
                 .toList();
         return ResponseEntity.ok(ApiResponse.data(lists));
     }
 
     @GetMapping("/{id}")
-    public ResponseEntity<ApiResponse<ListResponse>> findById(@PathVariable UUID id) {
+    public ResponseEntity<ApiResponse<ListResponse>> findById(@PathVariable UUID id, Authentication auth) {
+        UUID userId = extractUserId(auth);
         DailyList list = findListUseCase.findById(id);
         long count = listEntryRepository.countByDailyListIdAndIsActiveTrue(id);
-        return ResponseEntity.ok(ApiResponse.data(ListResponse.from(list, count)));
+        return ResponseEntity.ok(ApiResponse.data(ListResponse.from(
+                list, count, listEntryRepository.findByUserIdAndDailyListId(userId, id).orElse(null))));
     }
 
     @PostMapping("/{id}/entries")
-    public ResponseEntity<ApiResponse<EntryResponse>> addEntry(@PathVariable UUID id, Authentication auth) {
+    public ResponseEntity<ApiResponse<EntryResponse>> addEntry(
+            @PathVariable UUID id,
+            @RequestBody(required = false) EntryRequest body,
+            Authentication auth) {
         UUID userId = extractUserId(auth);
+        TripType tripType = (body != null && body.tripType() != null) ? body.tripType() : TripType.ROUND_TRIP;
         return ResponseEntity.status(HttpStatus.CREATED)
-                .body(ApiResponse.data(EntryResponse.from(addEntryUseCase.add(userId, id))));
+                .body(ApiResponse.data(EntryResponse.from(addEntryUseCase.add(userId, id, tripType))));
     }
 
     @DeleteMapping("/{id}/entries")

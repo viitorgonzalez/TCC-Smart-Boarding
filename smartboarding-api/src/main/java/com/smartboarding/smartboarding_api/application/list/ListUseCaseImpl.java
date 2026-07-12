@@ -3,6 +3,7 @@ package com.smartboarding.smartboarding_api.application.list;
 import com.smartboarding.smartboarding_api.domain.list.entity.DailyList;
 import com.smartboarding.smartboarding_api.domain.list.entity.ListEntry;
 import com.smartboarding.smartboarding_api.domain.list.entity.ListStatus;
+import com.smartboarding.smartboarding_api.domain.list.entity.TripType;
 import com.smartboarding.smartboarding_api.domain.list.port.in.AddEntryUseCase;
 import com.smartboarding.smartboarding_api.domain.list.port.in.FindListUseCase;
 import com.smartboarding.smartboarding_api.domain.list.port.in.RemoveEntryUseCase;
@@ -12,7 +13,6 @@ import com.smartboarding.smartboarding_api.domain.notification.port.in.SendToUse
 import com.smartboarding.smartboarding_api.domain.user.entity.User;
 import com.smartboarding.smartboarding_api.domain.user.port.out.UserRepositoryPort;
 import com.smartboarding.smartboarding_api.shared.exception.BadRequestException;
-import com.smartboarding.smartboarding_api.shared.exception.ConflictException;
 import com.smartboarding.smartboarding_api.shared.exception.NotFoundException;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.stereotype.Service;
@@ -61,7 +61,7 @@ public class ListUseCaseImpl implements FindListUseCase, AddEntryUseCase, Remove
 
     @Override
     @Transactional
-    public ListEntry add(UUID userId, UUID listId) {
+    public ListEntry add(UUID userId, UUID listId, TripType tripType) {
         DailyList dailyList = findById(listId);
 
         if (dailyList.getStatus() != ListStatus.OPEN) {
@@ -74,13 +74,16 @@ public class ListUseCaseImpl implements FindListUseCase, AddEntryUseCase, Remove
         Optional<ListEntry> existing = listEntryRepository.findByUserIdAndDailyListId(userId, listId);
 
         if (existing.isPresent()) {
+            // Já existe: reativa (se saiu antes) e/ou atualiza a direção.
+            // Direção é editável enquanto a lista estiver aberta.
             ListEntry entry = existing.get();
-            if (entry.isActive()) {
-                throw new ConflictException("ALREADY_ENROLLED", "Usuário já está inscrito nesta lista.");
-            }
+            boolean wasInactive = !entry.isActive();
             entry.setActive(true);
+            entry.setTripType(tripType);
             ListEntry saved = listEntryRepository.save(entry);
-            notifyEnrollment(userId, dailyList);
+            if (wasInactive) {
+                notifyEnrollment(userId, dailyList);
+            }
             return saved;
         }
 
@@ -88,11 +91,12 @@ public class ListUseCaseImpl implements FindListUseCase, AddEntryUseCase, Remove
                 .user(user)
                 .dailyList(dailyList)
                 .isActive(true)
+                .tripType(tripType)
                 .build();
 
         ListEntry saved = listEntryRepository.save(entry);
         notifyEnrollment(userId, dailyList);
-        log.info("Usuário {} inscrito na lista {}", userId, listId);
+        log.info("Usuário {} inscrito na lista {} ({})", userId, listId, tripType);
         return saved;
     }
 
