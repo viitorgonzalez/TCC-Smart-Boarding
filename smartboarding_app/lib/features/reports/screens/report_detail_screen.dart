@@ -5,6 +5,7 @@ import '../../../core/errors/app_exception.dart';
 import '../../../core/utils/async_value.dart';
 import '../../../core/utils/date_format.dart';
 import '../../../core/widgets/async_builder.dart';
+import '../../lists/models/trip_type.dart';
 import '../models/report_model.dart';
 import '../services/report_service.dart';
 
@@ -84,6 +85,14 @@ class _ReportBody extends StatelessWidget {
       } catch (_) {}
     }
 
+    // Contagem por direção (só conta os que têm tripType conhecido).
+    final counts = <String, int>{for (final t in tripTypes) t.value: 0};
+    for (final e in enrolled) {
+      final tt = (e as Map)['tripType']?.toString();
+      if (tt != null && counts.containsKey(tt)) counts[tt] = counts[tt]! + 1;
+    }
+    final hasDirections = counts.values.any((v) => v > 0);
+
     return ListView(
       padding: const EdgeInsets.all(16),
       children: [
@@ -105,6 +114,23 @@ class _ReportBody extends StatelessWidget {
             ),
           ),
         ),
+        if (hasDirections) ...[
+          const SizedBox(height: 20),
+          const Text('Por direção',
+              style: TextStyle(fontWeight: FontWeight.bold, fontSize: 16)),
+          const SizedBox(height: 8),
+          Wrap(
+            spacing: 8,
+            runSpacing: 8,
+            children: [
+              for (final t in tripTypes)
+                Chip(
+                  avatar: Icon(t.icon, size: 18),
+                  label: Text('${t.label}: ${counts[t.value]}'),
+                ),
+            ],
+          ),
+        ],
         const SizedBox(height: 20),
         const Text('Lista de inscritos',
             style: TextStyle(fontWeight: FontWeight.bold, fontSize: 16)),
@@ -125,6 +151,15 @@ class _ReportBody extends StatelessWidget {
               ),
               title: Text(data['fullName']?.toString() ?? ''),
               subtitle: Text(data['email']?.toString() ?? ''),
+              trailing: data['tripType'] != null
+                  ? Chip(
+                      avatar: Icon(tripTypeInfo(data['tripType']?.toString()).icon,
+                          size: 16),
+                      label: Text(tripTypeLabel(data['tripType']?.toString()),
+                          style: const TextStyle(fontSize: 11)),
+                      visualDensity: VisualDensity.compact,
+                    )
+                  : null,
             );
           }),
       ],

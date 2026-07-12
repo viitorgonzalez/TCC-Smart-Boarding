@@ -6,6 +6,7 @@ import '../../../core/utils/date_format.dart';
 import '../../../core/widgets/async_builder.dart';
 import '../models/daily_list_model.dart';
 import '../models/list_entry_model.dart';
+import '../models/trip_type.dart';
 import '../services/list_service.dart';
 
 class AdminListEntriesScreen extends StatelessWidget {
@@ -94,8 +95,13 @@ class _EntriesView extends StatelessWidget {
                     ),
                     title: Text(entries[i].fullName),
                     subtitle: Text(entries[i].email),
-                    trailing: Text('#${i + 1}',
-                        style: TextStyle(color: Colors.grey.shade400)),
+                    trailing: Chip(
+                      avatar: Icon(tripTypeInfo(entries[i].tripType).icon,
+                          size: 16),
+                      label: Text(tripTypeLabel(entries[i].tripType),
+                          style: const TextStyle(fontSize: 11)),
+                      visualDensity: VisualDensity.compact,
+                    ),
                   ),
                 ),
         ),

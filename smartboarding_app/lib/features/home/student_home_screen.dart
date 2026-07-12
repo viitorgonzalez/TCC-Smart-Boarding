@@ -5,6 +5,7 @@ import '../../core/providers/auth_provider.dart';
 import '../../core/utils/date_format.dart';
 import '../../core/widgets/async_builder.dart';
 import '../lists/models/list_with_enrollment.dart';
+import '../lists/models/trip_type.dart';
 import '../lists/providers/student_list_provider.dart';
 
 class StudentHomeScreen extends StatelessWidget {
@@ -23,8 +24,8 @@ class StudentHomeScreen extends StatelessWidget {
             const Text('Smart Boarding'),
             if (name.isNotEmpty)
               Text('Olá, $name',
-                  style: const TextStyle(fontSize: 12,
-                      fontWeight: FontWeight.normal)),
+                  style: const TextStyle(
+                      fontSize: 12, fontWeight: FontWeight.normal)),
           ],
         ),
         actions: [
@@ -53,7 +54,9 @@ class StudentHomeScreen extends StatelessWidget {
                       padding: const EdgeInsets.only(bottom: 12),
                       child: _ListCard(
                         item: items[i],
-                        onToggle: () => _toggle(context, provider, items[i]),
+                        onEnter: (tripType) =>
+                            _enter(context, provider, items[i], tripType),
+                        onLeave: () => _leave(context, provider, items[i]),
                       ),
                     ),
                   ),
@@ -63,27 +66,80 @@ class StudentHomeScreen extends StatelessWidget {
     );
   }
 
-  Future<void> _toggle(BuildContext context, StudentListProvider provider,
-      ListWithEnrollment item) async {
+  Future<void> _enter(BuildContext context, StudentListProvider provider,
+      ListWithEnrollment item, String tripType) async {
     try {
-      await provider.toggle(item.list.id, item.isEnrolled);
+      await provider.enter(item.list.id, tripType);
     } catch (e) {
-      if (context.mounted) {
-        ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(content: Text(e.toString()), backgroundColor: Colors.red),
-        );
-      }
+      if (context.mounted) _showError(context, e);
     }
   }
+
+  Future<void> _leave(BuildContext context, StudentListProvider provider,
+      ListWithEnrollment item) async {
+    try {
+      await provider.leave(item.list.id);
+    } catch (e) {
+      if (context.mounted) _showError(context, e);
+    }
+  }
+
+  void _showError(BuildContext context, Object e) {
+    ScaffoldMessenger.of(context).showSnackBar(
+      SnackBar(content: Text(e.toString()), backgroundColor: Colors.red),
+    );
+  }
+}
+
+/// Bottom sheet para escolher a direção (ida/volta). Retorna o valor da API.
+Future<String?> showTripTypePicker(BuildContext context,
+    {String? current}) {
+  return showModalBottomSheet<String>(
+    context: context,
+    builder: (ctx) => SafeArea(
+      child: Column(
+        mainAxisSize: MainAxisSize.min,
+        children: [
+          const Padding(
+            padding: EdgeInsets.fromLTRB(16, 16, 16, 8),
+            child: Align(
+              alignment: Alignment.centerLeft,
+              child: Text('Escolha a direção',
+                  style:
+                      TextStyle(fontWeight: FontWeight.bold, fontSize: 16)),
+            ),
+          ),
+          for (final t in tripTypes)
+            ListTile(
+              leading: Icon(t.icon),
+              title: Text(t.label),
+              trailing: current == t.value
+                  ? Icon(Icons.check,
+                      color: Theme.of(ctx).colorScheme.primary)
+                  : null,
+              onTap: () => Navigator.pop(ctx, t.value),
+            ),
+          const SizedBox(height: 8),
+        ],
+      ),
+    ),
+  );
 }
 
 // ─── Card de lista ────────────────────────────────────────────────────────────
 
 class _ListCard extends StatelessWidget {
   final ListWithEnrollment item;
-  final VoidCallback onToggle;
+  final void Function(String tripType) onEnter;
+  final VoidCallback onLeave;
 
-  const _ListCard({required this.item, required this.onToggle});
+  const _ListCard(
+      {required this.item, required this.onEnter, required this.onLeave});
+
+  Future<void> _pickAndEnter(BuildContext context, {String? current}) async {
+    final chosen = await showTripTypePicker(context, current: current);
+    if (chosen != null) onEnter(chosen);
+  }
 
   @override
   Widget build(BuildContext context) {
@@ -108,13 +164,29 @@ class _ListCard extends StatelessWidget {
             Text('${list.totalEntries} inscrito(s) · ${formatDate(list.date)}',
                 style: TextStyle(color: Colors.grey.shade600, fontSize: 13)),
             if (item.isEnrolled) ...[
-              const SizedBox(height: 8),
+              const SizedBox(height: 10),
               Row(children: [
                 Icon(Icons.check_circle, size: 18, color: cs.primary),
                 const SizedBox(width: 6),
                 Text('Você está na lista',
                     style: TextStyle(
                         color: cs.primary, fontWeight: FontWeight.w600)),
+              ]),
+              const SizedBox(height: 8),
+              // Direção atual + trocar (enquanto a lista estiver aberta)
+              Row(children: [
+                Chip(
+                  avatar: Icon(tripTypeInfo(item.tripType).icon, size: 18),
+                  label: Text(tripTypeLabel(item.tripType)),
+                  visualDensity: VisualDensity.compact,
+                ),
+                if (list.isOpen)
+                  TextButton.icon(
+                    onPressed: () =>
+                        _pickAndEnter(context, current: item.tripType),
+                    icon: const Icon(Icons.edit, size: 16),
+                    label: const Text('Trocar direção'),
+                  ),
               ]),
             ],
             if (list.isOpen) ...[
@@ -125,13 +197,14 @@ class _ListCard extends StatelessWidget {
                 width: double.infinity,
                 child: item.isEnrolled
                     ? OutlinedButton.icon(
-                        style: OutlinedButton.styleFrom(foregroundColor: cs.error),
-                        onPressed: onToggle,
+                        style: OutlinedButton.styleFrom(
+                            foregroundColor: cs.error),
+                        onPressed: onLeave,
                         icon: const Icon(Icons.exit_to_app),
                         label: const Text('Sair da lista'),
                       )
                     : FilledButton.icon(
-                        onPressed: onToggle,
+                        onPressed: () => _pickAndEnter(context),
                         icon: const Icon(Icons.add),
                         label: const Text('Entrar na lista'),
                       ),
@@ -159,7 +232,6 @@ class _CloseCountdownState extends State<_CloseCountdown> {
   @override
   void initState() {
     super.initState();
-    // Recalcula a cada 30s para o contador ficar sempre exato.
     _timer = Timer.periodic(const Duration(seconds: 30), (_) {
       if (mounted) setState(() {});
     });
