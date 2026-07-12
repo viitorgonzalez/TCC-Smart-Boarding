@@ -109,6 +109,12 @@ class _ReportBody extends StatelessWidget {
                 const Divider(height: 24),
                 _InfoRow('Data', formatDate(report.listDate)),
                 _InfoRow('Total de inscritos', '${report.totalEntries}'),
+                if (hasDirections)
+                  _InfoRow('Total de ida',
+                      '${counts['ROUND_TRIP']! + counts['TO_CAMPUS']!}'),
+                if (hasDirections)
+                  _InfoRow('Total de volta',
+                      '${counts['ROUND_TRIP']! + counts['FROM_CAMPUS']!}'),
                 _InfoRow('Gerado em', formatDateTime(report.generatedAt)),
               ],
             ),
