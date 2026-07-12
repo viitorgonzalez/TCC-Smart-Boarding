@@ -4,9 +4,11 @@ import 'package:provider/provider.dart';
 import '../../core/providers/auth_provider.dart';
 import '../../core/utils/date_format.dart';
 import '../../core/widgets/async_builder.dart';
+import '../lists/models/list_entry_model.dart';
 import '../lists/models/list_with_enrollment.dart';
 import '../lists/models/trip_type.dart';
 import '../lists/providers/student_list_provider.dart';
+import '../lists/services/list_service.dart';
 
 class StudentHomeScreen extends StatelessWidget {
   const StudentHomeScreen({super.key});
@@ -126,6 +128,116 @@ Future<String?> showTripTypePicker(BuildContext context,
   );
 }
 
+/// Mostra quem está inscrito na lista (nome + direção), pra qualquer aluno.
+void showListMembers(BuildContext context, String listId, String routeName) {
+  showModalBottomSheet<void>(
+    context: context,
+    isScrollControlled: true,
+    builder: (_) => _MembersSheet(listId: listId, routeName: routeName),
+  );
+}
+
+class _MembersSheet extends StatefulWidget {
+  final String listId;
+  final String routeName;
+  const _MembersSheet({required this.listId, required this.routeName});
+
+  @override
+  State<_MembersSheet> createState() => _MembersSheetState();
+}
+
+class _MembersSheetState extends State<_MembersSheet> {
+  late Future<List<ListEntry>> _future = ListService().getEntries(widget.listId);
+
+  @override
+  Widget build(BuildContext context) {
+    return SafeArea(
+      child: Padding(
+        padding: const EdgeInsets.all(16),
+        child: Column(
+          mainAxisSize: MainAxisSize.min,
+          crossAxisAlignment: CrossAxisAlignment.stretch,
+          children: [
+            Row(
+              children: [
+                const Icon(Icons.people_alt_outlined),
+                const SizedBox(width: 8),
+                Expanded(
+                  child: Text('Quem está na lista · ${widget.routeName}',
+                      style: const TextStyle(
+                          fontWeight: FontWeight.bold, fontSize: 16)),
+                ),
+                IconButton(
+                  icon: const Icon(Icons.refresh),
+                  onPressed: () => setState(() {
+                    _future = ListService().getEntries(widget.listId);
+                  }),
+                ),
+              ],
+            ),
+            const SizedBox(height: 8),
+            ConstrainedBox(
+              constraints: BoxConstraints(
+                  maxHeight: MediaQuery.of(context).size.height * 0.55),
+              child: FutureBuilder<List<ListEntry>>(
+                future: _future,
+                builder: (context, snap) {
+                  if (snap.connectionState != ConnectionState.done) {
+                    return const Padding(
+                      padding: EdgeInsets.all(24),
+                      child: Center(child: CircularProgressIndicator()),
+                    );
+                  }
+                  if (snap.hasError) {
+                    return Padding(
+                      padding: const EdgeInsets.all(24),
+                      child: Text('Erro ao carregar: ${snap.error}'),
+                    );
+                  }
+                  final entries = snap.data ?? [];
+                  if (entries.isEmpty) {
+                    return const Padding(
+                      padding: EdgeInsets.all(24),
+                      child: Text('Ninguém na lista ainda.'),
+                    );
+                  }
+                  return ListView.separated(
+                    shrinkWrap: true,
+                    itemCount: entries.length,
+                    separatorBuilder: (_, _) => const Divider(height: 1),
+                    itemBuilder: (_, i) {
+                      final e = entries[i];
+                      return ListTile(
+                        dense: true,
+                        leading: CircleAvatar(
+                          radius: 16,
+                          child: Text(
+                              e.fullName.isNotEmpty
+                                  ? e.fullName[0].toUpperCase()
+                                  : '?',
+                              style: const TextStyle(fontSize: 13)),
+                        ),
+                        title: Text(e.fullName),
+                        trailing: Chip(
+                          avatar:
+                              Icon(tripTypeInfo(e.tripType).icon, size: 16),
+                          label: Text(tripTypeLabel(e.tripType),
+                              style: const TextStyle(fontSize: 11)),
+                          visualDensity: VisualDensity.compact,
+                        ),
+                      );
+                    },
+                  );
+                },
+              ),
+            ),
+          ],
+        ),
+      ),
+    );
+  }
+}
+
 // ─── Card de lista ────────────────────────────────────────────────────────────
 
 class _ListCard extends StatelessWidget {
@@ -163,6 +275,19 @@ class _ListCard extends StatelessWidget {
             const SizedBox(height: 4),
             Text('${list.totalEntries} inscrito(s) · ${formatDate(list.date)}',
                 style: TextStyle(color: Colors.grey.shade600, fontSize: 13)),
+            Align(
+              alignment: Alignment.centerLeft,
+              child: TextButton.icon(
+                style: TextButton.styleFrom(
+                    padding: const EdgeInsets.symmetric(horizontal: 4),
+                    minimumSize: const Size(0, 32),
+                    tapTargetSize: MaterialTapTargetSize.shrinkWrap),
+                onPressed: () =>
+                    showListMembers(context, list.id, list.routeName),
+                icon: const Icon(Icons.people_outline, size: 18),
+                label: const Text('Ver quem está na lista'),
+              ),
+            ),
             if (item.isEnrolled) ...[
               const SizedBox(height: 10),
               Row(children: [
