@@ -4,7 +4,8 @@ import '../../../core/widgets/async_builder.dart';
 import '../models/user_model.dart';
 import '../providers/user_provider.dart';
 
-// ── Hierarquia de cargos (topo → base) e metadados visuais de cada papel ───────
+// ── Hierarquia de cargos (topo → base) e metadados de cada papel ──────────────
+// Sem cores por papel: a diferenciação é feita pelo ícone + nome.
 
 const _hierarchy = ['ADMIN', 'DRIVER', 'STUDENT'];
 
@@ -12,20 +13,17 @@ class _RoleMeta {
   final String singular;
   final String plural;
   final IconData icon;
-  final Color color;
-  const _RoleMeta(this.singular, this.plural, this.icon, this.color);
+  const _RoleMeta(this.singular, this.plural, this.icon);
 }
 
 const _roleMeta = <String, _RoleMeta>{
-  'ADMIN': _RoleMeta(
-      'Administrador', 'Administradores', Icons.admin_panel_settings, Color(0xFF6A1B9A)),
-  'DRIVER': _RoleMeta(
-      'Motorista', 'Motoristas', Icons.directions_bus_filled, Color(0xFFE65100)),
-  'STUDENT': _RoleMeta('Aluno', 'Alunos', Icons.school, Color(0xFF00695C)),
+  'ADMIN': _RoleMeta('Administrador', 'Administradores', Icons.admin_panel_settings),
+  'DRIVER': _RoleMeta('Motorista', 'Motoristas', Icons.directions_bus_filled),
+  'STUDENT': _RoleMeta('Aluno', 'Alunos', Icons.school),
 };
 
 _RoleMeta _metaFor(String role) =>
-    _roleMeta[role] ?? const _RoleMeta('Usuário', 'Usuários', Icons.person, Colors.grey);
+    _roleMeta[role] ?? const _RoleMeta('Usuário', 'Usuários', Icons.person);
 
 List<UserModel> _sortedByName(Iterable<UserModel> users) {
   final list = users.toList();
@@ -44,8 +42,7 @@ class UserManagementScreen extends StatefulWidget {
 }
 
 class _UserManagementScreenState extends State<UserManagementScreen> {
-  // null = todos; senão o papel filtrado.
-  String? _filter;
+  String? _filter; // null = todos; senão o papel filtrado.
 
   @override
   Widget build(BuildContext context) {
@@ -83,7 +80,6 @@ class _UserManagementScreenState extends State<UserManagementScreen> {
   }
 
   Widget _buildList(List<UserModel> users) {
-    // Papéis a exibir, na ordem da hierarquia; respeita o filtro.
     final roles = _filter != null ? [_filter!] : _hierarchy;
 
     final children = <Widget>[];
@@ -148,8 +144,7 @@ class _FilterBar extends StatelessWidget {
           for (final role in _hierarchy) ...[
             const SizedBox(width: 8),
             FilterChip(
-              avatar: Icon(_metaFor(role).icon,
-                  size: 18, color: _metaFor(role).color),
+              avatar: Icon(_metaFor(role).icon, size: 18),
               label: Text('${_metaFor(role).plural} (${countOf(role)})'),
               selected: selected == role,
               onSelected: (_) => onSelected(role),
@@ -161,7 +156,7 @@ class _FilterBar extends StatelessWidget {
   }
 }
 
-// ── Cabeçalho de seção (um por papel), transmitindo a hierarquia ──────────────
+// ── Cabeçalho de seção (um por papel), na ordem da hierarquia ─────────────────
 
 class _SectionHeader extends StatelessWidget {
   final String role;
@@ -171,6 +166,7 @@ class _SectionHeader extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final meta = _metaFor(role);
+    final cs = Theme.of(context).colorScheme;
     return Padding(
       padding: const EdgeInsets.only(top: 8, bottom: 8),
       child: Row(
@@ -178,30 +174,30 @@ class _SectionHeader extends StatelessWidget {
           Container(
             padding: const EdgeInsets.all(8),
             decoration: BoxDecoration(
-              color: meta.color.withValues(alpha: 0.12),
+              color: cs.surfaceContainerHighest,
               borderRadius: BorderRadius.circular(10),
             ),
-            child: Icon(meta.icon, color: meta.color, size: 20),
+            child: Icon(meta.icon, color: cs.onSurfaceVariant, size: 20),
           ),
           const SizedBox(width: 12),
           Text(
             meta.plural,
-            style: Theme.of(context).textTheme.titleMedium?.copyWith(
-                  fontWeight: FontWeight.bold,
-                  color: meta.color,
-                ),
+            style: Theme.of(context)
+                .textTheme
+                .titleMedium
+                ?.copyWith(fontWeight: FontWeight.bold),
           ),
           const SizedBox(width: 8),
           Container(
             padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 2),
             decoration: BoxDecoration(
-              color: meta.color.withValues(alpha: 0.12),
+              color: cs.surfaceContainerHighest,
               borderRadius: BorderRadius.circular(20),
             ),
             child: Text(
               '$count',
               style: TextStyle(
-                  color: meta.color,
+                  color: cs.onSurfaceVariant,
                   fontWeight: FontWeight.w700,
                   fontSize: 12),
             ),
@@ -222,15 +218,13 @@ class _UserTile extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final meta = _metaFor(user.role);
+    final cs = Theme.of(context).colorScheme;
     return Card(
       margin: const EdgeInsets.only(bottom: 8),
       child: ListTile(
         leading: CircleAvatar(
-          backgroundColor: meta.color.withValues(alpha: 0.15),
-          child: Text(
-            user.fullName.characters.first.toUpperCase(),
-            style: TextStyle(color: meta.color, fontWeight: FontWeight.bold),
-          ),
+          backgroundColor: cs.surfaceContainerHighest,
+          child: Icon(meta.icon, color: cs.onSurfaceVariant, size: 20),
         ),
         title: Text(user.fullName,
             style: const TextStyle(fontWeight: FontWeight.w600)),
@@ -238,13 +232,15 @@ class _UserTile extends StatelessWidget {
         trailing: Container(
           padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 4),
           decoration: BoxDecoration(
-            color: meta.color.withValues(alpha: 0.12),
+            color: cs.surfaceContainerHighest,
             borderRadius: BorderRadius.circular(20),
           ),
           child: Text(
             meta.singular,
             style: TextStyle(
-                color: meta.color, fontWeight: FontWeight.w600, fontSize: 12),
+                color: cs.onSurfaceVariant,
+                fontWeight: FontWeight.w600,
+                fontSize: 12),
           ),
         ),
       ),
@@ -354,8 +350,7 @@ class _CreateUserFormState extends State<_CreateUserForm> {
                         value: r,
                         child: Row(
                           children: [
-                            Icon(_metaFor(r).icon,
-                                size: 18, color: _metaFor(r).color),
+                            Icon(_metaFor(r).icon, size: 18),
                             const SizedBox(width: 8),
                             Text(_metaFor(r).singular),
                           ],

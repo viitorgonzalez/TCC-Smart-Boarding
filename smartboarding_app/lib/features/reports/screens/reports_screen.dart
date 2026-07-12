@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
+import '../../../core/utils/date_format.dart';
 import '../../../core/widgets/async_builder.dart';
 import '../models/report_model.dart';
 import '../providers/report_provider.dart';
@@ -63,7 +64,7 @@ class _ReportTile extends StatelessWidget {
         ),
         title: Text(report.routeName,
             style: const TextStyle(fontWeight: FontWeight.bold)),
-        subtitle: Text('${report.listDate} · ${report.totalEntries} inscrito(s)'),
+        subtitle: Text('${formatDate(report.listDate)} · ${report.totalEntries} inscrito(s)'),
         trailing: const Icon(Icons.chevron_right),
         onTap: () => Navigator.push(
           context,

@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
 import '../../core/providers/auth_provider.dart';
+import '../../core/utils/date_format.dart';
 import '../../core/widgets/async_builder.dart';
 import '../lists/models/daily_list_model.dart';
 import '../lists/providers/admin_list_provider.dart';
@@ -154,7 +155,7 @@ class _ListTile extends StatelessWidget {
         ),
         title: Text(list.routeName,
             style: const TextStyle(fontWeight: FontWeight.bold)),
-        subtitle: Text('${list.totalEntries} inscrito(s) · ${list.date}'),
+        subtitle: Text('${list.totalEntries} inscrito(s) · ${formatDate(list.date)}'),
         trailing: _StatusChip(isOpen: list.isOpen),
         onTap: () => Navigator.push(
           context,

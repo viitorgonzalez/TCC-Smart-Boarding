@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
 import '../../../core/providers/auth_provider.dart';
+import '../../../core/utils/date_format.dart';
 import '../../../core/widgets/async_builder.dart';
 import '../../lists/models/daily_list_model.dart';
 import '../../lists/services/list_service.dart';
@@ -137,7 +138,7 @@ class _DepartureFormState extends State<_DepartureForm> {
             child: ListTile(
               leading: const Icon(Icons.people_alt_outlined),
               title: Text('${selected.totalEntries} inscrito(s) ativo(s)'),
-              subtitle: Text('Rota: ${selected.routeName} · ${selected.date}'),
+              subtitle: Text('Rota: ${selected.routeName} · ${formatDate(selected.date)}'),
             ),
           ),
         const SizedBox(height: 16),
