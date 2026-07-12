@@ -38,10 +38,14 @@ class AuthProvider extends ChangeNotifier {
   Future<void> login(String email, String password) async {
     _token = await _authService.login(email, password);
     _status = AuthStatus.authenticated;
+    // TODO(firebase): registrar device token FCM aqui após ativar o push.
+    // Ver docs/firebase-setup.md, passo 7 (NotificationService().registerToken).
     notifyListeners();
   }
 
   Future<void> logout() async {
+    // TODO(firebase): remover device token FCM aqui após ativar o push.
+    // Ver docs/firebase-setup.md, passo 8 (NotificationService().removeToken).
     await _authService.logout();
     _token = null;
     _status = AuthStatus.unauthenticated;
