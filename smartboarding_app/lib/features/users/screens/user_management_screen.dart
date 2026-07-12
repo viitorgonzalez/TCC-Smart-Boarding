@@ -4,15 +4,48 @@ import '../../../core/widgets/async_builder.dart';
 import '../models/user_model.dart';
 import '../providers/user_provider.dart';
 
-const _roles = ['STUDENT', 'DRIVER', 'ADMIN'];
-const _roleLabels = {
-  'STUDENT': 'Aluno',
-  'DRIVER': 'Motorista',
-  'ADMIN': 'Admin',
+// ── Hierarquia de cargos (topo → base) e metadados visuais de cada papel ───────
+
+const _hierarchy = ['ADMIN', 'DRIVER', 'STUDENT'];
+
+class _RoleMeta {
+  final String singular;
+  final String plural;
+  final IconData icon;
+  final Color color;
+  const _RoleMeta(this.singular, this.plural, this.icon, this.color);
+}
+
+const _roleMeta = <String, _RoleMeta>{
+  'ADMIN': _RoleMeta(
+      'Administrador', 'Administradores', Icons.admin_panel_settings, Color(0xFF6A1B9A)),
+  'DRIVER': _RoleMeta(
+      'Motorista', 'Motoristas', Icons.directions_bus_filled, Color(0xFFE65100)),
+  'STUDENT': _RoleMeta('Aluno', 'Alunos', Icons.school, Color(0xFF00695C)),
 };
 
-class UserManagementScreen extends StatelessWidget {
+_RoleMeta _metaFor(String role) =>
+    _roleMeta[role] ?? const _RoleMeta('Usuário', 'Usuários', Icons.person, Colors.grey);
+
+List<UserModel> _sortedByName(Iterable<UserModel> users) {
+  final list = users.toList();
+  list.sort((a, b) =>
+      a.fullName.toLowerCase().compareTo(b.fullName.toLowerCase()));
+  return list;
+}
+
+// ── Tela ──────────────────────────────────────────────────────────────────────
+
+class UserManagementScreen extends StatefulWidget {
   const UserManagementScreen({super.key});
+
+  @override
+  State<UserManagementScreen> createState() => _UserManagementScreenState();
+}
+
+class _UserManagementScreenState extends State<UserManagementScreen> {
+  // null = todos; senão o papel filtrado.
+  String? _filter;
 
   @override
   Widget build(BuildContext context) {
@@ -21,17 +54,24 @@ class UserManagementScreen extends StatelessWidget {
         builder: (context, provider, _) => AsyncBuilder(
           value: provider.state,
           onRetry: provider.load,
-          builder: (users) => users.isEmpty
-              ? const Center(child: Text('Nenhum usuário cadastrado'))
-              : RefreshIndicator(
-                  onRefresh: provider.load,
-                  child: ListView.separated(
-                    padding: const EdgeInsets.all(16),
-                    itemCount: users.length,
-                    separatorBuilder: (_, _) => const SizedBox(height: 8),
-                    itemBuilder: (_, i) => _UserTile(user: users[i]),
-                  ),
-                ),
+          builder: (users) => Column(
+            children: [
+              _FilterBar(
+                users: users,
+                selected: _filter,
+                onSelected: (r) => setState(() => _filter = r),
+              ),
+              const Divider(height: 1),
+              Expanded(
+                child: users.isEmpty
+                    ? const Center(child: Text('Nenhum usuário cadastrado'))
+                    : RefreshIndicator(
+                        onRefresh: provider.load,
+                        child: _buildList(users),
+                      ),
+              ),
+            ],
+          ),
         ),
       ),
       floatingActionButton: FloatingActionButton.extended(
@@ -39,6 +79,30 @@ class UserManagementScreen extends StatelessWidget {
         icon: const Icon(Icons.person_add),
         label: const Text('Novo usuário'),
       ),
+    );
+  }
+
+  Widget _buildList(List<UserModel> users) {
+    // Papéis a exibir, na ordem da hierarquia; respeita o filtro.
+    final roles = _filter != null ? [_filter!] : _hierarchy;
+
+    final children = <Widget>[];
+    for (final role in roles) {
+      final group = _sortedByName(users.where((u) => u.role == role));
+      if (group.isEmpty) continue;
+      children.add(_SectionHeader(role: role, count: group.length));
+      for (final user in group) {
+        children.add(_UserTile(user: user));
+      }
+    }
+
+    if (children.isEmpty) {
+      return const Center(child: Text('Nenhum usuário neste filtro'));
+    }
+
+    return ListView(
+      padding: const EdgeInsets.fromLTRB(16, 12, 16, 88),
+      children: children,
     );
   }
 
@@ -54,22 +118,141 @@ class UserManagementScreen extends StatelessWidget {
   }
 }
 
+// ── Barra de filtro por papel ─────────────────────────────────────────────────
+
+class _FilterBar extends StatelessWidget {
+  final List<UserModel> users;
+  final String? selected;
+  final ValueChanged<String?> onSelected;
+
+  const _FilterBar({
+    required this.users,
+    required this.selected,
+    required this.onSelected,
+  });
+
+  @override
+  Widget build(BuildContext context) {
+    int countOf(String role) => users.where((u) => u.role == role).length;
+
+    return SingleChildScrollView(
+      scrollDirection: Axis.horizontal,
+      padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 10),
+      child: Row(
+        children: [
+          FilterChip(
+            label: Text('Todos (${users.length})'),
+            selected: selected == null,
+            onSelected: (_) => onSelected(null),
+          ),
+          for (final role in _hierarchy) ...[
+            const SizedBox(width: 8),
+            FilterChip(
+              avatar: Icon(_metaFor(role).icon,
+                  size: 18, color: _metaFor(role).color),
+              label: Text('${_metaFor(role).plural} (${countOf(role)})'),
+              selected: selected == role,
+              onSelected: (_) => onSelected(role),
+            ),
+          ],
+        ],
+      ),
+    );
+  }
+}
+
+// ── Cabeçalho de seção (um por papel), transmitindo a hierarquia ──────────────
+
+class _SectionHeader extends StatelessWidget {
+  final String role;
+  final int count;
+  const _SectionHeader({required this.role, required this.count});
+
+  @override
+  Widget build(BuildContext context) {
+    final meta = _metaFor(role);
+    return Padding(
+      padding: const EdgeInsets.only(top: 8, bottom: 8),
+      child: Row(
+        children: [
+          Container(
+            padding: const EdgeInsets.all(8),
+            decoration: BoxDecoration(
+              color: meta.color.withValues(alpha: 0.12),
+              borderRadius: BorderRadius.circular(10),
+            ),
+            child: Icon(meta.icon, color: meta.color, size: 20),
+          ),
+          const SizedBox(width: 12),
+          Text(
+            meta.plural,
+            style: Theme.of(context).textTheme.titleMedium?.copyWith(
+                  fontWeight: FontWeight.bold,
+                  color: meta.color,
+                ),
+          ),
+          const SizedBox(width: 8),
+          Container(
+            padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 2),
+            decoration: BoxDecoration(
+              color: meta.color.withValues(alpha: 0.12),
+              borderRadius: BorderRadius.circular(20),
+            ),
+            child: Text(
+              '$count',
+              style: TextStyle(
+                  color: meta.color,
+                  fontWeight: FontWeight.w700,
+                  fontSize: 12),
+            ),
+          ),
+          const Expanded(child: Divider(indent: 12)),
+        ],
+      ),
+    );
+  }
+}
+
+// ── Tile de usuário ───────────────────────────────────────────────────────────
+
 class _UserTile extends StatelessWidget {
   final UserModel user;
   const _UserTile({required this.user});
 
   @override
   Widget build(BuildContext context) {
+    final meta = _metaFor(user.role);
     return Card(
+      margin: const EdgeInsets.only(bottom: 8),
       child: ListTile(
-        leading: CircleAvatar(child: Text(user.fullName.characters.first)),
-        title: Text(user.fullName),
+        leading: CircleAvatar(
+          backgroundColor: meta.color.withValues(alpha: 0.15),
+          child: Text(
+            user.fullName.characters.first.toUpperCase(),
+            style: TextStyle(color: meta.color, fontWeight: FontWeight.bold),
+          ),
+        ),
+        title: Text(user.fullName,
+            style: const TextStyle(fontWeight: FontWeight.w600)),
         subtitle: Text(user.email),
-        trailing: Chip(label: Text(_roleLabels[user.role] ?? user.role)),
+        trailing: Container(
+          padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 4),
+          decoration: BoxDecoration(
+            color: meta.color.withValues(alpha: 0.12),
+            borderRadius: BorderRadius.circular(20),
+          ),
+          child: Text(
+            meta.singular,
+            style: TextStyle(
+                color: meta.color, fontWeight: FontWeight.w600, fontSize: 12),
+          ),
+        ),
       ),
     );
   }
 }
+
+// ── Formulário de criação ─────────────────────────────────────────────────────
 
 class _CreateUserForm extends StatefulWidget {
   const _CreateUserForm();
@@ -166,10 +349,17 @@ class _CreateUserFormState extends State<_CreateUserForm> {
             DropdownButtonFormField<String>(
               initialValue: _role,
               decoration: const InputDecoration(labelText: 'Papel'),
-              items: _roles
+              items: _hierarchy
                   .map((r) => DropdownMenuItem(
                         value: r,
-                        child: Text(_roleLabels[r]!),
+                        child: Row(
+                          children: [
+                            Icon(_metaFor(r).icon,
+                                size: 18, color: _metaFor(r).color),
+                            const SizedBox(width: 8),
+                            Text(_metaFor(r).singular),
+                          ],
+                        ),
                       ))
                   .toList(),
               onChanged: (r) => setState(() => _role = r ?? 'STUDENT'),
