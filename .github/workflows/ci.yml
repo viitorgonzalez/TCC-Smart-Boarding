@@ -79,12 +79,7 @@ jobs:
       - name: Dependências
         run: flutter pub get
 
-      # NÃO-BLOQUEANTE por ora: 24 dos 47 arquivos estão fora do `dart format`
-      # hoje (verificado em 2026-08-12). Deixar bloqueante reprovaria o primeiro
-      # PR por motivo cosmético. Pra tornar obrigatório: rode `dart format .`,
-      # commite o reformat isolado, e remova o continue-on-error daqui.
-      - name: Formatação (aviso)
-        continue-on-error: true
+      - name: Formatação
         run: dart format --output=none --set-exit-if-changed .
 
       - name: Analyze
