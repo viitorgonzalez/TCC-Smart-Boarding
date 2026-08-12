@@ -4,16 +4,20 @@
 
 Sistema de gerenciamento de embarque em ônibus universitário (Unifor). Estudantes entram/saem de listas diárias automáticas via app Flutter. Admin gerencia rotas e envia notificações push. Backend Spring Boot + FCM Firebase.
 
-## Estrutura do Monorepo
+## Estrutura do Repo
+
+Duas aplicações independentes lado a lado (**não é monorepo** — sem workspace tooling nem pacote compartilhado):
 
 ```
 TCC-Smart-Boarding/
+  CLAUDE.md             # mapa do repo (leia primeiro)
   smartboarding-api/    # Backend Spring Boot
-  smartboarding-app/    # App Flutter (a criar)
-  CLAUDE.md
-  CONTEXT.md
-  AGENTS.md
-  PLAN.md
+    CLAUDE.md           # este arquivo
+    CONTEXT.md
+    AGENTS.md
+    PLAN.md
+  smartboarding_app/    # App Flutter — ⚠️ underscore, e JÁ IMPLEMENTADO
+    docs/spec.md        # spec principal do produto
 ```
 
 ## Como Rodar o Backend
@@ -29,7 +33,9 @@ cp .env.example .env
 # Editar .env com DB_NAME, DB_USER, DB_PASSWORD, JWT_SECRET, FIREBASE_CREDENTIALS_PATH
 
 # 3. Rodar a aplicação
-./mvnw spring-boot:run
+./run-local.sh    # ⚠️ NÃO use ./mvnw spring-boot:run direto:
+                  # o compose lê o .env sozinho, o Maven não. Sem exportar as
+                  # vars o Spring recebe ${DB_USER} literal e quebra no boot.
 
 # 4. Rodar testes
 ./mvnw test
@@ -40,13 +46,15 @@ A API sobe em `http://localhost:8080`. Flyway aplica as migrations automaticamen
 ## Como Rodar o Flutter
 
 ```bash
-cd smartboarding-app
+cd smartboarding_app
 
 # Instalar dependências
 flutter pub get
 
 # Rodar no emulador/dispositivo
-flutter run
+# ⚠️ a base URL vem de --dart-define; em device físico use o IP da LAN,
+#    localhost não resolve pro seu host.
+flutter run --dart-define=API_BASE_URL=http://<ip-da-lan>:8080
 
 # Build APK
 flutter build apk --release
@@ -68,7 +76,7 @@ flutter build apk --release
 - **Entidades**: JPA com `@Entity`, UUID como PK (`gen_random_uuid()` no SQL)
 - **DTOs**: sempre usar DTOs para request/response, nunca expor a entidade diretamente
 - **Migrations Flyway**: `V{n}__{descricao_snake_case}.sql` em `src/main/resources/db/migration/`
-- **Roles**: `ADMIN`, `STUDENT` — checar com `@PreAuthorize("hasRole('ADMIN')")` ou na SecurityConfig
+- **Roles**: `ADMIN`, `STUDENT`, `DRIVER` (adicionado na `V8__add_driver_user.sql`) — checar com `@PreAuthorize("hasRole('ADMIN')")` ou na SecurityConfig. O `DRIVER` só posta a notificação de saída: **não** tem acesso a rotas, usuários ou relatórios.
 - **Controllers**: retornar `ResponseEntity<?>` com status HTTP explícito
 - **Scheduler**: usar `@Scheduled` com cron expression, habilitar `@EnableScheduling` na config
 
