@@ -42,7 +42,9 @@ class _AuthInterceptor extends Interceptor {
 
   @override
   Future<void> onRequest(
-      RequestOptions options, RequestInterceptorHandler handler) async {
+    RequestOptions options,
+    RequestInterceptorHandler handler,
+  ) async {
     final token = await _storage.getToken();
     if (token != null) {
       options.headers['Authorization'] = 'Bearer $token';

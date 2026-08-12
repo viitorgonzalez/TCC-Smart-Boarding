@@ -36,13 +36,13 @@ class AppException implements Exception {
   }
 
   static String _fromStatus(int? code) => switch (code) {
-        400 => 'Dados inválidos na requisição.',
-        401 => 'Sessão expirada. Faça login novamente.',
-        403 => 'Você não tem permissão para esta ação.',
-        404 => 'Recurso não encontrado.',
-        409 => 'Conflito: já existe um registro com esses dados.',
-        422 => 'Dados inválidos.',
-        500 || 502 || 503 => 'Erro no servidor. Tente novamente.',
-        _ => 'Erro ${code ?? "desconhecido"}.',
-      };
+    400 => 'Dados inválidos na requisição.',
+    401 => 'Sessão expirada. Faça login novamente.',
+    403 => 'Você não tem permissão para esta ação.',
+    404 => 'Recurso não encontrado.',
+    409 => 'Conflito: já existe um registro com esses dados.',
+    422 => 'Dados inválidos.',
+    500 || 502 || 503 => 'Erro no servidor. Tente novamente.',
+    _ => 'Erro ${code ?? "desconhecido"}.',
+  };
 }

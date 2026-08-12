@@ -41,8 +41,11 @@ class RoutesScreen extends StatelessWidget {
     );
   }
 
-  Future<void> _openForm(BuildContext context, RouteProvider provider,
-      [RouteModel? route]) async {
+  Future<void> _openForm(
+    BuildContext context,
+    RouteProvider provider, [
+    RouteModel? route,
+  ]) async {
     await Navigator.push<void>(
       context,
       MaterialPageRoute(
@@ -55,19 +58,26 @@ class RoutesScreen extends StatelessWidget {
   }
 
   Future<void> _confirmDelete(
-      BuildContext context, RouteProvider provider, RouteModel route) async {
+    BuildContext context,
+    RouteProvider provider,
+    RouteModel route,
+  ) async {
     final ok = await showDialog<bool>(
       context: context,
       builder: (ctx) => AlertDialog(
         title: const Text('Excluir rota'),
-        content: Text('Excluir "${route.name}"?\nEsta ação não pode ser desfeita.'),
+        content: Text(
+          'Excluir "${route.name}"?\nEsta ação não pode ser desfeita.',
+        ),
         actions: [
           TextButton(
-              onPressed: () => Navigator.pop(ctx, false),
-              child: const Text('Cancelar')),
+            onPressed: () => Navigator.pop(ctx, false),
+            child: const Text('Cancelar'),
+          ),
           FilledButton(
             style: FilledButton.styleFrom(
-                backgroundColor: Theme.of(context).colorScheme.error),
+              backgroundColor: Theme.of(context).colorScheme.error,
+            ),
             onPressed: () => Navigator.pop(ctx, true),
             child: const Text('Excluir'),
           ),
@@ -94,37 +104,49 @@ class _RouteTile extends StatelessWidget {
   final VoidCallback onEdit;
   final VoidCallback onDelete;
 
-  const _RouteTile(
-      {required this.route, required this.onEdit, required this.onDelete});
+  const _RouteTile({
+    required this.route,
+    required this.onEdit,
+    required this.onDelete,
+  });
 
   @override
   Widget build(BuildContext context) {
     return Card(
       child: ListTile(
-        contentPadding:
-            const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
+        contentPadding: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
         leading: CircleAvatar(
-          backgroundColor:
-              Theme.of(context).colorScheme.primaryContainer,
-          child: Icon(Icons.route,
-              color: Theme.of(context).colorScheme.primary),
+          backgroundColor: Theme.of(context).colorScheme.primaryContainer,
+          child: Icon(
+            Icons.route,
+            color: Theme.of(context).colorScheme.primary,
+          ),
         ),
-        title: Text(route.name,
-            style: const TextStyle(fontWeight: FontWeight.bold)),
+        title: Text(
+          route.name,
+          style: const TextStyle(fontWeight: FontWeight.bold),
+        ),
         subtitle: route.description?.isNotEmpty == true
-            ? Text(route.description!,
-                maxLines: 1, overflow: TextOverflow.ellipsis)
+            ? Text(
+                route.description!,
+                maxLines: 1,
+                overflow: TextOverflow.ellipsis,
+              )
             : null,
         trailing: Row(
           mainAxisSize: MainAxisSize.min,
           children: [
             IconButton(
-                icon: const Icon(Icons.edit_outlined),
-                onPressed: onEdit),
+              icon: const Icon(Icons.edit_outlined),
+              onPressed: onEdit,
+            ),
             IconButton(
-                icon: Icon(Icons.delete_outline,
-                    color: Theme.of(context).colorScheme.error),
-                onPressed: onDelete),
+              icon: Icon(
+                Icons.delete_outline,
+                color: Theme.of(context).colorScheme.error,
+              ),
+              onPressed: onDelete,
+            ),
           ],
         ),
       ),
@@ -143,12 +165,15 @@ class _EmptyState extends StatelessWidget {
         children: [
           Icon(Icons.route, size: 56, color: Colors.grey.shade300),
           const SizedBox(height: 12),
-          Text('Nenhuma rota cadastrada',
-              style: TextStyle(color: Colors.grey.shade500)),
+          Text(
+            'Nenhuma rota cadastrada',
+            style: TextStyle(color: Colors.grey.shade500),
+          ),
           const SizedBox(height: 4),
-          Text('Toque + para criar a primeira rota',
-              style: TextStyle(
-                  color: Colors.grey.shade400, fontSize: 12)),
+          Text(
+            'Toque + para criar a primeira rota',
+            style: TextStyle(color: Colors.grey.shade400, fontSize: 12),
+          ),
         ],
       ),
     );

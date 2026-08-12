@@ -13,21 +13,30 @@ class RouteService {
   }
 
   Future<RouteModel> createRoute(String name, String? description) async {
-    final response = await _dio.post('/api/routes', data: {
-      'name': name,
-      if (description != null && description.isNotEmpty)
-        'description': description,
-    });
+    final response = await _dio.post(
+      '/api/routes',
+      data: {
+        'name': name,
+        if (description != null && description.isNotEmpty)
+          'description': description,
+      },
+    );
     return RouteModel.fromJson(response.data['data'] as Map<String, dynamic>);
   }
 
   Future<RouteModel> updateRoute(
-      String id, String name, String? description) async {
-    final response = await _dio.patch('/api/routes/$id', data: {
-      'name': name,
-      if (description != null && description.isNotEmpty)
-        'description': description,
-    });
+    String id,
+    String name,
+    String? description,
+  ) async {
+    final response = await _dio.patch(
+      '/api/routes/$id',
+      data: {
+        'name': name,
+        if (description != null && description.isNotEmpty)
+          'description': description,
+      },
+    );
     return RouteModel.fromJson(response.data['data'] as Map<String, dynamic>);
   }
 

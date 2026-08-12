@@ -22,8 +22,10 @@ class AsyncBuilder<T> extends StatelessWidget {
     return switch (value) {
       AsyncLoading() =>
         loading ?? const Center(child: CircularProgressIndicator()),
-      AsyncError(:final message) =>
-        _ErrorState(message: message, onRetry: onRetry),
+      AsyncError(:final message) => _ErrorState(
+        message: message,
+        onRetry: onRetry,
+      ),
       AsyncData(:final value) => builder(value),
     };
   }
@@ -45,8 +47,11 @@ class _ErrorState extends StatelessWidget {
         child: Column(
           mainAxisAlignment: MainAxisAlignment.center,
           children: [
-            Icon(Icons.wifi_off_rounded,
-                size: 56, color: Theme.of(context).colorScheme.error),
+            Icon(
+              Icons.wifi_off_rounded,
+              size: 56,
+              color: Theme.of(context).colorScheme.error,
+            ),
             const SizedBox(height: 16),
             Text(
               message,

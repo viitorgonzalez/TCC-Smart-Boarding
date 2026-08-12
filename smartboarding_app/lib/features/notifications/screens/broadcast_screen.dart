@@ -24,9 +24,10 @@ class _BroadcastScreenState extends State<BroadcastScreen> {
   Future<void> _send() async {
     if (!_formKey.currentState!.validate()) return;
     try {
-      await context
-          .read<NotificationProvider>()
-          .broadcast(_titleCtrl.text.trim(), _bodyCtrl.text.trim());
+      await context.read<NotificationProvider>().broadcast(
+        _titleCtrl.text.trim(),
+        _bodyCtrl.text.trim(),
+      );
       if (mounted) {
         _titleCtrl.clear();
         _bodyCtrl.clear();
@@ -58,8 +59,10 @@ class _BroadcastScreenState extends State<BroadcastScreen> {
           crossAxisAlignment: CrossAxisAlignment.stretch,
           children: [
             const SizedBox(height: 8),
-            const Text('Enviar Notificação',
-                style: TextStyle(fontSize: 20, fontWeight: FontWeight.bold)),
+            const Text(
+              'Enviar Notificação',
+              style: TextStyle(fontSize: 20, fontWeight: FontWeight.bold),
+            ),
             const SizedBox(height: 4),
             Text(
               'A mensagem será enviada para todos os estudantes.',
@@ -94,7 +97,8 @@ class _BroadcastScreenState extends State<BroadcastScreen> {
                   ? const SizedBox(
                       width: 18,
                       height: 18,
-                      child: CircularProgressIndicator(strokeWidth: 2))
+                      child: CircularProgressIndicator(strokeWidth: 2),
+                    )
                   : const Icon(Icons.send),
               label: const Text('Enviar para todos'),
             ),

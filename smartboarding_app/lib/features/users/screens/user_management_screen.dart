@@ -17,7 +17,11 @@ class _RoleMeta {
 }
 
 const _roleMeta = <String, _RoleMeta>{
-  'ADMIN': _RoleMeta('Administrador', 'Administradores', Icons.admin_panel_settings),
+  'ADMIN': _RoleMeta(
+    'Administrador',
+    'Administradores',
+    Icons.admin_panel_settings,
+  ),
   'DRIVER': _RoleMeta('Motorista', 'Motoristas', Icons.directions_bus_filled),
   'STUDENT': _RoleMeta('Aluno', 'Alunos', Icons.school),
 };
@@ -27,8 +31,9 @@ _RoleMeta _metaFor(String role) =>
 
 List<UserModel> _sortedByName(Iterable<UserModel> users) {
   final list = users.toList();
-  list.sort((a, b) =>
-      a.fullName.toLowerCase().compareTo(b.fullName.toLowerCase()));
+  list.sort(
+    (a, b) => a.fullName.toLowerCase().compareTo(b.fullName.toLowerCase()),
+  );
   return list;
 }
 
@@ -182,10 +187,9 @@ class _SectionHeader extends StatelessWidget {
           const SizedBox(width: 12),
           Text(
             meta.plural,
-            style: Theme.of(context)
-                .textTheme
-                .titleMedium
-                ?.copyWith(fontWeight: FontWeight.bold),
+            style: Theme.of(
+              context,
+            ).textTheme.titleMedium?.copyWith(fontWeight: FontWeight.bold),
           ),
           const SizedBox(width: 8),
           Container(
@@ -197,9 +201,10 @@ class _SectionHeader extends StatelessWidget {
             child: Text(
               '$count',
               style: TextStyle(
-                  color: cs.onSurfaceVariant,
-                  fontWeight: FontWeight.w700,
-                  fontSize: 12),
+                color: cs.onSurfaceVariant,
+                fontWeight: FontWeight.w700,
+                fontSize: 12,
+              ),
             ),
           ),
           const Expanded(child: Divider(indent: 12)),
@@ -226,8 +231,10 @@ class _UserTile extends StatelessWidget {
           backgroundColor: cs.surfaceContainerHighest,
           child: Icon(meta.icon, color: cs.onSurfaceVariant, size: 20),
         ),
-        title: Text(user.fullName,
-            style: const TextStyle(fontWeight: FontWeight.w600)),
+        title: Text(
+          user.fullName,
+          style: const TextStyle(fontWeight: FontWeight.w600),
+        ),
         subtitle: Text(user.email),
         trailing: Container(
           padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 4),
@@ -238,9 +245,10 @@ class _UserTile extends StatelessWidget {
           child: Text(
             meta.singular,
             style: TextStyle(
-                color: cs.onSurfaceVariant,
-                fontWeight: FontWeight.w600,
-                fontSize: 12),
+              color: cs.onSurfaceVariant,
+              fontWeight: FontWeight.w600,
+              fontSize: 12,
+            ),
           ),
         ),
       ),
@@ -278,11 +286,11 @@ class _CreateUserFormState extends State<_CreateUserForm> {
     setState(() => _saving = true);
     try {
       await context.read<UserProvider>().create(
-            fullName: _nameCtrl.text.trim(),
-            email: _emailCtrl.text.trim(),
-            password: _passCtrl.text,
-            role: _role,
-          );
+        fullName: _nameCtrl.text.trim(),
+        email: _emailCtrl.text.trim(),
+        password: _passCtrl.text,
+        role: _role,
+      );
       if (!mounted) return;
       Navigator.pop(context);
       ScaffoldMessenger.of(context).showSnackBar(
@@ -316,8 +324,7 @@ class _CreateUserFormState extends State<_CreateUserForm> {
           mainAxisSize: MainAxisSize.min,
           crossAxisAlignment: CrossAxisAlignment.stretch,
           children: [
-            Text('Novo usuário',
-                style: Theme.of(context).textTheme.titleLarge),
+            Text('Novo usuário', style: Theme.of(context).textTheme.titleLarge),
             const SizedBox(height: 16),
             TextFormField(
               controller: _nameCtrl,
@@ -346,16 +353,18 @@ class _CreateUserFormState extends State<_CreateUserForm> {
               initialValue: _role,
               decoration: const InputDecoration(labelText: 'Papel'),
               items: _hierarchy
-                  .map((r) => DropdownMenuItem(
-                        value: r,
-                        child: Row(
-                          children: [
-                            Icon(_metaFor(r).icon, size: 18),
-                            const SizedBox(width: 8),
-                            Text(_metaFor(r).singular),
-                          ],
-                        ),
-                      ))
+                  .map(
+                    (r) => DropdownMenuItem(
+                      value: r,
+                      child: Row(
+                        children: [
+                          Icon(_metaFor(r).icon, size: 18),
+                          const SizedBox(width: 8),
+                          Text(_metaFor(r).singular),
+                        ],
+                      ),
+                    ),
+                  )
                   .toList(),
               onChanged: (r) => setState(() => _role = r ?? 'STUDENT'),
             ),

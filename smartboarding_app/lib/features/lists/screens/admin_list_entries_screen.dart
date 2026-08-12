@@ -60,9 +60,13 @@ class _EntriesView extends StatelessWidget {
             crossAxisAlignment: CrossAxisAlignment.start,
             children: [
               Text(list.routeName),
-              Text(formatDate(list.date),
-                  style: const TextStyle(
-                      fontSize: 12, fontWeight: FontWeight.normal)),
+              Text(
+                formatDate(list.date),
+                style: const TextStyle(
+                  fontSize: 12,
+                  fontWeight: FontWeight.normal,
+                ),
+              ),
             ],
           ),
           actions: [
@@ -81,8 +85,9 @@ class _EntriesView extends StatelessWidget {
                   itemCount: entries.length,
                   itemBuilder: (_, i) => ListTile(
                     leading: CircleAvatar(
-                      backgroundColor:
-                          Theme.of(context).colorScheme.primaryContainer,
+                      backgroundColor: Theme.of(
+                        context,
+                      ).colorScheme.primaryContainer,
                       child: Text(
                         entries[i].fullName.isNotEmpty
                             ? entries[i].fullName[0].toUpperCase()
@@ -96,10 +101,14 @@ class _EntriesView extends StatelessWidget {
                     title: Text(entries[i].fullName),
                     subtitle: Text(entries[i].email),
                     trailing: Chip(
-                      avatar: Icon(tripTypeInfo(entries[i].tripType).icon,
-                          size: 16),
-                      label: Text(tripTypeLabel(entries[i].tripType),
-                          style: const TextStyle(fontSize: 11)),
+                      avatar: Icon(
+                        tripTypeInfo(entries[i].tripType).icon,
+                        size: 16,
+                      ),
+                      label: Text(
+                        tripTypeLabel(entries[i].tripType),
+                        style: const TextStyle(fontSize: 11),
+                      ),
                       visualDensity: VisualDensity.compact,
                     ),
                   ),
@@ -114,14 +123,16 @@ class _EmptyState extends StatelessWidget {
   const _EmptyState();
   @override
   Widget build(BuildContext context) => Center(
-        child: Column(
-          mainAxisAlignment: MainAxisAlignment.center,
-          children: [
-            Icon(Icons.people_outline, size: 56, color: Colors.grey.shade300),
-            const SizedBox(height: 12),
-            Text('Nenhum inscrito nesta lista',
-                style: TextStyle(color: Colors.grey.shade500)),
-          ],
+    child: Column(
+      mainAxisAlignment: MainAxisAlignment.center,
+      children: [
+        Icon(Icons.people_outline, size: 56, color: Colors.grey.shade300),
+        const SizedBox(height: 12),
+        Text(
+          'Nenhum inscrito nesta lista',
+          style: TextStyle(color: Colors.grey.shade500),
         ),
-      );
+      ],
+    ),
+  );
 }

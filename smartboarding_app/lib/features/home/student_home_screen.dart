@@ -25,9 +25,13 @@ class StudentHomeScreen extends StatelessWidget {
           children: [
             const Text('Smart Boarding'),
             if (name.isNotEmpty)
-              Text('Olá, $name',
-                  style: const TextStyle(
-                      fontSize: 12, fontWeight: FontWeight.normal)),
+              Text(
+                'Olá, $name',
+                style: const TextStyle(
+                  fontSize: 12,
+                  fontWeight: FontWeight.normal,
+                ),
+              ),
           ],
         ),
         actions: [
@@ -68,8 +72,12 @@ class StudentHomeScreen extends StatelessWidget {
     );
   }
 
-  Future<void> _enter(BuildContext context, StudentListProvider provider,
-      ListWithEnrollment item, String tripType) async {
+  Future<void> _enter(
+    BuildContext context,
+    StudentListProvider provider,
+    ListWithEnrollment item,
+    String tripType,
+  ) async {
     try {
       await provider.enter(item.list.id, tripType);
     } catch (e) {
@@ -77,8 +85,11 @@ class StudentHomeScreen extends StatelessWidget {
     }
   }
 
-  Future<void> _leave(BuildContext context, StudentListProvider provider,
-      ListWithEnrollment item) async {
+  Future<void> _leave(
+    BuildContext context,
+    StudentListProvider provider,
+    ListWithEnrollment item,
+  ) async {
     try {
       await provider.leave(item.list.id);
     } catch (e) {
@@ -94,8 +105,7 @@ class StudentHomeScreen extends StatelessWidget {
 }
 
 /// Bottom sheet para escolher a direção (ida/volta). Retorna o valor da API.
-Future<String?> showTripTypePicker(BuildContext context,
-    {String? current}) {
+Future<String?> showTripTypePicker(BuildContext context, {String? current}) {
   return showModalBottomSheet<String>(
     context: context,
     builder: (ctx) => SafeArea(
@@ -106,9 +116,10 @@ Future<String?> showTripTypePicker(BuildContext context,
             padding: EdgeInsets.fromLTRB(16, 16, 16, 8),
             child: Align(
               alignment: Alignment.centerLeft,
-              child: Text('Escolha a direção',
-                  style:
-                      TextStyle(fontWeight: FontWeight.bold, fontSize: 16)),
+              child: Text(
+                'Escolha a direção',
+                style: TextStyle(fontWeight: FontWeight.bold, fontSize: 16),
+              ),
             ),
           ),
           for (final t in tripTypes)
@@ -116,8 +127,7 @@ Future<String?> showTripTypePicker(BuildContext context,
               leading: Icon(t.icon),
               title: Text(t.label),
               trailing: current == t.value
-                  ? Icon(Icons.check,
-                      color: Theme.of(ctx).colorScheme.primary)
+                  ? Icon(Icons.check, color: Theme.of(ctx).colorScheme.primary)
                   : null,
               onTap: () => Navigator.pop(ctx, t.value),
             ),
@@ -147,7 +157,9 @@ class _MembersSheet extends StatefulWidget {
 }
 
 class _MembersSheetState extends State<_MembersSheet> {
-  late Future<List<ListEntry>> _future = ListService().getEntries(widget.listId);
+  late Future<List<ListEntry>> _future = ListService().getEntries(
+    widget.listId,
+  );
 
   @override
   Widget build(BuildContext context) {
@@ -163,9 +175,13 @@ class _MembersSheetState extends State<_MembersSheet> {
                 const Icon(Icons.people_alt_outlined),
                 const SizedBox(width: 8),
                 Expanded(
-                  child: Text('Quem está na lista · ${widget.routeName}',
-                      style: const TextStyle(
-                          fontWeight: FontWeight.bold, fontSize: 16)),
+                  child: Text(
+                    'Quem está na lista · ${widget.routeName}',
+                    style: const TextStyle(
+                      fontWeight: FontWeight.bold,
+                      fontSize: 16,
+                    ),
+                  ),
                 ),
                 IconButton(
                   icon: const Icon(Icons.refresh),
@@ -178,7 +194,8 @@ class _MembersSheetState extends State<_MembersSheet> {
             const SizedBox(height: 8),
             ConstrainedBox(
               constraints: BoxConstraints(
-                  maxHeight: MediaQuery.of(context).size.height * 0.55),
+                maxHeight: MediaQuery.of(context).size.height * 0.55,
+              ),
               child: FutureBuilder<List<ListEntry>>(
                 future: _future,
                 builder: (context, snap) {
@@ -212,17 +229,19 @@ class _MembersSheetState extends State<_MembersSheet> {
                         leading: CircleAvatar(
                           radius: 16,
                           child: Text(
-                              e.fullName.isNotEmpty
-                                  ? e.fullName[0].toUpperCase()
-                                  : '?',
-                              style: const TextStyle(fontSize: 13)),
+                            e.fullName.isNotEmpty
+                                ? e.fullName[0].toUpperCase()
+                                : '?',
+                            style: const TextStyle(fontSize: 13),
+                          ),
                         ),
                         title: Text(e.fullName),
                         trailing: Chip(
-                          avatar:
-                              Icon(tripTypeInfo(e.tripType).icon, size: 16),
-                          label: Text(tripTypeLabel(e.tripType),
-                              style: const TextStyle(fontSize: 11)),
+                          avatar: Icon(tripTypeInfo(e.tripType).icon, size: 16),
+                          label: Text(
+                            tripTypeLabel(e.tripType),
+                            style: const TextStyle(fontSize: 11),
+                          ),
                           visualDensity: VisualDensity.compact,
                         ),
                       );
@@ -245,8 +264,11 @@ class _ListCard extends StatelessWidget {
   final void Function(String tripType) onEnter;
   final VoidCallback onLeave;
 
-  const _ListCard(
-      {required this.item, required this.onEnter, required this.onLeave});
+  const _ListCard({
+    required this.item,
+    required this.onEnter,
+    required this.onLeave,
+  });
 
   Future<void> _pickAndEnter(BuildContext context, {String? current}) async {
     final chosen = await showTripTypePicker(context, current: current);
@@ -264,24 +286,33 @@ class _ListCard extends StatelessWidget {
         child: Column(
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
-            Row(children: [
-              Expanded(
-                child: Text(list.routeName,
+            Row(
+              children: [
+                Expanded(
+                  child: Text(
+                    list.routeName,
                     style: const TextStyle(
-                        fontWeight: FontWeight.bold, fontSize: 16)),
-              ),
-              _StatusChip(isOpen: list.isOpen),
-            ]),
+                      fontWeight: FontWeight.bold,
+                      fontSize: 16,
+                    ),
+                  ),
+                ),
+                _StatusChip(isOpen: list.isOpen),
+              ],
+            ),
             const SizedBox(height: 4),
-            Text('${list.totalEntries} inscrito(s) · ${formatDate(list.date)}',
-                style: TextStyle(color: Colors.grey.shade600, fontSize: 13)),
+            Text(
+              '${list.totalEntries} inscrito(s) · ${formatDate(list.date)}',
+              style: TextStyle(color: Colors.grey.shade600, fontSize: 13),
+            ),
             Align(
               alignment: Alignment.centerLeft,
               child: TextButton.icon(
                 style: TextButton.styleFrom(
-                    padding: const EdgeInsets.symmetric(horizontal: 4),
-                    minimumSize: const Size(0, 32),
-                    tapTargetSize: MaterialTapTargetSize.shrinkWrap),
+                  padding: const EdgeInsets.symmetric(horizontal: 4),
+                  minimumSize: const Size(0, 32),
+                  tapTargetSize: MaterialTapTargetSize.shrinkWrap,
+                ),
                 onPressed: () =>
                     showListMembers(context, list.id, list.routeName),
                 icon: const Icon(Icons.people_outline, size: 18),
@@ -290,29 +321,37 @@ class _ListCard extends StatelessWidget {
             ),
             if (item.isEnrolled) ...[
               const SizedBox(height: 10),
-              Row(children: [
-                Icon(Icons.check_circle, size: 18, color: cs.primary),
-                const SizedBox(width: 6),
-                Text('Você está na lista',
+              Row(
+                children: [
+                  Icon(Icons.check_circle, size: 18, color: cs.primary),
+                  const SizedBox(width: 6),
+                  Text(
+                    'Você está na lista',
                     style: TextStyle(
-                        color: cs.primary, fontWeight: FontWeight.w600)),
-              ]),
+                      color: cs.primary,
+                      fontWeight: FontWeight.w600,
+                    ),
+                  ),
+                ],
+              ),
               const SizedBox(height: 8),
               // Direção atual + trocar (enquanto a lista estiver aberta)
-              Row(children: [
-                Chip(
-                  avatar: Icon(tripTypeInfo(item.tripType).icon, size: 18),
-                  label: Text(tripTypeLabel(item.tripType)),
-                  visualDensity: VisualDensity.compact,
-                ),
-                if (list.isOpen)
-                  TextButton.icon(
-                    onPressed: () =>
-                        _pickAndEnter(context, current: item.tripType),
-                    icon: const Icon(Icons.edit, size: 16),
-                    label: const Text('Trocar direção'),
+              Row(
+                children: [
+                  Chip(
+                    avatar: Icon(tripTypeInfo(item.tripType).icon, size: 18),
+                    label: Text(tripTypeLabel(item.tripType)),
+                    visualDensity: VisualDensity.compact,
                   ),
-              ]),
+                  if (list.isOpen)
+                    TextButton.icon(
+                      onPressed: () =>
+                          _pickAndEnter(context, current: item.tripType),
+                      icon: const Icon(Icons.edit, size: 16),
+                      label: const Text('Trocar direção'),
+                    ),
+                ],
+              ),
             ],
             if (list.isOpen) ...[
               const SizedBox(height: 12),
@@ -323,7 +362,8 @@ class _ListCard extends StatelessWidget {
                 child: item.isEnrolled
                     ? OutlinedButton.icon(
                         style: OutlinedButton.styleFrom(
-                            foregroundColor: cs.error),
+                          foregroundColor: cs.error,
+                        ),
                         onPressed: onLeave,
                         icon: const Icon(Icons.exit_to_app),
                         label: const Text('Sair da lista'),
@@ -391,9 +431,14 @@ class _CloseCountdownState extends State<_CloseCountdown> {
           Icon(Icons.schedule, size: 18, color: color),
           const SizedBox(width: 8),
           Expanded(
-            child: Text(text,
-                style: TextStyle(
-                    color: color, fontWeight: FontWeight.w600, fontSize: 13)),
+            child: Text(
+              text,
+              style: TextStyle(
+                color: color,
+                fontWeight: FontWeight.w600,
+                fontSize: 13,
+              ),
+            ),
           ),
         ],
       ),
@@ -441,8 +486,10 @@ class _EmptyListsState extends StatelessWidget {
         children: [
           Icon(Icons.event_busy, size: 56, color: Colors.grey.shade300),
           const SizedBox(height: 12),
-          Text('Nenhuma lista disponível hoje',
-              style: TextStyle(color: Colors.grey.shade500)),
+          Text(
+            'Nenhuma lista disponível hoje',
+            style: TextStyle(color: Colors.grey.shade500),
+          ),
         ],
       ),
     );

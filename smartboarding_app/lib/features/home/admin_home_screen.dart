@@ -29,15 +29,20 @@ class AdminHomeScreen extends StatelessWidget {
     return MultiProvider(
       providers: [
         ChangeNotifierProvider(
-            create: (_) => AdminListProvider(ListService())..load()),
+          create: (_) => AdminListProvider(ListService())..load(),
+        ),
         ChangeNotifierProvider(
-            create: (_) => RouteProvider(RouteService())..load()),
+          create: (_) => RouteProvider(RouteService())..load(),
+        ),
         ChangeNotifierProvider(
-            create: (_) => ReportProvider(ReportService())..load()),
+          create: (_) => ReportProvider(ReportService())..load(),
+        ),
         ChangeNotifierProvider(
-            create: (_) => NotificationProvider(NotificationService())),
+          create: (_) => NotificationProvider(NotificationService()),
+        ),
         ChangeNotifierProvider(
-            create: (_) => UserProvider(UserService())..load()),
+          create: (_) => UserProvider(UserService())..load(),
+        ),
       ],
       child: const _AdminShell(),
     );
@@ -84,25 +89,30 @@ class _AdminShellState extends State<_AdminShell> {
         onDestinationSelected: (i) => setState(() => _index = i),
         destinations: const [
           NavigationDestination(
-              icon: Icon(Icons.list_alt_outlined),
-              selectedIcon: Icon(Icons.list_alt),
-              label: 'Listas'),
+            icon: Icon(Icons.list_alt_outlined),
+            selectedIcon: Icon(Icons.list_alt),
+            label: 'Listas',
+          ),
           NavigationDestination(
-              icon: Icon(Icons.route_outlined),
-              selectedIcon: Icon(Icons.route),
-              label: 'Rotas'),
+            icon: Icon(Icons.route_outlined),
+            selectedIcon: Icon(Icons.route),
+            label: 'Rotas',
+          ),
           NavigationDestination(
-              icon: Icon(Icons.bar_chart_outlined),
-              selectedIcon: Icon(Icons.bar_chart),
-              label: 'Relatórios'),
+            icon: Icon(Icons.bar_chart_outlined),
+            selectedIcon: Icon(Icons.bar_chart),
+            label: 'Relatórios',
+          ),
           NavigationDestination(
-              icon: Icon(Icons.campaign_outlined),
-              selectedIcon: Icon(Icons.campaign),
-              label: 'Broadcast'),
+            icon: Icon(Icons.campaign_outlined),
+            selectedIcon: Icon(Icons.campaign),
+            label: 'Broadcast',
+          ),
           NavigationDestination(
-              icon: Icon(Icons.group_outlined),
-              selectedIcon: Icon(Icons.group),
-              label: 'Usuários'),
+            icon: Icon(Icons.group_outlined),
+            selectedIcon: Icon(Icons.group),
+            label: 'Usuários',
+          ),
         ],
       ),
     );
@@ -144,24 +154,27 @@ class _ListTile extends StatelessWidget {
   Widget build(BuildContext context) {
     return Card(
       child: ListTile(
-        contentPadding:
-            const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
+        contentPadding: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
         leading: CircleAvatar(
           backgroundColor: list.isOpen
               ? Colors.green.shade50
               : Colors.grey.shade100,
-          child: Icon(Icons.people_alt_outlined,
-              color: list.isOpen ? Colors.green : Colors.grey),
+          child: Icon(
+            Icons.people_alt_outlined,
+            color: list.isOpen ? Colors.green : Colors.grey,
+          ),
         ),
-        title: Text(list.routeName,
-            style: const TextStyle(fontWeight: FontWeight.bold)),
-        subtitle: Text('${list.totalEntries} inscrito(s) · ${formatDate(list.date)}'),
+        title: Text(
+          list.routeName,
+          style: const TextStyle(fontWeight: FontWeight.bold),
+        ),
+        subtitle: Text(
+          '${list.totalEntries} inscrito(s) · ${formatDate(list.date)}',
+        ),
         trailing: _StatusChip(isOpen: list.isOpen),
         onTap: () => Navigator.push(
           context,
-          MaterialPageRoute(
-            builder: (_) => AdminListEntriesScreen(list: list),
-          ),
+          MaterialPageRoute(builder: (_) => AdminListEntriesScreen(list: list)),
         ),
       ),
     );
@@ -199,14 +212,16 @@ class _EmptyState extends StatelessWidget {
   const _EmptyState();
   @override
   Widget build(BuildContext context) => Center(
-        child: Column(
-          mainAxisAlignment: MainAxisAlignment.center,
-          children: [
-            Icon(Icons.event_busy, size: 56, color: Colors.grey.shade300),
-            const SizedBox(height: 12),
-            Text('Nenhuma lista disponível hoje',
-                style: TextStyle(color: Colors.grey.shade500)),
-          ],
+    child: Column(
+      mainAxisAlignment: MainAxisAlignment.center,
+      children: [
+        Icon(Icons.event_busy, size: 56, color: Colors.grey.shade300),
+        const SizedBox(height: 12),
+        Text(
+          'Nenhuma lista disponível hoje',
+          style: TextStyle(color: Colors.grey.shade500),
         ),
-      );
+      ],
+    ),
+  );
 }

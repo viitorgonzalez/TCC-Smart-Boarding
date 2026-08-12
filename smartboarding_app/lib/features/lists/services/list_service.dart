@@ -8,13 +8,17 @@ class ListService {
   Future<List<DailyList>> getTodayLists() async {
     final response = await _dio.get('/api/lists/today');
     final List data = response.data['data'] as List;
-    return data.map((e) => DailyList.fromJson(e as Map<String, dynamic>)).toList();
+    return data
+        .map((e) => DailyList.fromJson(e as Map<String, dynamic>))
+        .toList();
   }
 
   Future<List<ListEntry>> getEntries(String listId) async {
     final response = await _dio.get('/api/lists/$listId/entries');
     final List data = response.data['data'] as List;
-    return data.map((e) => ListEntry.fromJson(e as Map<String, dynamic>)).toList();
+    return data
+        .map((e) => ListEntry.fromJson(e as Map<String, dynamic>))
+        .toList();
   }
 
   Future<void> addEntry(String listId, {String? tripType}) async {

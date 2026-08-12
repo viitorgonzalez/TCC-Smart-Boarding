@@ -13,10 +13,10 @@ class RouteFormScreen extends StatefulWidget {
 
 class _RouteFormScreenState extends State<RouteFormScreen> {
   final _formKey = GlobalKey<FormState>();
-  late final _nameCtrl =
-      TextEditingController(text: widget.route?.name ?? '');
-  late final _descCtrl =
-      TextEditingController(text: widget.route?.description ?? '');
+  late final _nameCtrl = TextEditingController(text: widget.route?.name ?? '');
+  late final _descCtrl = TextEditingController(
+    text: widget.route?.description ?? '',
+  );
   bool _loading = false;
 
   bool get _isEdit => widget.route != null;
@@ -35,10 +35,12 @@ class _RouteFormScreenState extends State<RouteFormScreen> {
       final provider = context.read<RouteProvider>();
       if (_isEdit) {
         await provider.update(
-            widget.route!.id, _nameCtrl.text.trim(), _descCtrl.text.trim());
+          widget.route!.id,
+          _nameCtrl.text.trim(),
+          _descCtrl.text.trim(),
+        );
       } else {
-        await provider.create(
-            _nameCtrl.text.trim(), _descCtrl.text.trim());
+        await provider.create(_nameCtrl.text.trim(), _descCtrl.text.trim());
       }
       if (mounted) Navigator.pop(context);
     } catch (e) {

@@ -28,13 +28,17 @@ class StudentListProvider extends ChangeNotifier {
     notifyListeners();
     try {
       final lists = await _service.getTodayLists();
-      _state = AsyncData(lists
-          .map((l) => ListWithEnrollment(
+      _state = AsyncData(
+        lists
+            .map(
+              (l) => ListWithEnrollment(
                 list: l,
                 isEnrolled: l.enrolled,
                 tripType: l.tripType,
-              ))
-          .toList());
+              ),
+            )
+            .toList(),
+      );
     } catch (e) {
       _state = AsyncError(AppException.fromError(e));
     }

@@ -96,8 +96,9 @@ class _DepartureFormState extends State<_DepartureForm> {
     if (ok != true) return;
 
     try {
-      final notified =
-          await widget.provider.sendDeparture(_messageCtrl.text.trim());
+      final notified = await widget.provider.sendDeparture(
+        _messageCtrl.text.trim(),
+      );
       if (!mounted) return;
       ScaffoldMessenger.of(context).showSnackBar(
         SnackBar(content: Text('Notificação enviada para $notified aluno(s).')),
@@ -124,11 +125,12 @@ class _DepartureFormState extends State<_DepartureForm> {
           initialValue: selected,
           decoration: const InputDecoration(labelText: 'Lista / Rota do dia'),
           items: widget.lists
-              .map((l) => DropdownMenuItem(
-                    value: l,
-                    child:
-                        Text('${l.routeName} · ${l.totalEntries} inscrito(s)'),
-                  ))
+              .map(
+                (l) => DropdownMenuItem(
+                  value: l,
+                  child: Text('${l.routeName} · ${l.totalEntries} inscrito(s)'),
+                ),
+              )
               .toList(),
           onChanged: (l) => l == null ? null : provider.select(l),
         ),
@@ -138,7 +140,9 @@ class _DepartureFormState extends State<_DepartureForm> {
             child: ListTile(
               leading: const Icon(Icons.people_alt_outlined),
               title: Text('${selected.totalEntries} inscrito(s) ativo(s)'),
-              subtitle: Text('Rota: ${selected.routeName} · ${formatDate(selected.date)}'),
+              subtitle: Text(
+                'Rota: ${selected.routeName} · ${formatDate(selected.date)}',
+              ),
             ),
           ),
         const SizedBox(height: 16),
@@ -171,13 +175,13 @@ class _EmptyState extends StatelessWidget {
   const _EmptyState();
   @override
   Widget build(BuildContext context) => Center(
-        child: Column(
-          mainAxisAlignment: MainAxisAlignment.center,
-          children: [
-            Icon(Icons.event_busy, size: 56, color: Colors.grey.shade400),
-            const SizedBox(height: 12),
-            const Text('Nenhuma lista disponível hoje'),
-          ],
-        ),
-      );
+    child: Column(
+      mainAxisAlignment: MainAxisAlignment.center,
+      children: [
+        Icon(Icons.event_busy, size: 56, color: Colors.grey.shade400),
+        const SizedBox(height: 12),
+        const Text('Nenhuma lista disponível hoje'),
+      ],
+    ),
+  );
 }

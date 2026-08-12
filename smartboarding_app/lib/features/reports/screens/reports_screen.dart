@@ -31,9 +31,11 @@ class ReportsScreen extends StatelessWidget {
                     itemBuilder: (_, i) {
                       if (i == items.length) {
                         return const Center(
-                            child: Padding(
-                                padding: EdgeInsets.all(16),
-                                child: CircularProgressIndicator()));
+                          child: Padding(
+                            padding: EdgeInsets.all(16),
+                            child: CircularProgressIndicator(),
+                          ),
+                        );
                       }
                       return _ReportTile(report: items[i]);
                     },
@@ -55,16 +57,21 @@ class _ReportTile extends StatelessWidget {
   Widget build(BuildContext context) {
     return Card(
       child: ListTile(
-        contentPadding:
-            const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
+        contentPadding: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
         leading: CircleAvatar(
           backgroundColor: Theme.of(context).colorScheme.secondaryContainer,
-          child: Icon(Icons.bar_chart,
-              color: Theme.of(context).colorScheme.secondary),
+          child: Icon(
+            Icons.bar_chart,
+            color: Theme.of(context).colorScheme.secondary,
+          ),
         ),
-        title: Text(report.routeName,
-            style: const TextStyle(fontWeight: FontWeight.bold)),
-        subtitle: Text('${formatDate(report.listDate)} · ${report.totalEntries} inscrito(s)'),
+        title: Text(
+          report.routeName,
+          style: const TextStyle(fontWeight: FontWeight.bold),
+        ),
+        subtitle: Text(
+          '${formatDate(report.listDate)} · ${report.totalEntries} inscrito(s)',
+        ),
         trailing: const Icon(Icons.chevron_right),
         onTap: () => Navigator.push(
           context,
@@ -81,14 +88,16 @@ class _EmptyState extends StatelessWidget {
   const _EmptyState();
   @override
   Widget build(BuildContext context) => Center(
-        child: Column(
-          mainAxisAlignment: MainAxisAlignment.center,
-          children: [
-            Icon(Icons.bar_chart, size: 56, color: Colors.grey.shade300),
-            const SizedBox(height: 12),
-            Text('Nenhum relatório disponível',
-                style: TextStyle(color: Colors.grey.shade500)),
-          ],
+    child: Column(
+      mainAxisAlignment: MainAxisAlignment.center,
+      children: [
+        Icon(Icons.bar_chart, size: 56, color: Colors.grey.shade300),
+        const SizedBox(height: 12),
+        Text(
+          'Nenhum relatório disponível',
+          style: TextStyle(color: Colors.grey.shade500),
         ),
-      );
+      ],
+    ),
+  );
 }

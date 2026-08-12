@@ -6,7 +6,8 @@ class ReportService {
 
   /// Retorna a página [page] de relatórios (base 0).
   Future<({List<ReportSummary> items, bool hasMore})> getReports(
-      int page) async {
+    int page,
+  ) async {
     final response = await _dio.get(
       '/api/reports',
       queryParameters: {'page': page, 'size': 20},
@@ -25,7 +26,6 @@ class ReportService {
 
   Future<ReportDetail> getById(String id) async {
     final response = await _dio.get('/api/reports/$id');
-    return ReportDetail.fromJson(
-        response.data['data'] as Map<String, dynamic>);
+    return ReportDetail.fromJson(response.data['data'] as Map<String, dynamic>);
   }
 }

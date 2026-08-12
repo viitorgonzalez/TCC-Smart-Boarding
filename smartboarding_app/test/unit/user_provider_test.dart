@@ -17,9 +17,11 @@ void main() {
   });
 
   test('load popula a lista de usuários', () async {
-    when(() => service.getUsers()).thenAnswer((_) async => const [
-          UserModel(id: '1', fullName: 'Ana', email: 'a@x.com', role: 'STUDENT'),
-        ]);
+    when(() => service.getUsers()).thenAnswer(
+      (_) async => const [
+        UserModel(id: '1', fullName: 'Ana', email: 'a@x.com', role: 'STUDENT'),
+      ],
+    );
 
     await provider.load();
 
@@ -29,12 +31,14 @@ void main() {
   });
 
   test('create chama register e recarrega a lista', () async {
-    when(() => service.register(
-          fullName: any(named: 'fullName'),
-          email: any(named: 'email'),
-          password: any(named: 'password'),
-          role: any(named: 'role'),
-        )).thenAnswer((_) async {});
+    when(
+      () => service.register(
+        fullName: any(named: 'fullName'),
+        email: any(named: 'email'),
+        password: any(named: 'password'),
+        role: any(named: 'role'),
+      ),
+    ).thenAnswer((_) async {});
     when(() => service.getUsers()).thenAnswer((_) async => const []);
 
     await provider.create(
@@ -44,12 +48,14 @@ void main() {
       role: 'DRIVER',
     );
 
-    verify(() => service.register(
-          fullName: 'João',
-          email: 'j@x.com',
-          password: '123456',
-          role: 'DRIVER',
-        )).called(1);
+    verify(
+      () => service.register(
+        fullName: 'João',
+        email: 'j@x.com',
+        password: '123456',
+        role: 'DRIVER',
+      ),
+    ).called(1);
     verify(() => service.getUsers()).called(1);
   });
 }

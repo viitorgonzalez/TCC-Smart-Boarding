@@ -55,12 +55,10 @@ class _DetailView extends StatelessWidget {
     return Consumer<_DetailProvider>(
       builder: (context, provider, _) => Scaffold(
         appBar: AppBar(
-          title: Text(
-            switch (provider.state) {
-              AsyncData(:final value) => value.routeName,
-              _ => 'Relatório',
-            },
-          ),
+          title: Text(switch (provider.state) {
+            AsyncData(:final value) => value.routeName,
+            _ => 'Relatório',
+          }),
         ),
         body: AsyncBuilder(
           value: provider.state,
@@ -103,18 +101,26 @@ class _ReportBody extends StatelessWidget {
             child: Column(
               crossAxisAlignment: CrossAxisAlignment.start,
               children: [
-                Text(report.routeName,
-                    style: const TextStyle(
-                        fontWeight: FontWeight.bold, fontSize: 18)),
+                Text(
+                  report.routeName,
+                  style: const TextStyle(
+                    fontWeight: FontWeight.bold,
+                    fontSize: 18,
+                  ),
+                ),
                 const Divider(height: 24),
                 _InfoRow('Data', formatDate(report.listDate)),
                 _InfoRow('Total de inscritos', '${report.totalEntries}'),
                 if (hasDirections)
-                  _InfoRow('Total de ida',
-                      '${counts['ROUND_TRIP']! + counts['TO_CAMPUS']!}'),
+                  _InfoRow(
+                    'Total de ida',
+                    '${counts['ROUND_TRIP']! + counts['TO_CAMPUS']!}',
+                  ),
                 if (hasDirections)
-                  _InfoRow('Total de volta',
-                      '${counts['ROUND_TRIP']! + counts['FROM_CAMPUS']!}'),
+                  _InfoRow(
+                    'Total de volta',
+                    '${counts['ROUND_TRIP']! + counts['FROM_CAMPUS']!}',
+                  ),
                 _InfoRow('Gerado em', formatDateTime(report.generatedAt)),
               ],
             ),
@@ -122,8 +128,10 @@ class _ReportBody extends StatelessWidget {
         ),
         if (hasDirections) ...[
           const SizedBox(height: 20),
-          const Text('Por direção',
-              style: TextStyle(fontWeight: FontWeight.bold, fontSize: 16)),
+          const Text(
+            'Por direção',
+            style: TextStyle(fontWeight: FontWeight.bold, fontSize: 16),
+          ),
           const SizedBox(height: 8),
           Wrap(
             spacing: 8,
@@ -138,31 +146,41 @@ class _ReportBody extends StatelessWidget {
           ),
         ],
         const SizedBox(height: 20),
-        const Text('Lista de inscritos',
-            style: TextStyle(fontWeight: FontWeight.bold, fontSize: 16)),
+        const Text(
+          'Lista de inscritos',
+          style: TextStyle(fontWeight: FontWeight.bold, fontSize: 16),
+        ),
         const SizedBox(height: 8),
         if (enrolled.isEmpty)
-          Text('Sem dados de inscritos.',
-              style: TextStyle(color: Colors.grey.shade500))
+          Text(
+            'Sem dados de inscritos.',
+            style: TextStyle(color: Colors.grey.shade500),
+          )
         else
           ...enrolled.asMap().entries.map((e) {
             final data = e.value as Map<String, dynamic>;
             return ListTile(
               leading: CircleAvatar(
-                backgroundColor:
-                    Theme.of(context).colorScheme.primaryContainer,
-                child: Text('${e.key + 1}',
-                    style: TextStyle(
-                        color: Theme.of(context).colorScheme.primary)),
+                backgroundColor: Theme.of(context).colorScheme.primaryContainer,
+                child: Text(
+                  '${e.key + 1}',
+                  style: TextStyle(
+                    color: Theme.of(context).colorScheme.primary,
+                  ),
+                ),
               ),
               title: Text(data['fullName']?.toString() ?? ''),
               subtitle: Text(data['email']?.toString() ?? ''),
               trailing: data['tripType'] != null
                   ? Chip(
-                      avatar: Icon(tripTypeInfo(data['tripType']?.toString()).icon,
-                          size: 16),
-                      label: Text(tripTypeLabel(data['tripType']?.toString()),
-                          style: const TextStyle(fontSize: 11)),
+                      avatar: Icon(
+                        tripTypeInfo(data['tripType']?.toString()).icon,
+                        size: 16,
+                      ),
+                      label: Text(
+                        tripTypeLabel(data['tripType']?.toString()),
+                        style: const TextStyle(fontSize: 11),
+                      ),
                       visualDensity: VisualDensity.compact,
                     )
                   : null,
@@ -184,9 +202,13 @@ class _InfoRow extends StatelessWidget {
       padding: const EdgeInsets.symmetric(vertical: 4),
       child: Row(
         children: [
-          Text('$label: ',
-              style: TextStyle(
-                  color: Colors.grey.shade600, fontWeight: FontWeight.w500)),
+          Text(
+            '$label: ',
+            style: TextStyle(
+              color: Colors.grey.shade600,
+              fontWeight: FontWeight.w500,
+            ),
+          ),
           Expanded(child: Text(value)),
         ],
       ),

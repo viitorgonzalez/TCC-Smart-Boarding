@@ -19,11 +19,14 @@ class UserService {
     required String password,
     required String role,
   }) async {
-    await _dio.post('/api/auth/register', data: {
-      'fullName': fullName,
-      'email': email,
-      'password': password,
-      'role': role,
-    });
+    await _dio.post(
+      '/api/auth/register',
+      data: {
+        'fullName': fullName,
+        'email': email,
+        'password': password,
+        'role': role,
+      },
+    );
   }
 }

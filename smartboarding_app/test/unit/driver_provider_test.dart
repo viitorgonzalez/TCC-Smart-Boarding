@@ -11,13 +11,13 @@ class _MockListService extends Mock implements ListService {}
 class _MockDriverService extends Mock implements DriverService {}
 
 DailyList _list(String id) => DailyList(
-      id: id,
-      routeId: 'r1',
-      routeName: 'Rota Principal',
-      date: '2026-07-11',
-      status: 'CLOSED',
-      totalEntries: 12,
-    );
+  id: id,
+  routeId: 'r1',
+  routeName: 'Rota Principal',
+  date: '2026-07-11',
+  status: 'CLOSED',
+  totalEntries: 12,
+);
 
 void main() {
   late _MockListService listService;
@@ -31,8 +31,9 @@ void main() {
   });
 
   test('load popula listas e seleciona a primeira', () async {
-    when(() => listService.getTodayLists())
-        .thenAnswer((_) async => [_list('a'), _list('b')]);
+    when(
+      () => listService.getTodayLists(),
+    ).thenAnswer((_) async => [_list('a'), _list('b')]);
 
     await provider.load();
 
@@ -41,10 +42,12 @@ void main() {
   });
 
   test('sendDeparture usa a lista selecionada e retorna notified', () async {
-    when(() => listService.getTodayLists())
-        .thenAnswer((_) async => [_list('a')]);
-    when(() => driverService.sendDeparture('a', body: 'saindo'))
-        .thenAnswer((_) async => 7);
+    when(
+      () => listService.getTodayLists(),
+    ).thenAnswer((_) async => [_list('a')]);
+    when(
+      () => driverService.sendDeparture('a', body: 'saindo'),
+    ).thenAnswer((_) async => 7);
     await provider.load();
 
     final notified = await provider.sendDeparture('saindo');

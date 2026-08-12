@@ -6,7 +6,11 @@ class DriverService {
   /// Envia a notificação de saída para os inscritos ativos da lista.
   /// Backend: POST /api/lists/{id}/notifications/departure (Gap 2 — DRIVER/ADMIN).
   /// Retorna quantos alunos foram notificados.
-  Future<int> sendDeparture(String listId, {String? title, String? body}) async {
+  Future<int> sendDeparture(
+    String listId, {
+    String? title,
+    String? body,
+  }) async {
     final response = await _dio.post(
       '/api/lists/$listId/notifications/departure',
       data: {
