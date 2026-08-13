@@ -1,0 +1,15 @@
+# Mantem o contexto de build enxuto e evita vazar segredo pra dentro da imagem.
+.env
+.env.*
+!.env.example
+
+target/
+.idea/
+*.iml
+
+.git/
+.gitignore
+
+docker-compose.yaml
+run-local.sh
+*.md

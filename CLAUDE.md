@@ -62,6 +62,7 @@ Spec nova vai **neste repo**, não no harness — contrato em `../personal-harne
 - **Branch default / base de PR:** `main`
 - **Papéis:** `ADMIN`, `STUDENT`, `DRIVER`
 - **Estado no app:** Provider exclusivamente — sem BLoC, sem Riverpod
-- **Segredos:** `.env` a partir de `.env.example` — nunca commitados
-- **Deploy:** não há. Tudo local.
+- **Segredos:** `.env` a partir de `.env.example` — nunca commitados. Override pessoal de config: `application-local.properties` (gitignored por convenção do repo).
+- **Perfis Spring:** `local` (default) e `prod` (`SPRING_PROFILES_ACTIVE=prod` — desliga SQL no log, `ddl-auto=validate`, esconde stacktrace, limita o pool).
+- **Deploy:** ainda não há ambiente publicado, mas a API já está preparada: `Dockerfile` multi-stage (JRE + usuário sem privilégio), host/porta do banco externalizados (`DB_HOST`/`DB_PORT`, ou `SPRING_DATASOURCE_URL` inteiro) e `PORT` respeitado. Variáveis necessárias em `.env.prod.example`.
 - Commit/branch/PR: ver `../personal-harness/docs/CONVENTIONS.md`
