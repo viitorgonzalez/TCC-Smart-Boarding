@@ -52,7 +52,8 @@ Spec nova vai **neste repo**, não no harness — contrato em `../personal-harne
 - **`JWT_SECRET` precisa de ≥32 chars.** Secret curto falha no **boot**, e o stacktrace não aponta pro `.env`.
 - **Postgres em `:5433`, não `:5432`** — hardcoded na URL do `application.properties`. Se a porta já estiver ocupada por outro projeto, o compose sobe mas a API não conecta (`docker stop postgres_gelo pgadmin_gelo` resolve o caso conhecido).
 - **Pacotes Java capitalizados** (`Models/`, `Controllers/`, `Services/`…). Foge do padrão Java e parece erro — é a convenção **deste** repo. Siga; não "corrija" de passagem.
-- **Nunca edite migration já aplicada.** Mudança de schema = `V12__...` nova. Editar quebra o checksum do Flyway e o boot falha.
+- **Nunca edite migration já aplicada.** Mudança de schema = `V3__...` nova. Editar quebra o checksum do Flyway e o boot falha.
+- **Migration removida continua no `target/`.** O Maven não limpa resources órfãos: se você apagar/renomear um `V*.sql`, a cópia velha fica em `target/classes/db/migration/` e o Flyway aborta com `Found more than one migration with version N`. Rode `./mvnw clean test` — não é problema da migration nova.
 - **`localhost` não resolve em device físico.** O `API_BASE_URL` precisa do IP da máquina na LAN.
 - **Mudança de contrato é trabalho nos dois lados.** Alterar um DTO na API quase sempre exige mexer no `lib/features/<x>/` correspondente. Trate como uma unidade lógica só.
 
