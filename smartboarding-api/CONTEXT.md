@@ -194,5 +194,8 @@ DailyList ──── Report (1:1)
 
 | Enum | Valores |
 |------|---------|
-| `Role` | ADMIN, STUDENT |
+| `Role` | ADMIN, STUDENT, DRIVER |
 | `ListStatus` | OPEN, CLOSED |
+| `TripType` | ROUND_TRIP, TO_CAMPUS, FROM_CAMPUS |
+
+> Detalhe completo de regras de negócio, contratos e gaps: `docs/spec.md`.

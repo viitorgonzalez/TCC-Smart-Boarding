@@ -37,10 +37,10 @@ flutter build apk --release
 
 | Arquivo | O quê |
 |---|---|
-| `smartboarding_app/docs/spec.md` | **Spec principal** — regras de negócio, papéis, fluxos, contratos, gaps de backend. Leia antes de mexer. |
-| `smartboarding-api/CONTEXT.md` | Contexto e domínio do backend |
+| `smartboarding_app/docs/spec.md` | **Spec do Flutter** — regras de negócio, papéis, fluxos, contratos, gaps de backend. Leia antes de mexer no app. |
+| `smartboarding-api/docs/spec.md` | **Spec do backend** — papéis, regras de negócio (RN1…), arquitetura hexagonal, contratos de API, gaps. Leia antes de mexer na API. |
+| `smartboarding-api/CONTEXT.md` | Contexto de domínio do backend (problema, entidades, papéis) |
 | `smartboarding-api/CLAUDE.md` | Convenções detalhadas de backend e Flutter |
-| `smartboarding-api/PLAN.md` | Plano de implementação da API |
 | `smartboarding_app/docs/firebase-setup.md` | Ativação do FCM (passo manual, feito pelo usuário) |
 | `smartboarding_app/docs/superpowers/plans/` | Planos de implementação do front |
 

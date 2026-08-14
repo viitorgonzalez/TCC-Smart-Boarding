@@ -14,8 +14,7 @@ TCC-Smart-Boarding/
   smartboarding-api/    # Backend Spring Boot
     CLAUDE.md           # este arquivo
     CONTEXT.md
-    AGENTS.md
-    PLAN.md
+    docs/spec.md        # spec do backend (papéis, RN, contratos, gaps)
   smartboarding_app/    # App Flutter — ⚠️ underscore, e JÁ IMPLEMENTADO
     docs/spec.md        # spec principal do produto
 ```
@@ -72,11 +71,18 @@ flutter build apk --release
 
 ## Convenções Backend (Spring Boot)
 
-- **Pacotes**: PascalCase — `Models/`, `Controllers/`, `Services/`, `Repositories/`, `DTO/`, `Configs/`, `Enums/`
+- **Pacotes**: arquitetura **hexagonal** (ports & adapters), não a flat capitalizada de versões
+  antigas deste doc — `domain/<contexto>/{entity,port/in,port/out}`,
+  `application/<contexto>/*UseCaseImpl`, `infrastructure/web/<contexto>/*Controller` (+ `dto/`),
+  `infrastructure/config/`, `shared/{exception,web}/`. Detalhe completo em `docs/spec.md` §4.
 - **Entidades**: JPA com `@Entity`, UUID como PK (`gen_random_uuid()` no SQL)
 - **DTOs**: sempre usar DTOs para request/response, nunca expor a entidade diretamente
-- **Migrations Flyway**: `V{n}__{descricao_snake_case}.sql` em `src/main/resources/db/migration/`
-- **Roles**: `ADMIN`, `STUDENT`, `DRIVER` (adicionado na `V8__add_driver_user.sql`) — checar com `@PreAuthorize("hasRole('ADMIN')")` ou na SecurityConfig. O `DRIVER` só posta a notificação de saída: **não** tem acesso a rotas, usuários ou relatórios.
+- **Migrations Flyway**: `V{n}__{descricao_snake_case}.sql` em `src/main/resources/db/migration/`.
+  Consolidadas em `V1__initial_schema.sql` + `V2__seed_data.sql` (12/08/2026) — próxima é `V3+`.
+- **Roles**: `ADMIN`, `STUDENT`, `DRIVER` — coluna `role` (`VARCHAR(20)`, sem `CHECK`, validada na
+  aplicação) já está no schema consolidado (`V1`). Checar com `@PreAuthorize("hasRole('ADMIN')")`
+  ou na `SecurityConfig`. O `DRIVER` hoje só tem acesso de leitura (mesmo nível de `STUDENT`) —
+  o endpoint próprio de notificação de saída ainda não existe (`docs/spec.md` §7, Gap 2).
 - **Controllers**: retornar `ResponseEntity<?>` com status HTTP explícito
 - **Scheduler**: usar `@Scheduled` com cron expression, habilitar `@EnableScheduling` na config
 
@@ -90,26 +96,21 @@ flutter build apk --release
 
 ## Regras de Negócio Críticas
 
+Resumo — detalhe e numeração (RN1…) em `docs/spec.md` §3.
+
 1. Listas abrem às **00:00** (seg-sex) e fecham às **16:00** automaticamente via scheduler
-2. Entre **16:01–23:59** não há lista ativa — estudante não pode se inscrever
+2. Entre **16:01–23:59** não há lista ativa — inscrição bloqueada (`400 LIST_CLOSED`)
 3. Ao fechar (16:00): gerar Report + FCM broadcast para todos os inscritos
-4. Estudante só pode ter **uma inscrição ativa** por lista (`UNIQUE(user_id, daily_list_id)`)
+4. Uma inscrição por (usuário, lista) — `UNIQUE(user_id, daily_list_id)`. Reentrar **reativa** o
+   registro existente (idempotente, não retorna 409)
 5. Ao sair da lista: soft-delete (`isActive = false`), não deletar o registro
+6. Cada inscrição tem `tripType` (`ROUND_TRIP`/`TO_CAMPUS`/`FROM_CAMPUS`)
 
-## Endpoints Principais
+## Endpoints
 
-| Método | Path | Role | Descrição |
-|--------|------|------|-----------|
-| POST | `/api/auth/login` | Público | Login JWT |
-| POST | `/api/auth/register` | ADMIN | Cadastrar usuário |
-| GET | `/api/routes` | ALL | Listar rotas ativas |
-| POST | `/api/routes` | ADMIN | Criar rota |
-| GET | `/api/lists/today` | ALL | Lista do dia |
-| POST | `/api/lists/{id}/entries` | STUDENT | Inscrever-se |
-| DELETE | `/api/lists/{id}/entries` | STUDENT | Sair da lista |
-| GET | `/api/reports` | ADMIN | Histórico de relatórios |
-| POST | `/api/notifications/broadcast` | ADMIN | Enviar push a todos |
-| POST | `/api/devices/token` | ALL | Registrar token FCM |
+Contrato completo (request/response/erros por endpoint) em `docs/spec.md` §6 — não duplicado
+aqui pra não divergir de novo. ⚠️ `POST/DELETE /api/lists/{id}/entries` hoje libera **qualquer**
+papel autenticado (não só `STUDENT`) — ver `docs/spec.md` §2.
 
 ## Firebase
 
