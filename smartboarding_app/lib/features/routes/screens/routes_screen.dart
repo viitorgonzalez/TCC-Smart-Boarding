@@ -1,6 +1,9 @@
 import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
 import '../../../core/widgets/async_builder.dart';
+import '../../../core/widgets/empty_state.dart';
+import '../../../core/widgets/entity_list_tile.dart';
+import '../../../core/widgets/snackbar_utils.dart';
 import '../models/route_model.dart';
 import '../providers/route_provider.dart';
 import 'route_form_screen.dart';
@@ -21,7 +24,11 @@ class RoutesScreen extends StatelessWidget {
           value: provider.state,
           onRetry: provider.load,
           builder: (routes) => routes.isEmpty
-              ? const _EmptyState()
+              ? const EmptyState(
+                  icon: Icons.route,
+                  title: 'Nenhuma rota cadastrada',
+                  subtitle: 'Toque + para criar a primeira rota',
+                )
               : RefreshIndicator(
                   onRefresh: provider.load,
                   child: ListView.separated(
@@ -88,11 +95,7 @@ class RoutesScreen extends StatelessWidget {
     try {
       await provider.delete(route.id);
     } catch (e) {
-      if (context.mounted) {
-        ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(content: Text(e.toString()), backgroundColor: Colors.red),
-        );
-      }
+      if (context.mounted) showErrorSnackBar(context, e.toString());
     }
   }
 }
@@ -112,67 +115,29 @@ class _RouteTile extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    return Card(
-      child: ListTile(
-        contentPadding: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
-        leading: CircleAvatar(
-          backgroundColor: Theme.of(context).colorScheme.primaryContainer,
-          child: Icon(
-            Icons.route,
-            color: Theme.of(context).colorScheme.primary,
-          ),
-        ),
-        title: Text(
-          route.name,
-          style: const TextStyle(fontWeight: FontWeight.bold),
-        ),
-        subtitle: route.description?.isNotEmpty == true
-            ? Text(
-                route.description!,
-                maxLines: 1,
-                overflow: TextOverflow.ellipsis,
-              )
-            : null,
-        trailing: Row(
-          mainAxisSize: MainAxisSize.min,
-          children: [
-            IconButton(
-              icon: const Icon(Icons.edit_outlined),
-              onPressed: onEdit,
-            ),
-            IconButton(
-              icon: Icon(
-                Icons.delete_outline,
-                color: Theme.of(context).colorScheme.error,
-              ),
-              onPressed: onDelete,
-            ),
-          ],
-        ),
+    return EntityListTile(
+      leading: CircleAvatar(
+        backgroundColor: Theme.of(context).colorScheme.primaryContainer,
+        child: Icon(Icons.route, color: Theme.of(context).colorScheme.primary),
       ),
-    );
-  }
-}
-
-class _EmptyState extends StatelessWidget {
-  const _EmptyState();
-
-  @override
-  Widget build(BuildContext context) {
-    return Center(
-      child: Column(
-        mainAxisAlignment: MainAxisAlignment.center,
+      title: route.name,
+      subtitle: route.description?.isNotEmpty == true
+          ? Text(
+              route.description!,
+              maxLines: 1,
+              overflow: TextOverflow.ellipsis,
+            )
+          : null,
+      trailing: Row(
+        mainAxisSize: MainAxisSize.min,
         children: [
-          Icon(Icons.route, size: 56, color: Colors.grey.shade300),
-          const SizedBox(height: 12),
-          Text(
-            'Nenhuma rota cadastrada',
-            style: TextStyle(color: Colors.grey.shade500),
-          ),
-          const SizedBox(height: 4),
-          Text(
-            'Toque + para criar a primeira rota',
-            style: TextStyle(color: Colors.grey.shade400, fontSize: 12),
+          IconButton(icon: const Icon(Icons.edit_outlined), onPressed: onEdit),
+          IconButton(
+            icon: Icon(
+              Icons.delete_outline,
+              color: Theme.of(context).colorScheme.error,
+            ),
+            onPressed: onDelete,
           ),
         ],
       ),

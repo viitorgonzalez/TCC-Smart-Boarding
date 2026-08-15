@@ -4,9 +4,11 @@ import '../../../core/errors/app_exception.dart';
 import '../../../core/utils/async_value.dart';
 import '../../../core/utils/date_format.dart';
 import '../../../core/widgets/async_builder.dart';
+import '../../../core/widgets/empty_state.dart';
+import '../../../core/widgets/initials_avatar.dart';
+import '../../../core/widgets/trip_type_chip.dart';
 import '../models/daily_list_model.dart';
 import '../models/list_entry_model.dart';
-import '../models/trip_type.dart';
 import '../services/list_service.dart';
 
 class AdminListEntriesScreen extends StatelessWidget {
@@ -80,59 +82,25 @@ class _EntriesView extends StatelessWidget {
           value: provider.state,
           onRetry: provider.load,
           builder: (entries) => entries.isEmpty
-              ? const _EmptyState()
+              ? const EmptyState(
+                  icon: Icons.people_outline,
+                  title: 'Nenhum inscrito nesta lista',
+                )
               : ListView.builder(
                   itemCount: entries.length,
                   itemBuilder: (_, i) => ListTile(
-                    leading: CircleAvatar(
-                      backgroundColor: Theme.of(
-                        context,
-                      ).colorScheme.primaryContainer,
-                      child: Text(
-                        entries[i].fullName.isNotEmpty
-                            ? entries[i].fullName[0].toUpperCase()
-                            : '?',
-                        style: TextStyle(
-                          color: Theme.of(context).colorScheme.primary,
-                          fontWeight: FontWeight.bold,
-                        ),
-                      ),
+                    leading: InitialsAvatar(
+                      text: entries[i].fullName.isNotEmpty
+                          ? entries[i].fullName[0].toUpperCase()
+                          : '?',
                     ),
                     title: Text(entries[i].fullName),
                     subtitle: Text(entries[i].email),
-                    trailing: Chip(
-                      avatar: Icon(
-                        tripTypeInfo(entries[i].tripType).icon,
-                        size: 16,
-                      ),
-                      label: Text(
-                        tripTypeLabel(entries[i].tripType),
-                        style: const TextStyle(fontSize: 11),
-                      ),
-                      visualDensity: VisualDensity.compact,
-                    ),
+                    trailing: TripTypeChip(tripType: entries[i].tripType),
                   ),
                 ),
         ),
       ),
     );
   }
-}
-
-class _EmptyState extends StatelessWidget {
-  const _EmptyState();
-  @override
-  Widget build(BuildContext context) => Center(
-    child: Column(
-      mainAxisAlignment: MainAxisAlignment.center,
-      children: [
-        Icon(Icons.people_outline, size: 56, color: Colors.grey.shade300),
-        const SizedBox(height: 12),
-        Text(
-          'Nenhum inscrito nesta lista',
-          style: TextStyle(color: Colors.grey.shade500),
-        ),
-      ],
-    ),
-  );
 }

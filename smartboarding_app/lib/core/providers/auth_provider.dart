@@ -16,7 +16,6 @@ class AuthProvider extends ChangeNotifier {
   AuthToken? get token => _token;
   bool get isAdmin => _token?.role == 'ADMIN';
   bool get isStudent => _token?.role == 'STUDENT';
-  bool get isDriver => _token?.role == 'DRIVER';
 
   /// Chamado no boot do app para restaurar sessão salva.
   Future<void> init() async {

@@ -5,7 +5,9 @@ import '../../../core/errors/app_exception.dart';
 import '../../../core/utils/async_value.dart';
 import '../../../core/utils/date_format.dart';
 import '../../../core/widgets/async_builder.dart';
-import '../../lists/models/trip_type.dart';
+import '../../../core/widgets/initials_avatar.dart';
+import '../../../core/widgets/trip_type_chip.dart';
+import '../../../core/models/trip_type.dart';
 import '../models/report_model.dart';
 import '../services/report_service.dart';
 
@@ -160,29 +162,11 @@ class _ReportBody extends StatelessWidget {
           ...enrolled.asMap().entries.map((e) {
             final data = e.value as Map<String, dynamic>;
             return ListTile(
-              leading: CircleAvatar(
-                backgroundColor: Theme.of(context).colorScheme.primaryContainer,
-                child: Text(
-                  '${e.key + 1}',
-                  style: TextStyle(
-                    color: Theme.of(context).colorScheme.primary,
-                  ),
-                ),
-              ),
+              leading: InitialsAvatar(text: '${e.key + 1}'),
               title: Text(data['fullName']?.toString() ?? ''),
               subtitle: Text(data['email']?.toString() ?? ''),
               trailing: data['tripType'] != null
-                  ? Chip(
-                      avatar: Icon(
-                        tripTypeInfo(data['tripType']?.toString()).icon,
-                        size: 16,
-                      ),
-                      label: Text(
-                        tripTypeLabel(data['tripType']?.toString()),
-                        style: const TextStyle(fontSize: 11),
-                      ),
-                      visualDensity: VisualDensity.compact,
-                    )
+                  ? TripTypeChip(tripType: data['tripType']?.toString())
                   : null,
             );
           }),

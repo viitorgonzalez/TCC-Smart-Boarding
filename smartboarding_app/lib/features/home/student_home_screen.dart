@@ -4,9 +4,15 @@ import 'package:provider/provider.dart';
 import '../../core/providers/auth_provider.dart';
 import '../../core/utils/date_format.dart';
 import '../../core/widgets/async_builder.dart';
+import '../../core/widgets/empty_state.dart';
+import '../../core/widgets/error_state.dart';
+import '../../core/widgets/initials_avatar.dart';
+import '../../core/widgets/snackbar_utils.dart';
+import '../../core/widgets/status_pill.dart';
+import '../../core/widgets/trip_type_chip.dart';
 import '../lists/models/list_entry_model.dart';
 import '../lists/models/list_with_enrollment.dart';
-import '../lists/models/trip_type.dart';
+import '../../core/models/trip_type.dart';
 import '../lists/providers/student_list_provider.dart';
 import '../lists/services/list_service.dart';
 
@@ -50,7 +56,10 @@ class StudentHomeScreen extends StatelessWidget {
           value: provider.state,
           onRetry: provider.load,
           builder: (items) => items.isEmpty
-              ? const _EmptyListsState()
+              ? const EmptyState(
+                  icon: Icons.event_busy,
+                  title: 'Nenhuma lista disponível hoje',
+                )
               : RefreshIndicator(
                   onRefresh: provider.load,
                   child: ListView.builder(
@@ -98,9 +107,7 @@ class StudentHomeScreen extends StatelessWidget {
   }
 
   void _showError(BuildContext context, Object e) {
-    ScaffoldMessenger.of(context).showSnackBar(
-      SnackBar(content: Text(e.toString()), backgroundColor: Colors.red),
-    );
+    showErrorSnackBar(context, e.toString());
   }
 }
 
@@ -208,7 +215,7 @@ class _MembersSheetState extends State<_MembersSheet> {
                   if (snap.hasError) {
                     return Padding(
                       padding: const EdgeInsets.all(24),
-                      child: Text('Erro ao carregar: ${snap.error}'),
+                      child: ErrorState(message: 'Erro ao carregar: ${snap.error}'),
                     );
                   }
                   final entries = snap.data ?? [];
@@ -226,24 +233,13 @@ class _MembersSheetState extends State<_MembersSheet> {
                       final e = entries[i];
                       return ListTile(
                         dense: true,
-                        leading: CircleAvatar(
-                          radius: 16,
-                          child: Text(
-                            e.fullName.isNotEmpty
-                                ? e.fullName[0].toUpperCase()
-                                : '?',
-                            style: const TextStyle(fontSize: 13),
-                          ),
+                        leading: InitialsAvatar(
+                          text: e.fullName.isNotEmpty
+                              ? e.fullName[0].toUpperCase()
+                              : '?',
                         ),
                         title: Text(e.fullName),
-                        trailing: Chip(
-                          avatar: Icon(tripTypeInfo(e.tripType).icon, size: 16),
-                          label: Text(
-                            tripTypeLabel(e.tripType),
-                            style: const TextStyle(fontSize: 11),
-                          ),
-                          visualDensity: VisualDensity.compact,
-                        ),
+                        trailing: TripTypeChip(tripType: e.tripType),
                       );
                     },
                   );
@@ -297,7 +293,12 @@ class _ListCard extends StatelessWidget {
                     ),
                   ),
                 ),
-                _StatusChip(isOpen: list.isOpen),
+                StatusPill(
+                  label: list.isOpen ? 'Aberta' : 'Fechada',
+                  tone: list.isOpen
+                      ? StatusPillTone.positive
+                      : StatusPillTone.neutral,
+                ),
               ],
             ),
             const SizedBox(height: 4),
@@ -338,11 +339,7 @@ class _ListCard extends StatelessWidget {
               // Direção atual + trocar (enquanto a lista estiver aberta)
               Row(
                 children: [
-                  Chip(
-                    avatar: Icon(tripTypeInfo(item.tripType).icon, size: 18),
-                    label: Text(tripTypeLabel(item.tripType)),
-                    visualDensity: VisualDensity.compact,
-                  ),
+                  TripTypeChip(tripType: item.tripType, iconSize: 18),
                   if (list.isOpen)
                     TextButton.icon(
                       onPressed: () =>
@@ -446,52 +443,3 @@ class _CloseCountdownState extends State<_CloseCountdown> {
   }
 }
 
-// ─── Widgets auxiliares ───────────────────────────────────────────────────────
-
-class _StatusChip extends StatelessWidget {
-  final bool isOpen;
-  const _StatusChip({required this.isOpen});
-
-  @override
-  Widget build(BuildContext context) {
-    return Container(
-      padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 4),
-      decoration: BoxDecoration(
-        color: isOpen ? Colors.green.shade50 : Colors.grey.shade100,
-        borderRadius: BorderRadius.circular(20),
-        border: Border.all(
-          color: isOpen ? Colors.green.shade300 : Colors.grey.shade300,
-        ),
-      ),
-      child: Text(
-        isOpen ? 'Aberta' : 'Fechada',
-        style: TextStyle(
-          fontSize: 12,
-          fontWeight: FontWeight.w600,
-          color: isOpen ? Colors.green.shade700 : Colors.grey.shade600,
-        ),
-      ),
-    );
-  }
-}
-
-class _EmptyListsState extends StatelessWidget {
-  const _EmptyListsState();
-
-  @override
-  Widget build(BuildContext context) {
-    return Center(
-      child: Column(
-        mainAxisAlignment: MainAxisAlignment.center,
-        children: [
-          Icon(Icons.event_busy, size: 56, color: Colors.grey.shade300),
-          const SizedBox(height: 12),
-          Text(
-            'Nenhuma lista disponível hoje',
-            style: TextStyle(color: Colors.grey.shade500),
-          ),
-        ],
-      ),
-    );
-  }
-}

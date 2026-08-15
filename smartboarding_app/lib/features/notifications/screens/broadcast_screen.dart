@@ -1,5 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
+import '../../../core/widgets/loading_filled_button.dart';
+import '../../../core/widgets/snackbar_utils.dart';
 import '../providers/notification_provider.dart';
 
 class BroadcastScreen extends StatefulWidget {
@@ -39,11 +41,7 @@ class _BroadcastScreenState extends State<BroadcastScreen> {
         );
       }
     } catch (e) {
-      if (mounted) {
-        ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(content: Text(e.toString()), backgroundColor: Colors.red),
-        );
-      }
+      if (mounted) showErrorSnackBar(context, e.toString());
     }
   }
 
@@ -91,16 +89,11 @@ class _BroadcastScreenState extends State<BroadcastScreen> {
                   v?.trim().isEmpty == true ? 'Informe a mensagem' : null,
             ),
             const SizedBox(height: 24),
-            FilledButton.icon(
-              onPressed: isSending ? null : _send,
-              icon: isSending
-                  ? const SizedBox(
-                      width: 18,
-                      height: 18,
-                      child: CircularProgressIndicator(strokeWidth: 2),
-                    )
-                  : const Icon(Icons.send),
-              label: const Text('Enviar para todos'),
+            LoadingFilledButton(
+              loading: isSending,
+              onPressed: _send,
+              label: 'Enviar para todos',
+              icon: Icons.send,
             ),
           ],
         ),

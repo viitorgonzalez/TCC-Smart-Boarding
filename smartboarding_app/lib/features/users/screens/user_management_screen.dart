@@ -1,13 +1,13 @@
 import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
 import '../../../core/widgets/async_builder.dart';
+import '../../../core/widgets/empty_state.dart';
+import '../../../core/widgets/loading_filled_button.dart';
+import '../../../core/widgets/snackbar_utils.dart';
 import '../models/user_model.dart';
 import '../providers/user_provider.dart';
 
-// ── Hierarquia de cargos (topo → base) e metadados de cada papel ──────────────
-// Sem cores por papel: a diferenciação é feita pelo ícone + nome.
-
-const _hierarchy = ['ADMIN', 'DRIVER', 'STUDENT'];
+const _hierarchy = ['ADMIN', 'STUDENT'];
 
 class _RoleMeta {
   final String singular;
@@ -22,7 +22,6 @@ const _roleMeta = <String, _RoleMeta>{
     'Administradores',
     Icons.admin_panel_settings,
   ),
-  'DRIVER': _RoleMeta('Motorista', 'Motoristas', Icons.directions_bus_filled),
   'STUDENT': _RoleMeta('Aluno', 'Alunos', Icons.school),
 };
 
@@ -66,7 +65,10 @@ class _UserManagementScreenState extends State<UserManagementScreen> {
               const Divider(height: 1),
               Expanded(
                 child: users.isEmpty
-                    ? const Center(child: Text('Nenhum usuário cadastrado'))
+                    ? const EmptyState(
+                        icon: Icons.people_outline,
+                        title: 'Nenhum usuário cadastrado',
+                      )
                     : RefreshIndicator(
                         onRefresh: provider.load,
                         child: _buildList(users),
@@ -98,7 +100,10 @@ class _UserManagementScreenState extends State<UserManagementScreen> {
     }
 
     if (children.isEmpty) {
-      return const Center(child: Text('Nenhum usuário neste filtro'));
+      return const EmptyState(
+        icon: Icons.filter_alt_off,
+        title: 'Nenhum usuário neste filtro',
+      );
     }
 
     return ListView(
@@ -298,12 +303,7 @@ class _CreateUserFormState extends State<_CreateUserForm> {
       );
     } catch (e) {
       if (!mounted) return;
-      ScaffoldMessenger.of(context).showSnackBar(
-        SnackBar(
-          content: Text('Falha ao criar: $e'),
-          backgroundColor: Theme.of(context).colorScheme.error,
-        ),
-      );
+      showErrorSnackBar(context, 'Falha ao criar: $e');
     } finally {
       if (mounted) setState(() => _saving = false);
     }
@@ -369,15 +369,10 @@ class _CreateUserFormState extends State<_CreateUserForm> {
               onChanged: (r) => setState(() => _role = r ?? 'STUDENT'),
             ),
             const SizedBox(height: 24),
-            FilledButton(
-              onPressed: _saving ? null : _submit,
-              child: _saving
-                  ? const SizedBox(
-                      height: 20,
-                      width: 20,
-                      child: CircularProgressIndicator(strokeWidth: 2),
-                    )
-                  : const Text('Criar usuário'),
+            LoadingFilledButton(
+              loading: _saving,
+              onPressed: _submit,
+              label: 'Criar usuário',
             ),
           ],
         ),

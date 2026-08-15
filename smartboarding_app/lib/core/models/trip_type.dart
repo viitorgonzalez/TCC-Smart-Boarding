@@ -1,7 +1,5 @@
 import 'package:flutter/material.dart';
 
-/// Direção do transporte escolhida pelo aluno.
-/// Valores da API: ROUND_TRIP (ida e volta), TO_CAMPUS (só ida), FROM_CAMPUS (só volta).
 class TripTypeInfo {
   final String value;
   final String label;

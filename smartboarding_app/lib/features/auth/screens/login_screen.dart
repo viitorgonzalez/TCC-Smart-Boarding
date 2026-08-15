@@ -1,6 +1,8 @@
 import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
 import '../../../core/providers/auth_provider.dart';
+import '../../../core/widgets/loading_filled_button.dart';
+import '../../../core/widgets/snackbar_utils.dart';
 
 class LoginScreen extends StatefulWidget {
   const LoginScreen({super.key});
@@ -32,14 +34,7 @@ class _LoginScreenState extends State<LoginScreen> {
         _passCtrl.text,
       );
     } catch (e) {
-      if (mounted) {
-        ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(
-            content: Text('Falha no login: $e'),
-            backgroundColor: Colors.red,
-          ),
-        );
-      }
+      if (mounted) showErrorSnackBar(context, 'Falha no login: $e');
     } finally {
       if (mounted) setState(() => _loading = false);
     }
@@ -110,15 +105,10 @@ class _LoginScreenState extends State<LoginScreen> {
                       (v == null || v.isEmpty) ? 'Informe a senha' : null,
                 ),
                 const SizedBox(height: 24),
-                FilledButton(
-                  onPressed: _loading ? null : _submit,
-                  child: _loading
-                      ? const SizedBox(
-                          height: 20,
-                          width: 20,
-                          child: CircularProgressIndicator(strokeWidth: 2),
-                        )
-                      : const Text('Entrar'),
+                LoadingFilledButton(
+                  loading: _loading,
+                  onPressed: _submit,
+                  label: 'Entrar',
                 ),
               ],
             ),

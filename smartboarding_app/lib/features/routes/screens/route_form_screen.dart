@@ -1,5 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
+import '../../../core/widgets/loading_filled_button.dart';
+import '../../../core/widgets/snackbar_utils.dart';
 import '../models/route_model.dart';
 import '../providers/route_provider.dart';
 
@@ -44,11 +46,7 @@ class _RouteFormScreenState extends State<RouteFormScreen> {
       }
       if (mounted) Navigator.pop(context);
     } catch (e) {
-      if (mounted) {
-        ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(content: Text(e.toString()), backgroundColor: Colors.red),
-        );
-      }
+      if (mounted) showErrorSnackBar(context, e.toString());
     } finally {
       if (mounted) setState(() => _loading = false);
     }
@@ -86,15 +84,10 @@ class _RouteFormScreenState extends State<RouteFormScreen> {
                 maxLines: 3,
               ),
               const SizedBox(height: 24),
-              FilledButton(
-                onPressed: _loading ? null : _submit,
-                child: _loading
-                    ? const SizedBox(
-                        height: 20,
-                        width: 20,
-                        child: CircularProgressIndicator(strokeWidth: 2),
-                      )
-                    : Text(_isEdit ? 'Salvar alterações' : 'Criar rota'),
+              LoadingFilledButton(
+                loading: _loading,
+                onPressed: _submit,
+                label: _isEdit ? 'Salvar alterações' : 'Criar rota',
               ),
             ],
           ),

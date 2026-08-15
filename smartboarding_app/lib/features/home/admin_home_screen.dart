@@ -3,6 +3,9 @@ import 'package:provider/provider.dart';
 import '../../core/providers/auth_provider.dart';
 import '../../core/utils/date_format.dart';
 import '../../core/widgets/async_builder.dart';
+import '../../core/widgets/empty_state.dart';
+import '../../core/widgets/entity_list_tile.dart';
+import '../../core/widgets/status_pill.dart';
 import '../lists/models/daily_list_model.dart';
 import '../lists/providers/admin_list_provider.dart';
 import '../lists/screens/admin_list_entries_screen.dart';
@@ -131,7 +134,10 @@ class _AdminListsTab extends StatelessWidget {
         value: provider.state,
         onRetry: provider.load,
         builder: (lists) => lists.isEmpty
-            ? const _EmptyState()
+            ? const EmptyState(
+                icon: Icons.event_busy,
+                title: 'Nenhuma lista disponível hoje',
+              )
             : RefreshIndicator(
                 onRefresh: provider.load,
                 child: ListView.separated(
@@ -152,76 +158,28 @@ class _ListTile extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    return Card(
-      child: ListTile(
-        contentPadding: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
-        leading: CircleAvatar(
-          backgroundColor: list.isOpen
-              ? Colors.green.shade50
-              : Colors.grey.shade100,
-          child: Icon(
-            Icons.people_alt_outlined,
-            color: list.isOpen ? Colors.green : Colors.grey,
-          ),
+    return EntityListTile(
+      leading: CircleAvatar(
+        backgroundColor: list.isOpen
+            ? Colors.green.shade50
+            : Colors.grey.shade100,
+        child: Icon(
+          Icons.people_alt_outlined,
+          color: list.isOpen ? Colors.green : Colors.grey,
         ),
-        title: Text(
-          list.routeName,
-          style: const TextStyle(fontWeight: FontWeight.bold),
-        ),
-        subtitle: Text(
-          '${list.totalEntries} inscrito(s) · ${formatDate(list.date)}',
-        ),
-        trailing: _StatusChip(isOpen: list.isOpen),
-        onTap: () => Navigator.push(
-          context,
-          MaterialPageRoute(builder: (_) => AdminListEntriesScreen(list: list)),
-        ),
+      ),
+      title: list.routeName,
+      subtitle: Text(
+        '${list.totalEntries} inscrito(s) · ${formatDate(list.date)}',
+      ),
+      trailing: StatusPill(
+        label: list.isOpen ? 'Aberta' : 'Fechada',
+        tone: list.isOpen ? StatusPillTone.positive : StatusPillTone.neutral,
+      ),
+      onTap: () => Navigator.push(
+        context,
+        MaterialPageRoute(builder: (_) => AdminListEntriesScreen(list: list)),
       ),
     );
   }
-}
-
-class _StatusChip extends StatelessWidget {
-  final bool isOpen;
-  const _StatusChip({required this.isOpen});
-
-  @override
-  Widget build(BuildContext context) {
-    return Container(
-      padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 4),
-      decoration: BoxDecoration(
-        color: isOpen ? Colors.green.shade50 : Colors.grey.shade100,
-        borderRadius: BorderRadius.circular(20),
-        border: Border.all(
-          color: isOpen ? Colors.green.shade300 : Colors.grey.shade300,
-        ),
-      ),
-      child: Text(
-        isOpen ? 'Aberta' : 'Fechada',
-        style: TextStyle(
-          fontSize: 12,
-          fontWeight: FontWeight.w600,
-          color: isOpen ? Colors.green.shade700 : Colors.grey.shade600,
-        ),
-      ),
-    );
-  }
-}
-
-class _EmptyState extends StatelessWidget {
-  const _EmptyState();
-  @override
-  Widget build(BuildContext context) => Center(
-    child: Column(
-      mainAxisAlignment: MainAxisAlignment.center,
-      children: [
-        Icon(Icons.event_busy, size: 56, color: Colors.grey.shade300),
-        const SizedBox(height: 12),
-        Text(
-          'Nenhuma lista disponível hoje',
-          style: TextStyle(color: Colors.grey.shade500),
-        ),
-      ],
-    ),
-  );
 }
