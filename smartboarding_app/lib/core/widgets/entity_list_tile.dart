@@ -20,10 +20,7 @@ class EntityListTile extends StatelessWidget {
   Widget build(BuildContext context) {
     return Card(
       child: ListTile(
-        contentPadding: const EdgeInsets.symmetric(
-          horizontal: 16,
-          vertical: 8,
-        ),
+        contentPadding: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
         leading: leading,
         title: Text(title, style: const TextStyle(fontWeight: FontWeight.bold)),
         subtitle: subtitle,

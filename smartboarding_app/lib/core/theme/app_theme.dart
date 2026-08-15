@@ -23,14 +23,15 @@ class AppTheme {
     // visivelmente distinto de _charcoalBlue (fundo). No light, deixar o
     // Material derivar do seed em vez de igualar a _ashGrey (fundo) — senão
     // o fillColor de inputDecorationTheme (abaixo) some contra o fundo.
-    final scheme = ColorScheme.fromSeed(
-      seedColor: _deepTeal,
-      brightness: brightness,
-      secondary: _mutedTeal,
-    ).copyWith(
-      surface: isDark ? _charcoalBlue : _ashGrey,
-      surfaceContainerHighest: isDark ? _darkSlate : null,
-    );
+    final scheme =
+        ColorScheme.fromSeed(
+          seedColor: _deepTeal,
+          brightness: brightness,
+          secondary: _mutedTeal,
+        ).copyWith(
+          surface: isDark ? _charcoalBlue : _ashGrey,
+          surfaceContainerHighest: isDark ? _darkSlate : null,
+        );
     final base = ThemeData(
       colorScheme: scheme,
       useMaterial3: true,

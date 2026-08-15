@@ -215,7 +215,9 @@ class _MembersSheetState extends State<_MembersSheet> {
                   if (snap.hasError) {
                     return Padding(
                       padding: const EdgeInsets.all(24),
-                      child: ErrorState(message: 'Erro ao carregar: ${snap.error}'),
+                      child: ErrorState(
+                        message: 'Erro ao carregar: ${snap.error}',
+                      ),
                     );
                   }
                   final entries = snap.data ?? [];
@@ -442,4 +444,3 @@ class _CloseCountdownState extends State<_CloseCountdown> {
     );
   }
 }
-

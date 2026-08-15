@@ -1,0 +1,29 @@
+#!/usr/bin/env bash
+# Bloqueia commit de segredo hardcoded (o que o GitGuardian pegou em 40dc8a6 —
+# ver PR #4). Roda só no diff staged, não no repo inteiro.
+#
+# Ativar: git config core.hooksPath .githooks
+
+set -euo pipefail
+
+diff=$(git diff --cached --diff-filter=ACM -U0 -- \
+  ':!*.lock' ':!*.g.dart' ':!*.freezed.dart' ':!*/build/**' ':!*/target/**' \
+  ':!*.env.example' ':!*.env.prod.example')
+
+[ -z "$diff" ] && exit 0
+
+# credencial/token/secret/senha atribuído a literal de alta entropia (>=16 chars)
+# sem \b antes do nome — precisa casar JWT_SECRET, DB_PASSWORD etc, não só "secret" isolado.
+pattern='(?i)[a-z0-9_]*(secret|password|senha|token|api[_-]?key|access[_-]?key)[a-z0-9_]*\s*[:=]\s*["'"'"']?[A-Za-z0-9_\-\/+=]{16,}["'"'"']?'
+
+hit=$(echo "$diff" | grep -P '^\+' | grep -viP '\$\{|env\.|getenv|System\.getenv|process\.env|--dart-define' | grep -P "$pattern" || true)
+
+if [ -n "$hit" ]; then
+  echo "pre-commit: possível segredo hardcoded no diff:" >&2
+  echo "$hit" >&2
+  echo "" >&2
+  echo "Se for placeholder/fixture legítimo, ajuste o pattern do hook ou use --no-verify conscientemente." >&2
+  exit 1
+fi
+
+exit 0

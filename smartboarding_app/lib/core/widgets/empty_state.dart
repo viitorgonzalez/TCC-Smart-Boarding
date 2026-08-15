@@ -5,7 +5,12 @@ class EmptyState extends StatelessWidget {
   final String title;
   final String? subtitle;
 
-  const EmptyState({super.key, required this.icon, required this.title, this.subtitle});
+  const EmptyState({
+    super.key,
+    required this.icon,
+    required this.title,
+    this.subtitle,
+  });
 
   @override
   Widget build(BuildContext context) {
