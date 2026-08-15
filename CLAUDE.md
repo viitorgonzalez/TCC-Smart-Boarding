@@ -38,7 +38,8 @@ flutter build apk --release
 | Arquivo | O quê |
 |---|---|
 | `smartboarding_app/docs/spec.md` | **Spec do Flutter** — arquitetura, papéis, regras de negócio. Leia antes de mexer no app. |
-| `smartboarding_app/docs/PAGES.md` + `docs/specs/<tela>.md` | Índice de telas + uma spec por tela (contrato de API e regras específicas daquela tela). |
+| `smartboarding_app/docs/PAGES.md` + `docs/specs/<categoria>/<tela>.md` | Índice de telas + uma spec por tela (contrato de API e regras específicas daquela tela), agrupadas por categoria (autenticacao/aluno/notificacoes/relatorios/administrador). |
+| `smartboarding_app/docs/design/` | `design-system.md` (tokens) + `design-prompts/<categoria>/` (prompts de layout) + `figma-screens/` (referência visual do Figma). |
 | `smartboarding-api/docs/spec.md` | **Spec do backend** — papéis, regras de negócio (RN1…), arquitetura hexagonal, entidades, contratos de API. Leia antes de mexer na API. |
 | `smartboarding-api/CONTEXT.md` | Contexto de domínio do backend (problema, entidades, papéis) |
 | `smartboarding-api/CLAUDE.md` | Convenções detalhadas de backend e Flutter |

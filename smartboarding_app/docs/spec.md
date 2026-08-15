@@ -2,7 +2,7 @@
 
 > Escopo: app Flutter (`smartboarding_app/`). Descreve o app como ele **é** — arquitetura,
 > papéis e regras de negócio no estado atual. Telas individuais: ver [`PAGES.md`](./PAGES.md)
-> (índice) e `docs/specs/<tela>.md` (uma por tela). Contrato de backend completo:
+> (índice) e `docs/specs/<categoria>/<tela>.md` (uma por tela). Contrato de backend completo:
 > `smartboarding-api/docs/spec.md`.
 
 ---
@@ -141,7 +141,11 @@ test/
 docs/
 ├── spec.md          # este arquivo
 ├── PAGES.md         # índice de telas
-└── specs/           # uma spec por tela
+├── firebase-setup.md
+├── specs/           # uma spec por tela, agrupada por categoria (autenticacao/aluno/
+│                    # notificacoes/relatorios/administrador — espelha as seções do PAGES.md)
+└── design/          # design-system.md (tokens) + design-prompts/ (prompts de layout,
+                      # mesma categorização) + figma-screens/ (referência visual)
 ```
 
 ### 4.2 Client HTTP
@@ -161,7 +165,14 @@ docs/
 - `Navigator` 1.0 com rotas nomeadas simples — sem `go_router`. `/register/:token` recebe a
   entrada do App Link (§3.1).
 
-### 4.5 Tema
+### 4.5 Design system — tokens e componentes
+
+Inspirado na organização de `packages/tailwind-config` + `packages/ui` de um front web irmão
+(tokens únicos + dois níveis de componente) — adaptado pro Flutter: não existe "primitive a
+instalar" (Material 3 já dá `Card`/`ListTile`/`Chip`/`AlertDialog`...), então a camada que falta é
+só **tokens completos** e **componentes do produto** (`lib/core/widgets/`).
+
+**Cor**
 
 | Tom | Hex | Uso |
 |---|---|---|
@@ -174,7 +185,36 @@ docs/
 `ColorScheme` derivado desses 5 tons via `ColorScheme.fromSeed` (seed = Deep Teal) com `surface`
 sobrescrito por tema. No light, `surfaceContainerHighest` fica com o valor derivado do seed (não
 igualado ao fundo, senão o preenchimento dos inputs some contra a página); no dark, é
-sobrescrito por Dark Slate Grey, distinto do fundo Charcoal Blue.
+sobrescrito por Dark Slate Grey, distinto do fundo Charcoal Blue. Tons semânticos (`positive`/
+`neutral`/`danger` — ver `StatusPill` abaixo) mapeiam direto pro `ColorScheme` existente
+(`primary`/`surfaceContainerHighest`/`error`), sem token novo — não existe hoje nenhum uso real de
+um 4º tom ("warning"); só criar se aparecer necessidade concreta.
+
+**Tipografia:** Montserrat via `google_fonts` (`GoogleFonts.montserratTextTheme`, aplicado sobre o
+`TextTheme` já derivado do `colorScheme` — preserva as cores de texto por brightness). Sem
+`TextTheme` customizado além da fonte — a escala é a do Material 3.
+
+**Raio:** nomeado em `AppRadius` (`lib/core/theme/app_theme.dart`) — `card = 12.0` (cards, list
+tiles), `control = 10.0` (botões, campos). Não crava literal solto no `ThemeData`.
+
+**Componentes do produto** (`lib/core/widgets/`) — promovidos pela regra "usado em 2+ telas hoje,
+com evidência real" (mirror da regra do front web irmão, "usado em 2+ apps → compartilhado"):
+
+| Widget | Cobre |
+|---|---|
+| `EmptyState` | Estado vazio (ícone + título + subtítulo opcional) |
+| `ErrorState` | Estado de erro (ícone + mensagem + retry opcional) — usado internamente por `AsyncBuilder` |
+| `StatusPill` | Selo de status (`tone`: positive/neutral/danger) |
+| `EntityListTile` | Linha de lista (`Card`+`ListTile`: leading/title/subtitle/trailing) |
+| `TripTypeChip` | Chip de direção de viagem (ida/volta) |
+| `InitialsAvatar` | Avatar circular com inicial/índice |
+| `LoadingFilledButton` | Botão que troca pra spinner durante ação assíncrona |
+| `showErrorSnackBar` (helper) | SnackBar de erro consistente (`colorScheme.error`, não `Colors.red` hardcoded) |
+
+**Watchlist** (candidatos com só 1 ocorrência hoje — promove quando a 2ª aparecer, não antes):
+`InfoRow` (label:valor), `InlineStatusBanner` (banner colorido inline, ex.: contagem regressiva),
+`FilterChipBar` (chips de filtro roláveis com contagem), `SectionHeader` (cabeçalho de seção
+agrupada), `showConfirmDeleteDialog` (confirmação destrutiva).
 
 ### 4.6 Armazenamento local
 
@@ -191,7 +231,7 @@ sobrescrito por Dark Slate Grey, distinto do fundo Charcoal Blue.
 ## 5. Páginas
 
 Ver [`PAGES.md`](./PAGES.md) para o índice completo (rota, acesso, contrato de API por tela) e
-`docs/specs/<tela>.md` para o detalhe de cada uma.
+`docs/specs/<categoria>/<tela>.md` para o detalhe de cada uma.
 
 ---
 

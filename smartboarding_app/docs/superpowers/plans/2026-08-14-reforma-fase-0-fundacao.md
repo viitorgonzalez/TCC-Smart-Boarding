@@ -40,11 +40,11 @@ verdade da implementação real (nota pro fim desta fase, não uma task).
 - Modify: `lib/main.dart` (nenhuma mudança esperada — não registra `DriverProvider` no
   `MultiProvider` hoje; confirmar antes de assumir)
 
-- [ ] **Step 1: Remover `isDriver` de `AuthProvider`**
+- [x] **Step 1: Remover `isDriver` de `AuthProvider`**
   - Linha 19 hoje: `bool get isDriver => _token?.role == 'DRIVER';` — deletar. Confirmar que
     nenhum outro arquivo além de `auth_gate.dart` chama `isDriver` (grep antes de deletar).
 
-- [ ] **Step 2: Simplificar `AuthGate`**
+- [x] **Step 2: Simplificar `AuthGate`**
   ```dart
   case AuthStatus.authenticated:
     if (auth.isAdmin) return const AdminHomeScreen();
@@ -53,10 +53,10 @@ verdade da implementação real (nota pro fim desta fase, não uma task).
   - Remove o `import '../../features/driver/screens/driver_home_screen.dart';` e o `if
     (auth.isDriver) return const DriverHomeScreen();`.
 
-- [ ] **Step 3: Deletar a feature `driver/` e o teste correspondente**
+- [x] **Step 3: Deletar a feature `driver/` e o teste correspondente**
   - `lib/features/driver/` inteira + `test/unit/driver_provider_test.dart`.
 
-- [ ] **Step 4: `flutter analyze` limpo + `flutter test` verde**
+- [x] **Step 4: `flutter analyze` limpo + `flutter test` verde**
   - Confirmar que nada mais importa símbolos de `features/driver/` (o `analyze` pega import
     quebrado se sobrar referência).
 
@@ -67,7 +67,7 @@ verdade da implementação real (nota pro fim desta fase, não uma task).
 **Files:**
 - Modify: `lib/core/theme/app_theme.dart`
 
-- [ ] **Step 1: Trocar o seed único por `ColorScheme` derivado da paleta (`docs/spec.md` §4.5)**
+- [x] **Step 1: Trocar o seed único por `ColorScheme` derivado da paleta (`docs/spec.md` §4.5)**
   ```dart
   class AppTheme {
     static const _ashGrey = Color(0xFFCAD2C5);      // fundo light
@@ -106,7 +106,7 @@ verdade da implementação real (nota pro fim desta fase, não uma task).
   - Detalhamento fino de tema fica pro `/design-prompt` quando as telas novas da reforma forem
     desenhadas (`docs/spec.md` §4.5 já registra isso) — esta task só troca os tokens de cor base.
 
-- [ ] **Step 2: `flutter analyze` limpo**
+- [x] **Step 2: `flutter analyze` limpo**
 
 - [ ] **Step 3: Smoke visual manual**
   - `flutter run` no emulador, abrir `LoginScreen` e `StudentHomeScreen` em light e dark
@@ -115,8 +115,47 @@ verdade da implementação real (nota pro fim desta fase, não uma task).
 
 ---
 
+### Task 3: Fundação do design system (tokens + componentes compartilhados)
+
+**Files:**
+- Modify: `lib/core/theme/app_theme.dart` (`AppRadius`, `GoogleFonts.montserratTextTheme`)
+- Modify: `pubspec.yaml` (`google_fonts`)
+- Create: `lib/core/models/trip_type.dart` (movido de `lib/features/lists/models/`)
+- Create: `lib/core/widgets/{empty_state,error_state,trip_type_chip,status_pill,entity_list_tile,loading_filled_button,initials_avatar,snackbar_utils}.dart`
+- Modify: `lib/core/widgets/async_builder.dart` + ~10 telas (consumo dos widgets novos —
+  `admin_home_screen`, `student_home_screen`, `routes_screen`, `route_form_screen`,
+  `reports_screen`, `report_detail_screen`, `admin_list_entries_screen`,
+  `user_management_screen`, `login_screen`, `broadcast_screen`)
+- Modify: `docs/spec.md` §4.5 (tokens + tabela de componentes promovidos/watchlist)
+
+- [x] **Step 1: Tokens** — `AppRadius.card`/`control` nomeados (substituem `12`/`10` literais);
+  `google_fonts` adicionado (`flutter pub add google_fonts`); Montserrat aplicado via
+  `GoogleFonts.montserratTextTheme(base.textTheme)` sobre o `ThemeData` já montado.
+- [x] **Step 2: Mover `trip_type.dart` pra `core/models/`** — corrige a direção de dependência
+  (`core` não deveria depender de `features`); 3 imports atualizados.
+- [x] **Step 3: Criar os 8 componentes compartilhados** — regra de promoção: só o que tem 2+
+  ocorrências reais hoje (levantamento via agent, não hipotético). `tone` do `StatusPill` mapeia
+  pro `ColorScheme` existente (`primary`/`surfaceContainerHighest`/`error`), sem cor nova.
+- [x] **Step 4: Consumir nas telas** — cada uma só trocou a implementação privada duplicada pela
+  pública, sem mudar comportamento visual. Efeito colateral positivo: `student_home_screen.dart`
+  caiu de 497 pra 445 linhas (ainda acima do limite de 300 do gate — não é escopo desta task
+  zerar isso, só não piorar). Bônus fora do escopo original mas corrigido por estar no arquivo:
+  `user_management_screen.dart` ainda listava `'DRIVER'` na hierarquia de papéis/formulário de
+  criação — resquício da Task 1 que não pegou este arquivo; removido (`Role` no backend já não
+  tem mais `DRIVER`, criar usuário com esse papel quebraria).
+- [x] **Step 5: `flutter analyze` limpo + `flutter test` verde** — suíte atual (3 testes) sem
+  regressão.
+- [x] **Step 6: Documentar em `docs/spec.md` §4.5`** — tokens completos + tabela de componentes
+  promovidos + watchlist (`InfoRow`, `InlineStatusBanner`, `FilterChipBar`, `SectionHeader`,
+  `showConfirmDeleteDialog` — 1 ocorrência hoje, promove quando a 2ª aparecer).
+- [ ] **Step 7: Smoke visual manual** — `flutter run`, `LoginScreen` e `StudentHomeScreen` em
+  light e dark, confirmar Montserrat carregando e os componentes com a mesma aparência de antes.
+
+---
+
 ## Ordem recomendada
 
 Task 1 e Task 2 são independentes — podem ser feitas em qualquer ordem ou em paralelo. Nenhuma
 das duas depende do backend (Fase 0 do backend só é pré-requisito pras fases seguintes, 1-6, não
-pra esta).
+pra esta). Task 3 depende de Task 2 estar pronta (paleta fechada, `docs/spec.md` §4.5 existente)
+— feita depois, mesma sessão.
