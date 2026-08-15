@@ -1,27 +1,8 @@
-# SmartBoarding API — Design & Regras de Negócio
+# SmartBoarding API — Especificação
 
-> Status: aprovado — documenta o estado **já implementado** em `fix/project-setup`.
-> Data: 2026-08-14
-> Escopo deste documento: **backend** (`smartboarding-api/`). É uma spec de catch-up — o
-> código já existe; este documento registra o contrato e as decisões que ele encarna, porque
-> `PLAN.md`/`AGENTS.md` (removidos) descreviam um estado pré-implementação que não reflete mais
-> a realidade. Espelha o formato e o precedente de `smartboarding_app/docs/spec.md`.
-
----
-
-## 0. Registro de Decisões
-
-Decisões tomadas durante a sessão que gerou este documento (2026-08-14) — com o motivo, para não
-precisar re-discutir depois.
-
-| Decisão | Escolha | Motivo |
-|---|---|---|
-| Formato da spec de backend | Documento único (`docs/spec.md`), não uma spec por domínio | Domínio ainda pequeno o suficiente pra caber coeso num arquivo só — mesma lógica do `spec.md` do Flutter |
-| Destino de `PLAN.md`/`AGENTS.md` | Apagados | Descreviam um estado pré-implementação (migrations V3–V7, pacotes flat) que não existe mais; mantê-los só confundiria quem lesse depois. Este `spec.md` os substitui |
-| Gaps 2 e 3 (endpoint de notificação de saída do motorista; broadcast de lista aberta) | Só documentados nesta rodada — não implementados agora | Já têm contrato claro e o Flutter já depende deles (`driver_service.dart`), mas a implementação fica pra uma demanda `/do` separada |
-| Convenção de pacotes documentada | Corrigida em `smartboarding-api/CLAUDE.md` e `personal-harness/docs/repos.md` pra refletir a arquitetura hexagonal real | Os dois arquivos descreviam pacotes flat capitalizados (`Models/`, `Controllers/`...) que nunca corresponderam ao código desde a migração pra `domain/application/infrastructure` |
-
-> Decisão revista depois **não se apaga**: risca a antiga e anota a revisão com data e motivo.
+> Escopo: backend (`smartboarding-api/`). Descreve o sistema como ele **é** — contrato,
+> arquitetura e regras de negócio no estado atual. Histórico de decisões e discussões de
+> mudança vivem em `personal-harness/docs/work/`, não aqui.
 
 ---
 
@@ -29,32 +10,29 @@ precisar re-discutir depois.
 
 ### Problema
 
-O controle de embarque no ônibus universitário (Unifor) era feito manualmente por um grupo de
-WhatsApp: alunos escreviam o próprio nome numa lista, o grupo "fechava" por mensagem humana às
-16h, o tamanho do veículo era decidido contando nomes manualmente, e não havia aviso automático
-de saída do ônibus. Sujeito a erro (duplicatas, fechamento atrasado) e não escalável.
+O controle de embarque no ônibus universitário (Unifor + instituições parceiras) era feito
+manualmente por grupo de WhatsApp: alunos escreviam o próprio nome numa lista, o grupo "fechava"
+por mensagem humana, o tamanho do veículo era decidido contando nomes, e não havia aviso
+automático de saída do ônibus. Sujeito a erro (duplicatas, fechamento atrasado) e não escalável.
 
 ### Objetivo do backend
 
-1. Persistir e servir listas diárias de embarque com abertura/fechamento **automáticos por
-   horário**, sem depender de um humano lembrar de fechar o grupo.
-2. Contar inscritos em tempo real (`COUNT WHERE is_active = true`), sem digitação manual.
-3. Disparar notificações push (FCM) nos momentos certos, e dar ao motorista e ao admin os
-   endpoints pra ação manual (saída do ônibus, broadcast).
-4. Expor um contrato estável o suficiente pro app Flutter consumir sem acoplamento a detalhes de
-   persistência.
+- Persistir e servir listas diárias de embarque com abertura/fechamento automáticos por horário.
+- Contar inscritos em tempo real, sem digitação manual.
+- Resolver a rota de cada aluno automaticamente a partir da instituição vinculada.
+- Gerenciar o fluxo de cadastro por convite, com aprovação do admin.
+- Propor o veículo adequado no fechamento da lista, a partir da capacidade cadastrada.
+- Disparar notificações push (FCM) nos momentos certos, e dar ao admin os endpoints de ação
+  manual (trajeto, notificação livre).
+- Expor um contrato estável o suficiente pro app Flutter consumir sem acoplamento a detalhes de
+  persistência.
 
-### Fora de escopo (por enquanto)
+### Fora de escopo
 
-- Múltiplas rotas simultâneas ativas de verdade (suportado pelo schema, mas o uso real é uma
-  rota principal).
-- Autocadastro de usuários — toda conta nasce de `POST /api/auth/register` (ADMIN-only).
+- Rastreamento em tempo real (GPS) do ônibus — o mapa mostra pontos fixos, não a posição ao vivo.
 - Pagamento/cobrança.
-- Rastreamento em tempo real (GPS) do ônibus.
-- Perfil estendido de usuário no cadastro (curso, instituição, telefone, endereço, data de
-  nascimento, data de expiração) — a coluna existe no schema (`users`) e `UserResponse` já
-  retorna esses campos, mas `POST /api/auth/register` **não os aceita** (ver §7, Gap 4) e o
-  formulário de criação de usuário no Flutter também não os coleta ainda.
+- Múltiplas rotas ativas atendendo a mesma instituição simultaneamente — cada instituição
+  pertence a uma única rota ativa por vez.
 
 ---
 
@@ -64,305 +42,323 @@ Fonte de verdade: `SecurityConfig.java` (`infrastructure/config/`).
 
 | Papel | Pode | Não pode |
 |---|---|---|
-| **Público** (sem token) | `POST /api/auth/login`, `GET /api/routes`, `GET /api/routes/{id}` | Tudo o resto |
-| **`STUDENT`** | Ver lista(s) do dia, entrar/sair da própria inscrição, ver detalhe de rota, registrar/remover o próprio device token | Criar/editar rotas, gerenciar usuários, ver relatórios, disparar notificações |
-| **`DRIVER`** | Mesmo acesso de leitura que `STUDENT` a listas/rotas; **não** tem hoje um endpoint próprio de notificação de saída (ver Gap 2) | Gerenciar rotas, usuários ou relatórios |
-| **`ADMIN`** | Tudo: CRUD de rotas, `POST /api/auth/register`, listar usuários, ver relatórios, `POST /api/notifications/broadcast` | — |
+| **Público** (sem token) | Login, consultar rotas, consultar/submeter convite de cadastro, recuperação de senha | Tudo o resto |
+| **`STUDENT`** | Ver a lista do dia da própria rota (derivada da instituição), entrar/sair da própria inscrição, ver detalhe de rota (com mapa/paradas), registrar/remover o próprio device token, ver notificações (histórico), ver relatórios dos últimos 7 dias | Gerenciar rotas/instituições/veículos, aprovar cadastros, enviar notificações, ver relatórios além de 7 dias, ações de trajeto |
+| **`ADMIN`** | Tudo: CRUD de rotas/instituições/veículos/paradas, aprovar/negar cadastros pendentes, gerar convite, criar outro ADMIN, listar usuários, ver relatórios completos, enviar notificações (com imagem), ações de trajeto (iniciar/checkpoint/finalizar) | — |
 
-⚠️ **Observação de segurança a validar**: `POST/DELETE /api/lists/{id}/entries` cai na regra
-genérica `.anyRequest().authenticated()` — **qualquer** papel autenticado (inclusive `ADMIN`
-e `DRIVER`) pode entrar/sair de uma lista, não só `STUDENT`. O `PLAN.md` original propunha
-restringir a `STUDENT`, mas isso nunca foi implementado na `SecurityConfig`. Não é
-necessariamente um bug (pode ser intencional — motorista/admin também usam o ônibus), mas não
-está decidido em nenhum doc. Fica registrado aqui como ponto em aberto, não como Gap formal.
+`/api/lists/{id}/entries` (entrar/sair da lista) libera qualquer papel autenticado, não só
+`STUDENT` — comportamento intencional (admin também pode embarcar).
 
 ---
 
-## 3. Regras de Negócio
+## 3. Arquitetura
 
-Numeradas pra referenciar de plano/teste/PR. Todas **já implementadas**, salvo indicação contrária.
-
-- **RN1** — Lista diária abre automaticamente às **00:00** (seg–sex) para cada `Route` com
-  `isActive=true`. Idempotente: se já existe `DailyList` para (rota, data), não recria
-  (`existsByRouteIdAndDate`). — `SchedulerUseCaseImpl.open()`
-- **RN2** — Lista diária fecha automaticamente às **16:00** (seg–sex): `status=CLOSED`,
-  `closedAt=now()`, gera `Report` (snapshot dos inscritos ativos) e dispara broadcast FCM
-  "Embarque confirmado". — `SchedulerUseCaseImpl.close()`
-- **RN3** — Entrar/sair de uma lista só é permitido com `status=OPEN` — fora disso, `400
-  LIST_CLOSED`. — `ListUseCaseImpl.add()`/`remove()`
-- **RN4** — Uma inscrição por (usuário, lista) — `UNIQUE(user_id, daily_list_id)` no banco.
-  Reentrar numa lista onde o usuário já tem `ListEntry` **reativa** o registro existente (não
-  cria duplicata) e **não retorna 409** — mesmo se a inscrição já estiver ativa, o `POST`
-  simplesmente atualiza o `tripType` e é idempotente. *(Isso diverge do `PLAN.md` original, que
-  propunha 409 para reinscrição em entrada já ativa — o código implementado não faz isso.)*
-- **RN5** — Sair da lista é soft-delete (`is_active=false`) — nunca `DELETE` físico.
-- **RN6** — Cada inscrição tem um `tripType`: `ROUND_TRIP` (padrão) | `TO_CAMPUS` | `FROM_CAMPUS`
-  — campo `list_entries.trip_type`, editável enquanto a lista estiver `OPEN` (reentrar com um
-  `tripType` diferente atualiza o existente). **Não documentado em nenhum doc anterior** (nem
-  `CONTEXT.md`, nem `spec.md` do Flutter) — é um conceito de domínio real no schema e na API que
-  faltava registro.
-- **RN7** — Ao entrar na lista (criação ou reativação), dispara notificação FCM individual de
-  confirmação — best-effort: falha no envio é logada, não propaga erro pro cliente.
-  — `ListUseCaseImpl.notifyEnrollment()`
-- **RN8** — `Report` é gerado automaticamente no fechamento, é imutável (sem endpoint de edição)
-  e só `ADMIN` acessa (`GET /api/reports`, paginado — default `size=20`, ordenado por
-  `generatedAt DESC`; `GET /api/reports/{id}` com `snapshotData` completo).
-- **RN9** — Nome de rota é único entre rotas ativas — `409 ROUTE_NAME_CONFLICT` na criação;
-  duplicar nome exato na criação retorna `409 ROUTE_ALREADY_EXISTS`. Deletar rota é soft
-  (`isActive=false`).
-- **RN10** — E-mail de usuário é único — `409 EMAIL_ALREADY_EXISTS` no registro. Senha mínima de
-  6 caracteres (`@Size(min = 6)` em `RegisterRequest`).
-- **RN11** — Papel `DRIVER` existe no domínio (`Role.java`) desde a consolidação de migrations
-  (12/08/2026, coluna `role` é `VARCHAR(20)` sem `CHECK`, validada na aplicação) — mas **não tem
-  endpoint próprio**: hoje só enxerga os mesmos dados de leitura que `STUDENT` (ver Gap 2).
-
----
-
-## 4. Arquitetura
-
-### 4.1 Estrutura de pacotes (hexagonal / ports & adapters)
+### 3.1 Estrutura de pacotes (hexagonal / ports & adapters)
 
 ```
 com.smartboarding.smartboarding_api/
 ├── domain/<contexto>/            # regra de negócio pura
-│   ├── entity/                   # Route, DailyList, ListEntry, Report, DeviceToken, User, Role...
+│   ├── entity/                   # entidades do contexto
 │   └── port/
 │       ├── in/                   # *UseCase (interface) — o que o domínio oferece
-│       └── out/                  # *RepositoryPort (interface) — o que o domínio precisa
+│       └── out/                  # *RepositoryPort/porta de infra (interface)
 ├── application/<contexto>/       # *UseCaseImpl — implementação dos casos de uso
 ├── infrastructure/
 │   ├── web/<contexto>/           # *Controller + dto/ (Request/Response)
 │   │   └── common/               # GlobalExceptionHandler
-│   └── config/                   # SecurityConfig, ...
+│   ├── email/                    # ResendEmailAdapter
+│   ├── storage/                  # R2StorageAdapter
+│   ├── fcm/                      # FcmAdapter
+│   └── config/                   # SecurityConfig, FirebaseConfig, ...
 └── shared/
     ├── exception/                 # AppException, NotFoundException, ConflictException,
     │                               # UnauthorizedException, BadRequestException
     └── web/                       # ApiResponse<T>
 ```
 
-⚠️ **Isto substitui a convenção documentada anteriormente** (`Models/`, `Controllers/`,
-`Services/`, `Repositories/`, `DTO/`, `Configs/`, `Enums/` capitalizados) em
-`smartboarding-api/CLAUDE.md` e `personal-harness/docs/repos.md` — código real não usa essa
-estrutura desde a migração pra arquitetura hexagonal (branch `feat/clean-architecture-persistence-layer`,
-mergeada). Os dois arquivos foram corrigidos junto com esta spec.
+Contextos (`<contexto>`): `user`, `route`, `institution`, `vehicle`, `stop`, `list`, `report`,
+`notification`, `registration`.
 
-Contextos (`<contexto>`): `user`, `route`, `list`, `report`, `notification`.
+### 3.2 Persistência
 
-### 4.2 Persistência
+- PostgreSQL 16, Flyway. Migrations em `V1__initial_schema.sql` + `V2__seed_data.sql` +
+  incrementais a partir de `V3`. Nunca editar uma migration já aplicada — mudança de schema é
+  sempre uma migration nova.
+- Tabelas: `users`, `routes`, `institutions`, `vehicles`, `stops`, `daily_lists`, `list_entries`
+  (com `trip_type`), `reports` (com `proposed_vehicles`), `device_tokens`, `notifications`,
+  `registration_requests`, `refresh_tokens`, `password_reset_tokens`. Todas com PK `UUID`.
 
-- PostgreSQL 16, Flyway. Migrations consolidadas em **`V1__initial_schema.sql`** (DDL) +
-  **`V2__seed_data.sql`** (dados de demo) — as antigas V1–V11 foram achatadas em 12/08/2026,
-  antes de existir ambiente publicado. Daqui pra frente, mudança de schema = `V3+` nova, nunca
-  edição das duas existentes.
-- Tabelas: `users`, `routes`, `daily_lists`, `list_entries` (com `trip_type`, RN6),
-  `reports`, `device_tokens`. Todas com PK `UUID` (`gen_random_uuid()`).
+### 3.3 Autenticação e sessão
 
-### 4.3 Autenticação
+- JWT via `spring-security-oauth2-resource-server`, algoritmo HS256, expiração de 1h, issuer
+  `smartboarding-api`. Claim `scope` carrega o papel do usuário, prefixado `ROLE_` na conversão
+  pra `hasRole(...)`.
+- Senha: BCrypt.
+- Sessão longa: login com `rememberMe: true` também emite um refresh token (opaco, armazenado
+  hasheado), válido por 7 dias. `POST /api/auth/refresh` troca um refresh token válido por um
+  novo JWT de 1h. Sem `rememberMe`, nenhum refresh token é emitido.
+- Sessão stateless, CSRF desabilitado (API pura, sem cookie).
 
-- JWT via `spring-security-oauth2-resource-server`, algoritmo **HS256**, expiração **1h**
-  (`AuthUseCaseImpl.EXPIRY_SECONDS = 3600`), issuer `smartboarding-api`.
-- Claim `scope` carrega o(s) role(s) do usuário; `JwtGrantedAuthoritiesConverter` prefixa
-  `ROLE_` — é isso que `hasRole("ADMIN")` etc. checam na `SecurityConfig`.
-- Senha: BCrypt (`BCryptPasswordEncoder`).
-- Sessão stateless (`SessionCreationPolicy.STATELESS`), CSRF desabilitado (API pura, sem cookie).
+### 3.4 Envelope de resposta
 
-### 4.4 Envelope de resposta
+- Sucesso: `{ "data": <payload> }`. Operação sem payload de retorno: `{ "data": { "success": true } }`.
+- Erro: `{ "code": "<CODIGO>", "error": "<mensagem>" }`.
 
-- Sucesso: `{ "data": <payload> }` — `ApiResponse.data(...)`. Operação sem payload de retorno:
-  `{ "data": { "success": true } }` — `ApiResponse.success()`.
-- Erro: `{ "code": "<CODIGO>", "error": "<mensagem>" }` — `GlobalExceptionHandler`.
+### 3.5 Scheduler
 
-### 4.5 Scheduler
-
-- `@EnableScheduling` + `@Scheduled(cron = "...")` em `SchedulerUseCaseImpl`
-  (`application/list/`). Dois jobs: `open()` (`0 0 0 * * MON-FRI`) e `close()`
-  (`0 0 16 * * MON-FRI`). Sem execução aos fins de semana (cron `MON-FRI`).
+- `@EnableScheduling`, em `SchedulerUseCaseImpl` (`application/list/`).
+- **Abertura**: às 00:00 (seg-sex), cron único e global — para cada `Route` ativa sem
+  `DailyList` do dia, cria uma com `status=OPEN`. Se pelo menos uma lista foi criada, dispara
+  broadcast FCM avisando que a lista do dia está disponível.
+- **Fechamento**: por rota, não global — cada rota tem seu próprio `closeTime` (default 16:00,
+  editável pelo admin). O agendamento de fechamento é dinâmico (`TaskScheduler`/`ScheduledFuture`
+  por rota), criado quando a lista do dia abre e recriado sempre que o admin edita o `closeTime`.
+  No restart do servidor, os agendamentos são reconstruídos a partir das `DailyList` `OPEN` do
+  dia (se o horário já passou no momento do restart, o fechamento roda imediatamente).
+- `openTime` é sempre 00:00, fixo — não é um campo editável (só o fechamento varia entre rotas).
 
 ---
 
-## 5. Fluxos Principais
+## 4. Regras de Negócio
 
-### Fluxo 1 — Estudante se inscreve na lista
+### 4.1 Cadastro — convite e aprovação
 
-```
-1. Login → JWT (role no claim scope)
-2. App registra device token → POST /api/devices/token
-3. GET /api/lists/today → listas OPEN do dia
-4. POST /api/lists/{id}/entries { tripType? } (default ROUND_TRIP)
-5. Backend valida: lista OPEN? Se fechada → 400 LIST_CLOSED
-6. Cria ou reativa ListEntry, notifica FCM individual (best-effort)
-7. Resposta 201 com EntryResponse (id, userId, fullName, email, tripType, createdAt)
-```
+- **RN13** — Aluno se cadastra por convite, não por autocadastro livre. `ADMIN` gera o convite
+  (`POST /api/registration/invite`, só e-mail) — sistema cria um pedido de cadastro com token
+  único e envia e-mail (via Resend) com um **Android App Link / iOS Universal Link**
+  (`https://<domínio>/register/{token}`, não um esquema customizado). Com o app instalado, o
+  link abre direto na tela de cadastro; sem o app, cai numa página web mínima do próprio backend
+  pedindo pra instalar o app.
+  - Token de convite válido por 7 dias, renovável pelo admin reenviando o convite.
+  - Aluno preenche os dados (incluindo a instituição, escolhida entre as cadastradas) e submete
+    — isso não cria a conta ainda, só marca o pedido como enviado, aguardando revisão.
+  - `POST /api/auth/register` existe só pra `ADMIN` criar outro `ADMIN` diretamente, sem convite
+    — não aceita `role=STUDENT` nem instituição.
+- **RN14** — `ADMIN` lista os pedidos pendentes (`GET /api/registration/pending`) e aprova (cria
+  a conta de fato) ou nega. Negar não invalida o token: enquanto ele não expirou, o aluno pode
+  reenviar os dados e gerar uma nova avaliação.
 
-### Fluxo 2 — Fechamento automático (16:00, seg-sex)
+### 4.2 Instituições e rotas
 
-```
-1. SchedulerUseCaseImpl.close() dispara
-2. Busca DailyList com status=OPEN e date=hoje
-3. Por lista: status=CLOSED, closedAt=now(), gera Report (snapshot dos ativos)
-4. Se houve pelo menos uma lista fechada: broadcast FCM "Embarque confirmado"
-   (best-effort — falha é logada, não interrompe o fechamento)
-```
+- **RN9** — Nome de rota é único entre rotas ativas. Deletar rota é soft-delete
+  (`isActive=false`).
+- **RN15** — `Institution` (nome, endereço, latitude/longitude) é cadastrada pelo `ADMIN` e
+  vinculada a **exatamente uma** rota ativa por vez — vincular a uma instituição já vinculada a
+  outra rota ativa retorna conflito. A rota de um aluno é sempre **derivada** da instituição
+  escolhida no cadastro — o aluno nunca escolhe rota diretamente. Desativar uma rota desvincula
+  automaticamente todas as instituições ligadas a ela, que ficam livres pra serem vinculadas a
+  outra rota depois.
+- **RN18** — `Route.closeTime` é editável pelo `ADMIN` (ver §3.5).
+- **RN19** — Editar qualquer regra de uma rota (horário de fechamento, instituições vinculadas,
+  paradas, veículos) dispara uma notificação automática pros usuários vinculados àquela rota —
+  texto gerado pelo sistema, não pelo admin.
 
-### Fluxo 3 — Abertura automática (00:00, seg-sex)
+### 4.3 Veículos e proposta de frota
 
-```
-1. SchedulerUseCaseImpl.open() dispara
-2. Para cada Route.isActive=true sem DailyList(rota, hoje): cria DailyList(status=OPEN)
-3. ⚠️ Não dispara broadcast — ver Gap 3 (§7)
-```
+- **RN16** — `Vehicle` (tipo, capacidade) é cadastrado pelo `ADMIN`, vinculado a uma rota — uma
+  rota pode ter vários veículos disponíveis. No fechamento da lista, o relatório calcula e
+  persiste o(s) veículo(s) proposto(s), por um algoritmo guloso:
+  1. Ordena os veículos da rota por capacidade decrescente.
+  2. Aloca o de maior capacidade primeiro, até o limite dele.
+  3. Se sobrar gente, busca entre os veículos restantes o de **menor** capacidade que ainda cubra
+     o resto, e aloca também.
+  4. Repete até cobrir todos os inscritos ou esgotar a frota da rota — nesse caso, o relatório
+     marca capacidade insuficiente.
+  - É uma heurística gulosa, não a combinação matematicamente ótima — suficiente pro porte de
+    frota por rota.
 
-### Fluxo 4 — Admin envia notificação manual
+### 4.4 Listas diárias
 
-```
-1. POST /api/notifications/broadcast { title, body } (ADMIN)
-2. SendBroadcastUseCase → FCM pra todos os device_tokens registrados
-```
+- **RN1** — Lista diária abre automaticamente às 00:00 (seg-sex) pra cada rota ativa.
+  Idempotente: se já existe lista pra (rota, data), não recria.
+- **RN2** — Lista fecha automaticamente no `closeTime` da rota (ver §3.5): `status=CLOSED`,
+  `closedAt=now()`, gera relatório (snapshot dos inscritos ativos + veículo proposto) e dispara
+  notificação FCM aos inscritos.
+- **RN3** — Entrar/sair de uma lista só é permitido com `status=OPEN` — fora disso, erro
+  `LIST_CLOSED`.
+- **RN4** — Uma inscrição por (usuário, lista) — reentrar numa lista onde o usuário já tem
+  inscrição **reativa** o registro existente (idempotente, não gera conflito) e atualiza o
+  `tripType` se vier diferente.
+- **RN5** — Sair da lista é soft-delete (`isActive=false`) — nunca exclusão física. O aluno pode
+  reentrar na mesma lista, no mesmo dia, enquanto ela estiver `OPEN`.
+- **RN6** — Cada inscrição tem um `tripType`: `ROUND_TRIP` (padrão), `TO_CAMPUS` ou
+  `FROM_CAMPUS`.
+- **RN7** — Ao entrar na lista (criação ou reativação), dispara notificação FCM individual de
+  confirmação — best-effort, falha no envio não propaga erro pro cliente.
+- **RN12** — `users.expiryDate` é a validade da carteirinha física de transporte. Quando
+  expirada, a conta é bloqueada: login retorna erro `ACCOUNT_EXPIRED` em vez de emitir o JWT, e
+  entrar na lista revalida `expiryDate` de novo (necessário porque um JWT emitido antes da
+  expiração continua válido por até 1h). `expiryDate = null` (comum em `ADMIN`) nunca expira.
 
-### Fluxo 5 — Admin consulta relatórios
+### 4.5 Relatórios
 
-```
-1. GET /api/reports?page=&size=&sort=generatedAt,desc (ADMIN) → paginado
-2. GET /api/reports/{id} (ADMIN) → snapshotData completo (JSON dos inscritos no fechamento)
-```
+- **RN8** — Relatório é gerado automaticamente no fechamento da lista, é imutável (sem endpoint
+  de edição) e traz o snapshot dos inscritos ativos + o(s) veículo(s) proposto(s) (§4.3).
+- **RN17** — `ADMIN` vê o histórico completo, paginado. `STUDENT` só vê relatórios dos últimos 7
+  dias — o filtro é aplicado no backend, não é opcional via query param.
 
-### Fluxo 6 — Motorista notifica saída (⚠️ Gap 2 — não implementado)
+### 4.6 Notificações
 
-```
-Fluxo pretendido (já esperado pelo Flutter, driver_service.dart):
-1. DRIVER seleciona a lista/rota do dia
-2. POST /api/lists/{id}/notifications/departure { title?, body? } (DRIVER, ADMIN)
-3. Backend busca list_entries ativos da lista, resolve device_tokens, envia FCM (loop, não
-   broadcast) independente do status da lista
-4. Resposta: { "data": { "success": true, "notified": N } }
-```
+- **RN20** — Toda notificação enviada (automática ou manual) é persistida — histórico
+  consultável por `ADMIN` (todas) e `STUDENT` (as gerais + as da própria rota). Envio manual é
+  exclusivo do `ADMIN`, com escopo geral ou restrito a uma rota, e suporta imagem anexada. Upload
+  de imagem é feito via proxy pelo backend: o admin manda a imagem, o backend sobe pro Cloudflare
+  R2 (client S3-compatible) e guarda a URL pública. O payload do push FCM em si carrega só título
+  e corpo — a imagem não vai no push (evitaria depender de processamento nativo específico por
+  plataforma no cliente); ela aparece quando o destinatário abre o histórico no app.
+
+### 4.7 Trajeto
+
+- **RN23** — Ações de trajeto (iniciar, checkpoint num ponto principal, finalizar) são
+  exclusivas do `ADMIN` — não existe um papel de motorista separado. Checkpoint só é aceito em
+  pontos marcados como principais (rodoviária + instituições da rota) — paradas comuns não geram
+  checkpoint, só aparecem no mapa. Cada ação de trajeto dispara notificação FCM aos inscritos
+  ativos da lista do dia, independente do `status` da lista (funciona mesmo com a lista já
+  fechada — o embarque físico acontece depois do fechamento).
+
+### 4.8 Sessão e segurança
+
+- **RN10** — E-mail de usuário é único. Senha mínima de 6 caracteres.
+- **RN21** — Sessão longa: ver mecanismo em §3.3. Refresh token só é emitido quando o login pede
+  `rememberMe: true`.
+- **RN22** — Recuperação de senha: `POST /api/auth/forgot-password` sempre responde
+  `{success:true}`, mesmo se o e-mail não existir (não revela quais e-mails são cadastrados).
+  `POST /api/auth/reset-password` troca a senha e invalida o token usado.
+
+---
+
+## 5. Entidades
+
+| Entidade | Contexto | Campos principais |
+|---|---|---|
+| `User` | `user` | `id`, `email`, `password` (hash), `role` (`ADMIN`\|`STUDENT`), `fullName`, `course?`, `institution?`, `phone?`, `address?`, `birthDate?`, `expiryDate?` |
+| `RefreshToken` | `user` | `id`, `userId`, `tokenHash`, `expiresAt` |
+| `PasswordResetToken` | `user` | `id`, `userId`, `tokenHash`, `expiresAt` |
+| `RegistrationRequest` | `registration` | `id`, `email`, `token`, `status` (`PENDING`\|`SUBMITTED`\|`APPROVED`\|`REJECTED`), `expiresAt`, dados submetidos (mesmos campos opcionais de `User` + `institutionId`) |
+| `Route` | `route` | `id`, `name`, `description?`, `isActive`, `closeTime` |
+| `Institution` | `institution` | `id`, `name`, `address`, `latitude`, `longitude`, `routeId?` |
+| `Vehicle` | `vehicle` | `id`, `routeId`, `type`, `capacity` |
+| `Stop` | `stop` | `id`, `routeId`, `name`, `latitude`, `longitude`, `isMainPoint`, `order` |
+| `DailyList` | `list` | `id`, `routeId`, `date`, `status` (`OPEN`\|`CLOSED`), `closedAt?`, `startedAt?`, `finishedAt?` |
+| `ListEntry` | `list` | `id`, `userId`, `dailyListId`, `isActive`, `tripType` |
+| `Report` | `report` | `id`, `dailyListId`, `generatedAt`, `totalEntries`, `snapshotData`, `proposedVehicles` |
+| `Notification` | `notification` | `id`, `title`, `body`, `imageUrl?`, `scope` (`BROADCAST`\|`ROUTE`), `routeId?`, `sentBy`, `sentAt` |
+| `DeviceToken` | `notification` | `id`, `userId`, `token`, `platform` |
 
 ---
 
 ## 6. Contratos de API
 
-> Fonte: código (`infrastructure/web/**/*Controller.java` + `dto/`), não memória. Divergiu?
-> O código vence — corrija esta tabela no mesmo PR.
+> Fonte: código (`infrastructure/web/**/*Controller.java` + `dto/`). Divergiu? O código vence —
+> corrija esta tabela no mesmo PR.
 
-| Método | Path | Acesso | Request | Response (200/201) | Erros |
+| Método | Path | Acesso | Request | Response | Erros |
 |---|---|---|---|---|---|
-| POST | `/api/auth/login` | Público | `{email, password}` | `{token, fullName, role}` | `401` credenciais inválidas |
-| POST | `/api/auth/register` | ADMIN | `{email, password≥6, role, fullName}` | `UserResponse` | `409 EMAIL_ALREADY_EXISTS`, `400 VALIDATION_ERROR` |
-| GET | `/api/users` | ADMIN | — | `UserResponse[]` | — |
-| GET | `/api/users/{id}` | ADMIN | — | `UserResponse` | `404` |
-| POST | `/api/routes` | ADMIN | `{name, description?}` | `RouteResponse` | `409 ROUTE_ALREADY_EXISTS`/`ROUTE_NAME_CONFLICT` |
+| POST | `/api/auth/login` | Público | `{email, password, rememberMe?}` | `{token, fullName, role, refreshToken?}` | `401` credenciais inválidas, `401 ACCOUNT_EXPIRED` |
+| POST | `/api/auth/refresh` | Público (com refresh token) | `{refreshToken}` | `{token}` | `401` token inválido/expirado |
+| POST | `/api/auth/register` | ADMIN | `{email, password≥6, fullName}` | `UserResponse` (role sempre ADMIN) | `409 EMAIL_ALREADY_EXISTS`, `400 VALIDATION_ERROR` |
+| POST | `/api/auth/forgot-password` | Público | `{email}` | `{success:true}` (sempre) | — |
+| POST | `/api/auth/reset-password` | Público | `{token, newPassword}` | `{success:true}` | `400` token inválido/expirado |
+| POST | `/api/registration/invite` | ADMIN | `{email}` | `{id, token, expiresAt}` | — |
+| GET | `/api/registration/invite/{token}` | Público | — | dados do convite | `404` |
+| POST | `/api/registration/{token}/submit` | Público | `{fullName, password, institutionId, course?, phone?, address?, birthDate?}` | `{status: "SUBMITTED"}` | `400`, `404` |
+| GET | `/api/registration/pending` | ADMIN | — | `RegistrationRequest[]` | — |
+| POST | `/api/registration/{id}/approve` | ADMIN | — | `UserResponse` | `404` |
+| POST | `/api/registration/{id}/reject` | ADMIN | — | `{success:true}` | `404` |
+| GET | `/api/users` / `/api/users/{id}` | ADMIN | — | `UserResponse[]` / `UserResponse` | `404` |
+| POST | `/api/routes` | ADMIN | `{name, description?}` | `RouteResponse` | `409` nome duplicado |
 | GET | `/api/routes` | Público | — | `RouteResponse[]` (só ativas) | — |
 | GET | `/api/routes/{id}` | Público | — | `RouteResponse` | `404` |
-| PATCH | `/api/routes/{id}` | ADMIN | `{name, description?}` | `RouteResponse` | `404`, `409` (nome duplicado) |
+| PATCH | `/api/routes/{id}` | ADMIN | `{name?, description?, closeTime?}` | `RouteResponse` | `404`, `409` nome duplicado |
 | DELETE | `/api/routes/{id}` | ADMIN | — | `{success:true}` (soft-delete) | `404` |
-| GET | `/api/lists/today` | Autenticado | — | `ListResponse[]` (com `enrolled`, `tripType` do usuário logado) | — |
+| CRUD | `/api/institutions` | ADMIN (write) / Autenticado (read) | `{name, address, latitude, longitude, routeId?}` | `Institution[]` / `Institution` | `409 INSTITUTION_ALREADY_LINKED` |
+| CRUD | `/api/routes/{id}/vehicles` | ADMIN | `{type, capacity}` | `Vehicle[]` / `Vehicle` | `404` |
+| CRUD | `/api/routes/{id}/stops` | ADMIN (write) / Autenticado (read) | `{name, latitude, longitude, isMainPoint, order}` | `Stop[]` / `Stop` | `404` |
+| GET | `/api/lists/today` | Autenticado | — | `ListResponse[]` (filtrado pela rota do usuário, se `STUDENT`) | — |
 | GET | `/api/lists/{id}` | Autenticado | — | `ListResponse` | `404` |
-| POST | `/api/lists/{id}/entries` | Autenticado* | `{tripType?}` (default `ROUND_TRIP`) | `201 EntryResponse` | `400 LIST_CLOSED`, `404` |
-| DELETE | `/api/lists/{id}/entries` | Autenticado* | — | `{success:true}` | `400 LIST_CLOSED`, `404` (sem inscrição ativa) |
+| POST | `/api/lists/{id}/entries` | Autenticado | `{tripType?}` (default `ROUND_TRIP`) | `201 EntryResponse` | `400 LIST_CLOSED`, `404`, `403 ACCOUNT_EXPIRED` |
+| DELETE | `/api/lists/{id}/entries` | Autenticado | — | `{success:true}` | `400 LIST_CLOSED`, `404` |
 | GET | `/api/lists/{id}/entries` | Autenticado | — | `EntryResponse[]` | `404` |
-| GET | `/api/reports` | ADMIN | `?page&size&sort` (default `size=20`, `generatedAt,desc`) | `Page<ReportSummaryResponse>` | — |
-| GET | `/api/reports/{id}` | ADMIN | — | `ReportDetailResponse` (com `snapshotData`) | `404` |
-| POST | `/api/notifications/broadcast` | ADMIN | `{title, body}` | `{success:true}` | `400 VALIDATION_ERROR` |
+| GET | `/api/reports` | Autenticado | `?page&size` (filtro de 7 dias server-side se `STUDENT`) | `Page<ReportSummaryResponse>` | — |
+| GET | `/api/reports/{id}` | ADMIN | — | `ReportDetailResponse` | `404` |
+| POST | `/api/notifications` | ADMIN | `{title, body, imageUrl?, scope, routeId?}` | `Notification` | `400 VALIDATION_ERROR` |
+| POST | `/api/notifications/upload-image` | ADMIN | multipart | `{imageUrl}` | — |
+| GET | `/api/notifications` | Autenticado | `?page&size` | `Page<Notification>` (filtrado por escopo/rota) | — |
+| POST | `/api/trip/{listId}/start` | ADMIN | — | `{success:true}` | `404` |
+| POST | `/api/trip/{listId}/checkpoint/{stopId}` | ADMIN | — | `{success:true}` | `404` se stop não é ponto principal |
+| POST | `/api/trip/{listId}/finish` | ADMIN | — | `{success:true}` | `404` |
 | POST | `/api/devices/token` | Autenticado | `{token, platform}` | `{success:true}` | `400 VALIDATION_ERROR` |
 | DELETE | `/api/devices/token` | Autenticado | — | `{success:true}` | — |
 
-`*` Ver observação de segurança em §2 — a regra atual libera qualquer papel autenticado, não só `STUDENT`.
-
-**Códigos de erro em uso:** `EMAIL_ALREADY_EXISTS` (409) · `ROUTE_ALREADY_EXISTS` / `ROUTE_NAME_CONFLICT` (409) ·
-`LIST_CLOSED` (400) · `VALIDATION_ERROR` (400) · `INTERNAL_SERVER_ERROR` (500) · `404`/`401` sem
-`code` estruturado adicional além de `{code: null?...}` — na prática `NotFoundException`/`UnauthorizedException`
-usam a própria mensagem como `error`, sem um `code` fixo por tipo (checar `AppException.getCode()`
-se precisar depender disso programaticamente).
+**Códigos de erro em uso:** `EMAIL_ALREADY_EXISTS`, `ROUTE_ALREADY_EXISTS`/`ROUTE_NAME_CONFLICT`,
+`INSTITUTION_ALREADY_LINKED`, `LIST_CLOSED`, `ACCOUNT_EXPIRED`, `VALIDATION_ERROR`,
+`INTERNAL_SERVER_ERROR`.
 
 ---
 
-## 7. Gaps — contrato proposto (não implementados)
+## 7. Integrações Externas
 
-### Gap 2 — Notificação de saída direcionada (motorista)
-
-- **Precisa porque:** o Flutter (`DriverHomeScreen` + `driver_service.dart`) já está construído
-  pra chamar esse endpoint — sem ele, o fluxo do motorista não pode ser testado ponta a ponta.
-- **Contrato proposto** (já definido pelo Flutter, não é aberto):
-  ```
-  POST /api/lists/{id}/notifications/departure   · DRIVER, ADMIN
-
-  Request (body opcional):
-  { "title"?: string, "body"?: string }
-
-  Response 200:
-  { "data": { "success": true, "notified": <int> } }
-  ```
-  - Busca `list_entries` ativos da `daily_list_id={id}`, resolve `device_tokens`, envia FCM em
-    loop (reaproveitar `SendToUserUseCase`, já usado por `ListUseCaseImpl.notifyEnrollment`).
-  - Funciona independente do `status` da lista (`OPEN` ou `CLOSED`) — o embarque físico
-    acontece depois do fechamento das 16h.
-  - Sem inscritos ativos → sucesso com `notified: 0` (não é erro).
-- **Quem implementa / quando:** a definir — fora do escopo desta spec (só documentação).
-
-### Gap 3 — Broadcast automático de "lista aberta"
-
-- **Precisa porque:** o app espera notificação #1 ("lista aberta") descrita em
-  `smartboarding_app/docs/spec.md` §3.3, mas ela nunca dispara hoje.
-- **Contrato proposto:** dentro de `SchedulerUseCaseImpl.open()`, adicionar chamada a
-  `SendBroadcastUseCase` no mesmo padrão que `close()` já faz — ex.: "A lista de embarque de
-  hoje já está disponível! Inscreva-se até as 16h." Só disparar se pelo menos uma lista foi
-  criada (evitar broadcast vazio em dia sem rota ativa).
-- **Quem implementa / quando:** a definir — fora do escopo desta spec.
-
-### Gap 4 — Perfil estendido no cadastro de usuário
-
-- **Precisa porque:** `users` já tem as colunas (`course`, `institution`, `phone`, `address`,
-  `birth_date`, `expiry_date`) e `UserResponse` já as retorna, mas `RegisterRequest`/
-  `POST /api/auth/register` não as aceita — o dado nunca é escrito, só fica `NULL`. O Flutter
-  (`UserManagementScreen`/`UserModel`) também não coleta esses campos hoje — a menção em versões
-  anteriores do `spec.md` do Flutter (§5.3) descrevia um formulário mais completo que nunca foi
-  implementado nos dois lados.
-- **Contrato proposto:** estender `RegisterRequest` com os campos opcionais correspondentes;
-  `AuthUseCaseImpl.execute` já teria como persistí-los via `User.builder()`.
-- **Quem implementa / quando:** a definir — não bloqueia nenhum fluxo atual (campos não
-  aparecem em nenhuma tela hoje). Baixa prioridade.
+- **Firebase Admin SDK** — push FCM. Credenciais via `FIREBASE_CREDENTIALS_PATH`; vazio desabilita
+  o envio (a aplicação sobe do mesmo jeito, notificações só são logadas como puladas).
+- **Resend** — e-mail de convite de cadastro e recuperação de senha. `RESEND_API_KEY` +
+  `RESEND_FROM_EMAIL` (domínio verificado no Resend).
+- **Cloudflare R2** (S3-compatible) — imagem de notificação, upload em proxy pelo backend.
+  `R2_ACCOUNT_ID`, `R2_ACCESS_KEY_ID`, `R2_SECRET_ACCESS_KEY`, `R2_BUCKET_NAME`,
+  `R2_PUBLIC_BASE_URL`.
+- **Google Maps Platform** (camada gratuita) — exibição de instituições/paradas no mapa do app;
+  sem tracking em tempo real. Cota gratuita é um crédito mensal, não ilimitado — vigiar consumo
+  se o número de rotas/instituições crescer.
 
 ---
 
-## 8. Estratégia de Testes
+## 8. Deploy
 
-- **Estado atual:** cobertura **praticamente zero**. Só existe `SmartboardingApiApplicationTests`
-  — smoke test de contexto (`@SpringBootTest`, valida que o Spring sobe e as migrations aplicam
-  num banco vazio). Não há teste de use case, controller, ou regra de negócio isolada.
-- **Não testado hoje, e por quê isso é risco:** RN3/RN4 (janela de OPEN/CLOSED, reativação sem
-  409), RN9/RN10 (conflitos de nome/e-mail), o scheduler inteiro (RN1/RN2) — tudo depende hoje
-  de teste manual via `curl`/Postman antes de cada entrega. Ver §9.
-- **Recomendado (fora do escopo desta spec, registrado como direção):** unit tests por
-  `*UseCaseImpl` com repositórios mockados (Mockito), cobrindo os cenários de RN3/RN4/RN9/RN10;
-  `@WebMvcTest` por controller pra contrato HTTP; um `@SpringBootTest` de integração pro
-  ciclo completo do scheduler (`open()`→`close()`) com Testcontainers ou o Postgres do compose.
-- **CI (`smartboarding-api` job):** roda `./mvnw test` contra Postgres 16 em service container
-  (`5433:5432`) — hoje só executa o smoke test, então o gate de CI não pega regressão de regra
-  de negócio.
+- Hospedado no Render (free tier). Anti-hibernação via workflow do GitHub Actions
+  (`schedule: cron`, ~10min) fazendo `curl` num endpoint de health check.
+- Política: `main` é produção — nenhuma integração externa (Resend, R2, Firebase) é mergeada sem
+  ser validada de ponta a ponta contra o serviço real, não só mockada localmente.
 
 ---
 
-## 9. Riscos e Dependências
+## 9. Estratégia de Testes
 
-| Risco/Dependência | Impacto | Mitigação |
+- Unit tests por `*UseCaseImpl` com repositórios mockados (Mockito). Integração via
+  `@SpringBootTest` contra o Postgres do compose/CI.
+- **Quality gate de cobertura** — `jacoco-maven-plugin`, mecanismo de ratchet: cada PR compara a
+  cobertura atual com `.coverage-baseline`; regressão falha o build, ganho não refletido no
+  arquivo também falha (força atualizar o número no mesmo PR). Meta declarada de longo prazo:
+  80% — o gate em si só exige não regredir.
+- **Quality gate de tamanho de arquivo** — nenhum arquivo `.java` de produção tocado num PR passa
+  de 300 linhas (checado em CI, só nos arquivos do diff — não é sweep completo do repo). Tarefas
+  pequenas miram bem abaixo disso (~60 linhas), por julgamento de quem planeja/implementa, não
+  por regra mecânica.
+- Sem comentários no código, exceto pra explicar a correção de um bug muito específico.
+
+---
+
+## 10. Riscos e Dependências
+
+| Risco | Impacto | Mitigação |
 |---|---|---|
-| Cobertura de teste quase zero (§8) | Regressão de regra de negócio só aparece em teste manual ou em produção | Priorizar unit tests dos `*UseCaseImpl` antes de mexer em RN3/RN4/RN9/RN10 |
-| Gaps 2/3 não implementados | Fluxo do motorista (já construído no Flutter) não pode ser testado ponta a ponta; notificação de "lista aberta" nunca dispara | Tratar como próxima demanda de implementação — contrato já está fechado (§7), não precisa de novo brainstorming |
-| `/api/lists/{id}/entries` sem restrição de papel (§2) | Comportamento não documentado — pode ser intencional (DRIVER/ADMIN também embarcam) ou lacuna de segurança | Decidir explicitamente (issue) se deve virar `hasRole('STUDENT')` ou ficar como está |
-| Gap 4 (perfil estendido) sem uso em nenhuma tela | Baixo — dado morto no schema, não trava fluxo nenhum | Nenhuma ação necessária até alguém precisar do campo |
+| Cota gratuita do Google Maps Platform não é ilimitada | Uso real pode gerar custo se o número de rotas/instituições crescer | Validar consumo estimado; monitorar no console do Google Cloud |
+| Render free tier tem limites além de hibernação (CPU/RAM baixos, sem SLA) | Pode não aguentar carga real fora do escopo do TCC | Aceito como risco conhecido; migrar de plano é decisão futura |
+| Resend e Cloudflare R2 sem histórico de uso no projeto | Falha de configuração só aparece em produção se não testado de ponta a ponta | Validar contra os serviços reais antes de mergear (§8) |
+| `/api/lists/{id}/entries` sem restrição de papel | Qualquer autenticado (não só `STUDENT`) entra/sai de lista — pode ser intencional (admin também embarca) ou lacuna de segurança | Decidir explicitamente se deve virar `hasRole('STUDENT')` — ponto em aberto, não bloqueia |
 
 ---
 
-## 10. O que NÃO fazer
+## 11. O que NÃO fazer
 
-- **Não usar a convenção de pacotes flat** (`Models/`, `Controllers/`, `Services/` capitalizados)
-  — o código já migrou pra hexagonal (`domain/application/infrastructure`, §4.1). Documentação
-  antiga que ainda citar isso está desatualizada; corrija no mesmo PR se encontrar.
-  Motorista não deve ter acesso a gestão de rotas/usuários/relatórios — só o endpoint do Gap 2
-  quando existir.
-- Não editar `V1__initial_schema.sql`/`V2__seed_data.sql` — são migrations já aplicadas.
-  Mudança de schema é `V3__...` nova.
-- Não assumir que `POST /api/lists/{id}/entries` retorna 409 pra reinscrição — RN4 é reativação
-  idempotente, não conflito.
-- Não implementar os Gaps 2/3/4 como parte desta spec — ficaram documentados de propósito, pra
-  uma demanda de implementação separada (decisão registrada em §0).
+- Não usar convenção de pacotes flat (`Models/`, `Controllers/`, `Services/` capitalizados) — a
+  arquitetura é hexagonal (§3.1).
+- Não editar uma migration já aplicada — mudança de schema é sempre uma migration nova.
+- Não assumir que `POST /api/lists/{id}/entries` retorna conflito pra reinscrição — é reativação
+  idempotente (§4.4).
+- Não recriar um papel de motorista separado — trajeto é ação do `ADMIN` (§4.7).
+- Não deixar `POST /api/auth/register` aceitar `role=STUDENT` ou instituição — aluno nasce só
+  pelo fluxo de convite (§4.1).
+- Não deixar `STUDENT` acessar relatório fora da janela de 7 dias (§4.5).
+- Não vincular uma instituição a mais de uma rota ativa (§4.2).
+- Não passar de 300 linhas por arquivo `.java` tocado num PR (§9).
+- Não mergear na `main` uma integração externa só testada localmente/mockada (§8).
+- Não bloquear a notificação de trajeto por status de lista fechada (§4.7).

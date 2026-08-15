@@ -79,10 +79,10 @@ flutter build apk --release
 - **DTOs**: sempre usar DTOs para request/response, nunca expor a entidade diretamente
 - **Migrations Flyway**: `V{n}__{descricao_snake_case}.sql` em `src/main/resources/db/migration/`.
   Consolidadas em `V1__initial_schema.sql` + `V2__seed_data.sql` (12/08/2026) — próxima é `V3+`.
-- **Roles**: `ADMIN`, `STUDENT`, `DRIVER` — coluna `role` (`VARCHAR(20)`, sem `CHECK`, validada na
-  aplicação) já está no schema consolidado (`V1`). Checar com `@PreAuthorize("hasRole('ADMIN')")`
-  ou na `SecurityConfig`. O `DRIVER` hoje só tem acesso de leitura (mesmo nível de `STUDENT`) —
-  o endpoint próprio de notificação de saída ainda não existe (`docs/spec.md` §7, Gap 2).
+- **Roles**: `ADMIN`, `STUDENT` — coluna `role` (`VARCHAR(20)`, sem `CHECK`, validada na
+  aplicação). Checar com `@PreAuthorize("hasRole('ADMIN')")` ou na `SecurityConfig`. Ações de
+  trajeto (iniciar/checkpoint/finalizar) são do `ADMIN` — não existe papel de motorista separado
+  (`docs/spec.md` §4.7).
 - **Controllers**: retornar `ResponseEntity<?>` com status HTTP explícito
 - **Scheduler**: usar `@Scheduled` com cron expression, habilitar `@EnableScheduling` na config
 
