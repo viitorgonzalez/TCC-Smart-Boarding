@@ -148,8 +148,15 @@
 				<groupId>org.apache.maven.plugins</groupId>
 				<artifactId>maven-failsafe-plugin</artifactId>
 				<configuration>
-					<!-- Chave de teste fixa, só pra passar validação de tamanho no boot do
-					     contexto. Não é segredo real, nunca sai da JVM do teste. -->
+					<!-- Sem argLine aqui de propósito: o agente JaCoCo é ligado só no
+					     Surefire (via ${jacocoArgLine} abaixo), então a JVM da IT não é
+					     instrumentada e não contamina o jacoco.exec do relatório "unit".
+					     (Testado: um <argLine></argLine> vazio, ou só com espaço, NÃO
+					     basta — o parâmetro argLine do Failsafe é property="argLine", e
+					     esse binding prevalece sobre o valor do pom.xml sempre que a
+					     property Maven "argLine" está setada, o que o prepare-agent do
+					     JaCoCo faz por padrão. Por isso o prepare-agent abaixo usa
+					     propertyName=jacocoArgLine em vez do "argLine" default. -->
 					<environmentVariables>
 						<JWT_SECRET>integracao-teste-chave-fixa-de-32-caracteres-no-minimo</JWT_SECRET>
 					</environmentVariables>
@@ -164,6 +171,16 @@
 				</executions>
 			</plugin>
 			<plugin>
+				<groupId>org.apache.maven.plugins</groupId>
+				<artifactId>maven-surefire-plugin</artifactId>
+				<configuration>
+					<!-- Liga o agente JaCoCo só nos testes unit (Surefire). Ver o
+					     comentário no maven-failsafe-plugin acima pra por que isso não
+					     usa a property default "argLine" do JaCoCo. -->
+					<argLine>${jacocoArgLine}</argLine>
+				</configuration>
+			</plugin>
+			<plugin>
 				<groupId>org.jacoco</groupId>
 				<artifactId>jacoco-maven-plugin</artifactId>
 				<version>0.8.12</version>
@@ -172,6 +189,9 @@
 						<goals>
 							<goal>prepare-agent</goal>
 						</goals>
+						<configuration>
+							<propertyName>jacocoArgLine</propertyName>
+						</configuration>
 					</execution>
 					<execution>
 						<id>report</id>

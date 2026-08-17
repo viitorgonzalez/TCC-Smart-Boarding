@@ -39,8 +39,8 @@
 
 ## Checklist
 
-- [ ] `./mvnw test` verde (se mexeu na API)
-- [ ] `flutter analyze` e `flutter test` verdes (se mexeu no app)
+- [ ] `./mvnw verify` verde (se mexeu na API)
+- [ ] `flutter analyze` e `flutter test --coverage` verdes (se mexeu no app)
 - [ ] Testes cobrindo a mudança (ou justificativa de por que não)
 - [ ] Sem segredo commitado — nada de `.env`, credencial do Firebase ou senha
 - [ ] Migration nova em vez de editar `V*.sql` já aplicada
