@@ -22,7 +22,8 @@ Sistema de gestão de embarque no ônibus universitário da Unifor: o aluno se c
 ```bash
 docker compose up -d    # Postgres :5433 + pgAdmin :5050
 ./run-local.sh          # sobe a API em :8080  ← NÃO use ./mvnw spring-boot:run direto
-./mvnw test
+./mvnw test              # unit
+./mvnw verify             # unit + integration (Testcontainers, precisa de Docker)
 ```
 
 **App** — de dentro de `smartboarding_app/`:
@@ -31,6 +32,8 @@ docker compose up -d    # Postgres :5433 + pgAdmin :5050
 flutter pub get
 flutter run --dart-define=API_BASE_URL=http://<ip-da-lan>:8080
 flutter build apk --release
+flutter test --coverage                                                  # unit + cobertura
+flutter test integration_test/ --dart-define=API_BASE_URL=http://10.0.2.2:8080  # e2e (API+Postgres locais, emulador rodando)
 ```
 
 ## Onde ficam as docs

@@ -37,7 +37,11 @@ cp .env.example .env
                   # vars o Spring recebe ${DB_USER} literal e quebra no boot.
 
 # 4. Rodar testes
-./mvnw test
+./mvnw test      # unit — rápido, sem Docker
+./mvnw verify     # unit + integration — sobe Postgres via Testcontainers, precisa de Docker
+
+# 5. Cobertura (unit)
+./mvnw test && open target/site/jacoco/index.html   # (ou xdg-open no Linux)
 ```
 
 A API sobe em `http://localhost:8080`. Flyway aplica as migrations automaticamente.
