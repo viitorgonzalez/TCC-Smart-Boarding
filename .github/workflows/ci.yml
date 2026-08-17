@@ -110,7 +110,20 @@ jobs:
         run: flutter analyze
 
       - name: Testes
-        run: flutter test
+        run: flutter test --coverage
+
+      - name: Cobertura (informativo)
+        working-directory: .
+        run: |
+          lcov="smartboarding_app/coverage/lcov.info"
+          if [ -f "$lcov" ]; then
+            awk -F: '/^LF:/{lf+=$2} /^LH:/{lh+=$2} END{
+              if (lf>0) printf "**Cobertura de linhas (unit, App):** %.1f%%\n", 100*lh/lf;
+              else print "**Cobertura de linhas (unit, App):** sem dados"
+            }' "$lcov" >> "$GITHUB_STEP_SUMMARY"
+          else
+            echo "**Cobertura de linhas (unit, App):** relatório não encontrado" >> "$GITHUB_STEP_SUMMARY"
+          fi
 
       # Mesmo gate do job `api`, só nos arquivos .dart de produção (lib/) tocados
       # pela PR — student_home_screen.dart (497 linhas) e user_management_screen.dart
