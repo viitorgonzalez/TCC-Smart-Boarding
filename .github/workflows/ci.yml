@@ -15,16 +15,9 @@ jobs:
     name: API (Java 21 · Spring Boot)
     runs-on: ubuntu-latest
 
-    # O SmartboardingApiApplicationTests é @SpringBootTest sem config de teste:
-    # sobe o contexto inteiro, então precisa de Postgres de verdade.
-    #
-    # O Postgres sobe num STEP, não no bloco `services:`. Motivo: `services`
-    # é instanciado antes de qualquer step rodar, então só aceita valor
-    # literal ou ${{ secrets }} — o que obrigaria a cravar credencial no
-    # arquivo. Subindo em step, as credenciais são geradas na hora e nada
-    # sensível fica versionado.
-    #
-    # A porta é 5433 porque application.properties tem o :5433 na datasource URL.
+    # mvn verify sobe seu próprio Postgres via Testcontainers (docker já vem pronto no
+    # runner) — não precisa mais subir Postgres manualmente aqui. Ver
+    # SmartboardingApiApplicationIT.
 
     defaults:
       run:
@@ -44,48 +37,25 @@ jobs:
           distribution: temurin
           cache: maven
 
-      # Nada de credencial fixa no repo: valor de alta entropia commitado
-      # dispara scanner de segredo (GitGuardian) mesmo sendo descartável, e
-      # alerta que é ruído treina todo mundo a ignorar alerta de verdade.
-      # O banco é efêmero e morre com o runner; o Spring só exige que o
-      # JWT_SECRET tenha >= 32 bytes pra assinar o token.
-      - name: Gera credenciais efêmeras
-        working-directory: .
-        run: |
-          {
-            echo "DB_NAME=smartboarding_ci"
-            echo "DB_USER=ci_$(openssl rand -hex 6)"
-            echo "DB_PASSWORD=$(openssl rand -hex 24)"
-            echo "JWT_SECRET=$(openssl rand -hex 32)"
-          } >> "$GITHUB_ENV"
-
-      - name: Sobe Postgres 16
-        working-directory: .
-        run: |
-          docker run -d --name ci-postgres \
-            -e POSTGRES_DB="$DB_NAME" \
-            -e POSTGRES_USER="$DB_USER" \
-            -e POSTGRES_PASSWORD="$DB_PASSWORD" \
-            -p 5433:5432 \
-            postgres:16
-          # Espera o banco aceitar conexão antes de deixar o Spring tentar.
-          for _ in $(seq 1 30); do
-            if docker exec ci-postgres pg_isready -U "$DB_USER" -d "$DB_NAME" >/dev/null 2>&1; then
-              echo "Postgres pronto"
-              exit 0
-            fi
-            sleep 2
-          done
-          echo "Postgres não ficou pronto em 60s" >&2
-          docker logs ci-postgres >&2
-          exit 1
-
-      - name: Testes
-        # Flyway aplica V1 e V2 no boot do contexto — o job também valida
-        # que as migrations sobem de um banco vazio.
+      - name: Testes (unit + integration)
+        # Failsafe (*IT.java) sobe Postgres via Testcontainers; Surefire (*Test.java)
+        # não precisa de infra nenhuma. Um verify só roda os dois.
         run: |
           chmod +x ./mvnw
-          ./mvnw -B --no-transfer-progress test
+          ./mvnw -B --no-transfer-progress verify
+
+      - name: Cobertura (informativo)
+        working-directory: .
+        run: |
+          csv="smartboarding-api/target/site/jacoco/jacoco.csv"
+          if [ -f "$csv" ]; then
+            awk -F',' 'NR>1{missed+=$8; covered+=$9} END{
+              if (covered+missed>0) printf "**Cobertura de linhas (unit, API):** %.1f%%\n", 100*covered/(covered+missed);
+              else print "**Cobertura de linhas (unit, API):** sem dados"
+            }' "$csv" >> "$GITHUB_STEP_SUMMARY"
+          else
+            echo "**Cobertura de linhas (unit, API):** relatório não encontrado" >> "$GITHUB_STEP_SUMMARY"
+          fi
 
       # Reforma 2026-08-14: limite duro de 300 linhas por arquivo de produção,
       # só nos arquivos TOCADOS pela PR — não é sweep completo do repo, porque
