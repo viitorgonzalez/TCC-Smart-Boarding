@@ -3,8 +3,8 @@ import 'package:flutter_test/flutter_test.dart';
 import 'package:integration_test/integration_test.dart';
 import 'package:smartboarding_app/main.dart' as app;
 
-const _studentEmail = 'vitor@student.com';
-const _studentPassword = 'sb@2026@123';
+const _studentEmail = 'fernanda@student.com';
+const _studentPassword = 'sb@2026';
 
 void main() {
   IntegrationTestWidgetsFlutterBinding.ensureInitialized();
@@ -52,31 +52,28 @@ void main() {
         expect(find.byKey(const Key('login_email_field')), findsNothing);
         expect(find.text('Smart Boarding'), findsOneWidget);
 
-        // Estado do seed pode variar (já inscrito ou não) — cobre os dois.
+        // fernanda@student.com não está pré-inscrita na lista de hoje (seed) —
+        // o botão "Entrar na lista" deve aparecer de forma determinística.
         final entrarNaLista = find.widgetWithText(
           FilledButton,
           'Entrar na lista',
         );
-        final jaInscrito = find.text('Você está na lista');
 
         expect(
-          tester.any(entrarNaLista) || tester.any(jaInscrito),
+          tester.any(entrarNaLista),
           isTrue,
-          reason:
-              'esperava ver o card da lista de hoje em algum dos dois estados',
+          reason: 'esperava ver o botão "Entrar na lista" no card de hoje',
         );
 
-        if (tester.any(entrarNaLista)) {
-          await tester.tap(entrarNaLista.first);
-          await tester.pumpAndSettle();
+        await tester.tap(entrarNaLista.first);
+        await tester.pumpAndSettle();
 
-          // Bottom sheet de direção — abre pelo menos uma opção (ida/volta/ida e volta).
-          expect(find.text('Escolha a direção'), findsOneWidget);
-          await tester.tap(find.byType(ListTile).first);
-          await tester.pumpAndSettle(const Duration(seconds: 2));
+        // Bottom sheet de direção — abre pelo menos uma opção (ida/volta/ida e volta).
+        expect(find.text('Escolha a direção'), findsOneWidget);
+        await tester.tap(find.byType(ListTile).first);
+        await tester.pumpAndSettle(const Duration(seconds: 2));
 
-          expect(find.text('Você está na lista'), findsOneWidget);
-        }
+        expect(find.text('Você está na lista'), findsOneWidget);
       },
     );
   });
