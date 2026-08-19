@@ -6,7 +6,6 @@
 --
 -- Só DDL. Dado semente vive no V2__seed_data.sql.
 
--- ── Usuarios ──────────────────────────────────────────────────────────────────
 -- role: ADMIN | STUDENT | DRIVER (VARCHAR sem CHECK — validado na aplicacao)
 CREATE TABLE users (
     id          UUID PRIMARY KEY DEFAULT gen_random_uuid(),
@@ -27,7 +26,6 @@ CREATE TABLE users (
 
 CREATE INDEX idx_users_email ON users(email);
 
--- ── Rotas ─────────────────────────────────────────────────────────────────────
 CREATE TABLE routes (
     id          UUID PRIMARY KEY DEFAULT gen_random_uuid(),
     name        VARCHAR(100) NOT NULL,
@@ -37,8 +35,7 @@ CREATE TABLE routes (
     updated_at  TIMESTAMP NOT NULL DEFAULT NOW()
 );
 
--- ── Listas diarias ────────────────────────────────────────────────────────────
--- status: OPEN | CLOSED. Uma lista por rota por dia.
+-- status: OPEN | CLOSED
 CREATE TABLE daily_lists (
     id        UUID PRIMARY KEY DEFAULT gen_random_uuid(),
     route_id  UUID NOT NULL REFERENCES routes(id),
@@ -48,7 +45,6 @@ CREATE TABLE daily_lists (
     CONSTRAINT uq_route_date UNIQUE (route_id, date)
 );
 
--- ── Inscricoes ────────────────────────────────────────────────────────────────
 -- trip_type: ROUND_TRIP | TO_CAMPUS | FROM_CAMPUS
 -- Saida da lista e soft-delete (is_active = FALSE), nunca DELETE.
 CREATE TABLE list_entries (
@@ -61,7 +57,6 @@ CREATE TABLE list_entries (
     CONSTRAINT uq_user_list UNIQUE (user_id, daily_list_id)
 );
 
--- ── Relatorios ────────────────────────────────────────────────────────────────
 -- snapshot_data: array JSON dos inscritos no momento do fechamento.
 CREATE TABLE reports (
     id            UUID PRIMARY KEY DEFAULT gen_random_uuid(),
@@ -71,7 +66,6 @@ CREATE TABLE reports (
     snapshot_data TEXT
 );
 
--- ── Device tokens (FCM) ───────────────────────────────────────────────────────
 -- platform: ANDROID | IOS | WEB
 CREATE TABLE device_tokens (
     id         UUID PRIMARY KEY DEFAULT gen_random_uuid(),

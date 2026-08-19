@@ -10,7 +10,6 @@
 -- As datas sao relativas a CURRENT_DATE, entao a demo continua fazendo sentido
 -- independente de quando o banco for criado.
 
--- ── Usuarios ──────────────────────────────────────────────────────────────────
 INSERT INTO users (email, password, role, full_name, birth_date, course, institution, phone, is_active) VALUES
   ('admin@smartboarding.com',     '$2b$10$Hot5nGjLXrPmP772N4HTI.tViB4GCk3n/YW8778YUVIM4vNGFd56e', 'ADMIN',   'System Administrator',        '1990-01-01', NULL,                  'Smart Boarding Inc', '37999999999', TRUE),
   ('marina@admin.com',            '$2b$10$Hot5nGjLXrPmP772N4HTI.tViB4GCk3n/YW8778YUVIM4vNGFd56e', 'ADMIN',   'Marina Gestora',              '1988-12-03', NULL,                  'Smart Boarding Inc', '37955555555', TRUE),
@@ -26,17 +25,15 @@ INSERT INTO users (email, password, role, full_name, birth_date, course, institu
   ('gabriel@student.com',         '$2b$10$Hot5nGjLXrPmP772N4HTI.tViB4GCk3n/YW8778YUVIM4vNGFd56e', 'STUDENT', 'Gabriel Martins',             '2002-01-18', 'Administracao',       'UNIFOR-MG', '37990000006', TRUE),
   ('helena@student.com',          '$2b$10$Hot5nGjLXrPmP772N4HTI.tViB4GCk3n/YW8778YUVIM4vNGFd56e', 'STUDENT', 'Helena Dias',                 '2000-07-27', 'Psicologia',          'UNIFOR-MG', '37990000007', TRUE);
 
--- ── Rotas (2 ativas + 1 inativa) ──────────────────────────────────────────────
 INSERT INTO routes (name, description, is_active) VALUES
   ('Rota Rodoviaria - Campus', 'Principal: da rodoviaria ate o campus universitario', TRUE),
   ('Rota Bairro Norte',        'Atende os bairros da zona norte',                     TRUE),
   ('Rota Centro',              'Rota antiga do centro (desativada)',                  FALSE);
 
--- ── Lista do dia ABERTA (hoje) para a rota principal ──────────────────────────
 INSERT INTO daily_lists (route_id, date, status)
 SELECT id, CURRENT_DATE, 'OPEN' FROM routes WHERE name = 'Rota Rodoviaria - Campus';
 
--- 6 alunos inscritos ativos na lista de hoje (trip_type assume o default ROUND_TRIP)
+-- trip_type assume o default ROUND_TRIP (nao especificado no INSERT)
 INSERT INTO list_entries (user_id, daily_list_id, is_active)
 SELECT u.id, dl.id, TRUE
 FROM daily_lists dl
@@ -47,7 +44,6 @@ JOIN users u ON u.email IN (
 )
 WHERE dl.date = CURRENT_DATE;
 
--- ── Listas passadas FECHADAS (para gerar relatorios) ──────────────────────────
 INSERT INTO daily_lists (route_id, date, status, closed_at)
 SELECT id, CURRENT_DATE - 3, 'CLOSED', (CURRENT_DATE - 3 + TIME '16:00')
 FROM routes WHERE name = 'Rota Rodoviaria - Campus';
@@ -56,7 +52,6 @@ INSERT INTO daily_lists (route_id, date, status, closed_at)
 SELECT id, CURRENT_DATE - 4, 'CLOSED', (CURRENT_DATE - 4 + TIME '16:00')
 FROM routes WHERE name = 'Rota Bairro Norte';
 
--- ── Relatorios das listas fechadas ────────────────────────────────────────────
 -- snapshot ja inclui tripType (na versao antiga isso vinha de um UPDATE na V11).
 INSERT INTO reports (daily_list_id, generated_at, total_entries, snapshot_data)
 SELECT dl.id, (dl.date + TIME '16:00'), 5,

@@ -1,7 +1,5 @@
 # Build multi-stage: o JDK completo e o repositorio Maven ficam no estagio de
 # build e nao vao pra imagem final, que carrega so o JRE e o jar.
-
-# ── Estagio 1: build ──────────────────────────────────────────────────────────
 FROM eclipse-temurin:21-jdk AS build
 
 WORKDIR /build
@@ -15,7 +13,6 @@ RUN chmod +x ./mvnw && ./mvnw -B --no-transfer-progress dependency:go-offline
 COPY src/ src/
 RUN ./mvnw -B --no-transfer-progress clean package -DskipTests
 
-# ── Estagio 2: runtime ────────────────────────────────────────────────────────
 FROM eclipse-temurin:21-jre
 
 # Usuario sem privilegio: container que roda como root amplia qualquer escape.
