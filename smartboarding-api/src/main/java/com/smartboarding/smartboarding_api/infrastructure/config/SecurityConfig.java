@@ -39,6 +39,7 @@ public class SecurityConfig {
                         .requestMatchers(HttpMethod.PATCH, "/api/routes/**").hasRole("ADMIN")
                         .requestMatchers(HttpMethod.DELETE, "/api/routes/**").hasRole("ADMIN")
                         .requestMatchers(HttpMethod.POST, "/api/institutions").hasRole("ADMIN")
+                        .requestMatchers(HttpMethod.POST, "/api/registration/invite").hasRole("ADMIN")
                         // Ver quem está na lista: qualquer usuário autenticado (aluno inclusive)
                         .requestMatchers(HttpMethod.GET, "/api/lists/{id}/entries").authenticated()
                         .requestMatchers(HttpMethod.GET, "/api/reports/**").hasRole("ADMIN")
