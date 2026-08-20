@@ -1,9 +1,11 @@
 package com.smartboarding.smartboarding_api.application.registration;
 
+import com.smartboarding.smartboarding_api.domain.institution.entity.Institution;
 import com.smartboarding.smartboarding_api.domain.institution.port.out.InstitutionRepositoryPort;
 import com.smartboarding.smartboarding_api.domain.registration.entity.RegistrationRequest;
 import com.smartboarding.smartboarding_api.domain.registration.entity.RegistrationStatus;
 import com.smartboarding.smartboarding_api.domain.registration.port.in.GenerateInviteUseCase;
+import com.smartboarding.smartboarding_api.domain.registration.port.in.SubmitRegistrationUseCase;
 import com.smartboarding.smartboarding_api.domain.registration.port.in.ValidateTokenUseCase;
 import com.smartboarding.smartboarding_api.domain.registration.port.out.RegistrationRequestRepositoryPort;
 import com.smartboarding.smartboarding_api.domain.shared.port.out.EmailPort;
@@ -20,7 +22,7 @@ import java.util.HexFormat;
 
 @Slf4j
 @Service
-public class RegistrationUseCaseImpl implements GenerateInviteUseCase, ValidateTokenUseCase {
+public class RegistrationUseCaseImpl implements GenerateInviteUseCase, ValidateTokenUseCase, SubmitRegistrationUseCase {
 
     private static final long TOKEN_TTL_DAYS = 7;
     private static final SecureRandom RANDOM = new SecureRandom();
@@ -72,5 +74,27 @@ public class RegistrationUseCaseImpl implements GenerateInviteUseCase, ValidateT
             throw new BadRequestException("TOKEN_EXPIRED", "Convite expirado");
         }
         return request;
+    }
+
+    @Override
+    @Transactional
+    public RegistrationRequest submitRegistration(String token, SubmitData data) {
+        RegistrationRequest request = validateToken(token); // reusa a validação de expiração/existência
+
+        Institution institution = institutionRepository.findById(data.institutionId())
+                .orElseThrow(() -> new NotFoundException("Instituição não encontrada"));
+
+        request.setFullName(data.fullName());
+        request.setPasswordHash(passwordEncoder.encode(data.rawPassword()));
+        request.setInstitutionId(institution.getId());
+        request.setCourse(data.course());
+        request.setPhone(data.phone());
+        request.setAddress(data.address());
+        request.setBirthDate(data.birthDate());
+        request.setStatus(RegistrationStatus.PENDING);
+
+        RegistrationRequest saved = registrationRepository.save(request);
+        log.info("Cadastro submetido: {}", request.getEmail());
+        return saved;
     }
 }
