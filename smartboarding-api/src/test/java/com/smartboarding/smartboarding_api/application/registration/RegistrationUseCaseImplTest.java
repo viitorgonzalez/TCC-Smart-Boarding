@@ -11,6 +11,7 @@ import org.mockito.Mock;
 import org.mockito.junit.jupiter.MockitoExtension;
 
 import java.time.LocalDateTime;
+import java.util.List;
 
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.assertj.core.api.Assertions.assertThatThrownBy;
@@ -25,7 +26,7 @@ class RegistrationUseCaseImplTest {
 
     @Test
     void gerarConviteCriaPedidoComTokenEEnviaEmail() {
-        var useCase = new RegistrationUseCaseImpl(registrationRepository, null, emailPort, null);
+        var useCase = new RegistrationUseCaseImpl(registrationRepository, null, emailPort, null, null);
         when(registrationRepository.save(any())).thenAnswer(inv -> inv.getArgument(0));
 
         useCase.generateInvite("aluno@edu.unifor.br");
@@ -43,7 +44,7 @@ class RegistrationUseCaseImplTest {
 
     @Test
     void validarTokenExpiradoLancaExcecao() {
-        var useCase = new RegistrationUseCaseImpl(registrationRepository, null, emailPort, null);
+        var useCase = new RegistrationUseCaseImpl(registrationRepository, null, emailPort, null, null);
         var expired = RegistrationRequest.builder()
                 .email("aluno@edu.unifor.br").token("abc")
                 .tokenExpiresAt(LocalDateTime.now().minusDays(1))
@@ -57,7 +58,7 @@ class RegistrationUseCaseImplTest {
 
     @Test
     void validarTokenInexistenteLancaExcecao() {
-        var useCase = new RegistrationUseCaseImpl(registrationRepository, null, emailPort, null);
+        var useCase = new RegistrationUseCaseImpl(registrationRepository, null, emailPort, null, null);
         when(registrationRepository.findByToken("xyz")).thenReturn(java.util.Optional.empty());
 
         assertThatThrownBy(() -> useCase.validateToken("xyz"))
@@ -66,7 +67,7 @@ class RegistrationUseCaseImplTest {
 
     @Test
     void validarTokenValidoRetornaOPedido() {
-        var useCase = new RegistrationUseCaseImpl(registrationRepository, null, emailPort, null);
+        var useCase = new RegistrationUseCaseImpl(registrationRepository, null, emailPort, null, null);
         var valid = RegistrationRequest.builder()
                 .email("aluno@edu.unifor.br").token("ok")
                 .tokenExpiresAt(LocalDateTime.now().plusDays(1))
@@ -83,7 +84,7 @@ class RegistrationUseCaseImplTest {
     void submeterComTokenValidoMarcaComoPending() {
         var institutionRepository = mock(com.smartboarding.smartboarding_api.domain.institution.port.out.InstitutionRepositoryPort.class);
         var passwordEncoder = mock(org.springframework.security.crypto.password.PasswordEncoder.class);
-        var useCase = new RegistrationUseCaseImpl(registrationRepository, institutionRepository, emailPort, passwordEncoder);
+        var useCase = new RegistrationUseCaseImpl(registrationRepository, institutionRepository, emailPort, passwordEncoder, null);
 
         var institutionId = java.util.UUID.randomUUID();
         var invited = RegistrationRequest.builder()
@@ -110,7 +111,7 @@ class RegistrationUseCaseImplTest {
     void submeterComInstituicaoInexistenteLancaExcecao() {
         var institutionRepository = mock(com.smartboarding.smartboarding_api.domain.institution.port.out.InstitutionRepositoryPort.class);
         var passwordEncoder = mock(org.springframework.security.crypto.password.PasswordEncoder.class);
-        var useCase = new RegistrationUseCaseImpl(registrationRepository, institutionRepository, emailPort, passwordEncoder);
+        var useCase = new RegistrationUseCaseImpl(registrationRepository, institutionRepository, emailPort, passwordEncoder, null);
 
         var invited = RegistrationRequest.builder()
                 .email("aluno@edu.unifor.br").token("ok")
@@ -132,7 +133,7 @@ class RegistrationUseCaseImplTest {
     void reenvioAposNegacaoVoltaPraPending() {
         var institutionRepository = mock(com.smartboarding.smartboarding_api.domain.institution.port.out.InstitutionRepositoryPort.class);
         var passwordEncoder = mock(org.springframework.security.crypto.password.PasswordEncoder.class);
-        var useCase = new RegistrationUseCaseImpl(registrationRepository, institutionRepository, emailPort, passwordEncoder);
+        var useCase = new RegistrationUseCaseImpl(registrationRepository, institutionRepository, emailPort, passwordEncoder, null);
 
         var institutionId = java.util.UUID.randomUUID();
         var rejected = RegistrationRequest.builder()
@@ -151,5 +152,86 @@ class RegistrationUseCaseImplTest {
         var result = useCase.submitRegistration("ok", data);
 
         assertThat(result.getStatus()).isEqualTo(RegistrationStatus.PENDING);
+    }
+
+    @Test
+    void listarPendentesRetornaSoOsPending() {
+        var useCase = new RegistrationUseCaseImpl(registrationRepository, null, emailPort, null, null);
+        var pending = RegistrationRequest.builder().status(RegistrationStatus.PENDING).build();
+        when(registrationRepository.findAllByStatus(RegistrationStatus.PENDING)).thenReturn(List.of(pending));
+
+        var result = useCase.listPending();
+
+        assertThat(result).hasSize(1);
+    }
+
+    @Test
+    void aprovarCriaAContaDeFatoEMarcaComoApproved() {
+        // Ruling do controller: approve() precisa copiar a instituição escolhida pro User criado
+        // (RN14) — diferente do 5-arg literal do brief, aqui institutionRepository não pode ser
+        // null porque approve() resolve o nome da instituição antes de montar o User.
+        var institutionRepository = mock(com.smartboarding.smartboarding_api.domain.institution.port.out.InstitutionRepositoryPort.class);
+        var userRepository = mock(com.smartboarding.smartboarding_api.domain.user.port.out.UserRepositoryPort.class);
+        var useCase = new RegistrationUseCaseImpl(registrationRepository, institutionRepository, emailPort, null, userRepository);
+
+        var id = java.util.UUID.randomUUID();
+        var institutionId = java.util.UUID.randomUUID();
+        var pending = RegistrationRequest.builder()
+                .id(id).email("aluno@edu.unifor.br").fullName("Maria Oliveira")
+                .passwordHash("hash-fake").institutionId(institutionId).status(RegistrationStatus.PENDING)
+                .build();
+        when(registrationRepository.findById(id)).thenReturn(java.util.Optional.of(pending));
+        when(institutionRepository.findById(institutionId)).thenReturn(java.util.Optional.of(
+                com.smartboarding.smartboarding_api.domain.institution.entity.Institution.builder()
+                        .id(institutionId).name("Unifor").build()));
+        when(userRepository.save(any())).thenAnswer(inv -> inv.getArgument(0));
+        when(registrationRepository.save(any())).thenAnswer(inv -> inv.getArgument(0));
+
+        var user = useCase.approve(id);
+
+        assertThat(user.getEmail()).isEqualTo("aluno@edu.unifor.br");
+        assertThat(user.getRole()).isEqualTo(com.smartboarding.smartboarding_api.domain.user.entity.Role.STUDENT);
+        assertThat(user.getPassword()).isEqualTo("hash-fake");
+        assertThat(user.getInstitution()).isEqualTo("Unifor");
+        verify(registrationRepository).save(argThat(r -> r.getStatus() == RegistrationStatus.APPROVED));
+    }
+
+    @Test
+    void aprovarComInstituicaoInexistenteLancaExcecao() {
+        // Defensivo: Task 6 já valida a instituição no submit, então isso não deveria acontecer
+        // na prática — mas se acontecer, approve() se comporta como submitRegistration (404), não
+        // silenciosamente cria o User sem instituição.
+        var institutionRepository = mock(com.smartboarding.smartboarding_api.domain.institution.port.out.InstitutionRepositoryPort.class);
+        var userRepository = mock(com.smartboarding.smartboarding_api.domain.user.port.out.UserRepositoryPort.class);
+        var useCase = new RegistrationUseCaseImpl(registrationRepository, institutionRepository, emailPort, null, userRepository);
+
+        var id = java.util.UUID.randomUUID();
+        var institutionId = java.util.UUID.randomUUID();
+        var pending = RegistrationRequest.builder()
+                .id(id).email("aluno@edu.unifor.br").fullName("Maria Oliveira")
+                .passwordHash("hash-fake").institutionId(institutionId).status(RegistrationStatus.PENDING)
+                .build();
+        when(registrationRepository.findById(id)).thenReturn(java.util.Optional.of(pending));
+        when(institutionRepository.findById(institutionId)).thenReturn(java.util.Optional.empty());
+
+        assertThatThrownBy(() -> useCase.approve(id))
+                .isInstanceOf(com.smartboarding.smartboarding_api.shared.exception.NotFoundException.class);
+        verify(userRepository, never()).save(any());
+    }
+
+    @Test
+    void negarMarcaComoRejectedSemCriarConta() {
+        var userRepository = mock(com.smartboarding.smartboarding_api.domain.user.port.out.UserRepositoryPort.class);
+        var useCase = new RegistrationUseCaseImpl(registrationRepository, null, emailPort, null, userRepository);
+
+        var id = java.util.UUID.randomUUID();
+        var pending = RegistrationRequest.builder().id(id).status(RegistrationStatus.PENDING).build();
+        when(registrationRepository.findById(id)).thenReturn(java.util.Optional.of(pending));
+        when(registrationRepository.save(any())).thenAnswer(inv -> inv.getArgument(0));
+
+        useCase.reject(id);
+
+        verify(registrationRepository).save(argThat(r -> r.getStatus() == RegistrationStatus.REJECTED));
+        verify(userRepository, never()).save(any());
     }
 }
