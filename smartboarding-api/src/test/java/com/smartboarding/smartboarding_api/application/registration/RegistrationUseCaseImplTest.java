@@ -13,6 +13,7 @@ import org.mockito.junit.jupiter.MockitoExtension;
 import java.time.LocalDateTime;
 
 import static org.assertj.core.api.Assertions.assertThat;
+import static org.assertj.core.api.Assertions.assertThatThrownBy;
 import static org.mockito.ArgumentMatchers.*;
 import static org.mockito.Mockito.*;
 
@@ -38,5 +39,43 @@ class RegistrationUseCaseImplTest {
         assertThat(saved.getToken()).isNotBlank();
         assertThat(saved.getTokenExpiresAt()).isAfter(LocalDateTime.now().plusDays(6));
         verify(emailPort).send(eq("aluno@edu.unifor.br"), anyString(), contains(saved.getToken()));
+    }
+
+    @Test
+    void validarTokenExpiradoLancaExcecao() {
+        var useCase = new RegistrationUseCaseImpl(registrationRepository, null, emailPort, null);
+        var expired = RegistrationRequest.builder()
+                .email("aluno@edu.unifor.br").token("abc")
+                .tokenExpiresAt(LocalDateTime.now().minusDays(1))
+                .status(RegistrationStatus.INVITED)
+                .build();
+        when(registrationRepository.findByToken("abc")).thenReturn(java.util.Optional.of(expired));
+
+        assertThatThrownBy(() -> useCase.validateToken("abc"))
+                .isInstanceOf(com.smartboarding.smartboarding_api.shared.exception.BadRequestException.class);
+    }
+
+    @Test
+    void validarTokenInexistenteLancaExcecao() {
+        var useCase = new RegistrationUseCaseImpl(registrationRepository, null, emailPort, null);
+        when(registrationRepository.findByToken("xyz")).thenReturn(java.util.Optional.empty());
+
+        assertThatThrownBy(() -> useCase.validateToken("xyz"))
+                .isInstanceOf(com.smartboarding.smartboarding_api.shared.exception.NotFoundException.class);
+    }
+
+    @Test
+    void validarTokenValidoRetornaOPedido() {
+        var useCase = new RegistrationUseCaseImpl(registrationRepository, null, emailPort, null);
+        var valid = RegistrationRequest.builder()
+                .email("aluno@edu.unifor.br").token("ok")
+                .tokenExpiresAt(LocalDateTime.now().plusDays(1))
+                .status(RegistrationStatus.INVITED)
+                .build();
+        when(registrationRepository.findByToken("ok")).thenReturn(java.util.Optional.of(valid));
+
+        var result = useCase.validateToken("ok");
+
+        assertThat(result.getEmail()).isEqualTo("aluno@edu.unifor.br");
     }
 }

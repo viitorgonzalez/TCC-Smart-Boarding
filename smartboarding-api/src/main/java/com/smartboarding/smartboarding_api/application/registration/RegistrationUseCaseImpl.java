@@ -4,8 +4,11 @@ import com.smartboarding.smartboarding_api.domain.institution.port.out.Instituti
 import com.smartboarding.smartboarding_api.domain.registration.entity.RegistrationRequest;
 import com.smartboarding.smartboarding_api.domain.registration.entity.RegistrationStatus;
 import com.smartboarding.smartboarding_api.domain.registration.port.in.GenerateInviteUseCase;
+import com.smartboarding.smartboarding_api.domain.registration.port.in.ValidateTokenUseCase;
 import com.smartboarding.smartboarding_api.domain.registration.port.out.RegistrationRequestRepositoryPort;
 import com.smartboarding.smartboarding_api.domain.shared.port.out.EmailPort;
+import com.smartboarding.smartboarding_api.shared.exception.BadRequestException;
+import com.smartboarding.smartboarding_api.shared.exception.NotFoundException;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.security.crypto.password.PasswordEncoder;
 import org.springframework.stereotype.Service;
@@ -17,7 +20,7 @@ import java.util.HexFormat;
 
 @Slf4j
 @Service
-public class RegistrationUseCaseImpl implements GenerateInviteUseCase {
+public class RegistrationUseCaseImpl implements GenerateInviteUseCase, ValidateTokenUseCase {
 
     private static final long TOKEN_TTL_DAYS = 7;
     private static final SecureRandom RANDOM = new SecureRandom();
@@ -59,5 +62,15 @@ public class RegistrationUseCaseImpl implements GenerateInviteUseCase {
         byte[] bytes = new byte[32];
         RANDOM.nextBytes(bytes);
         return HexFormat.of().formatHex(bytes);
+    }
+
+    @Override
+    public RegistrationRequest validateToken(String token) {
+        RegistrationRequest request = registrationRepository.findByToken(token)
+                .orElseThrow(() -> new NotFoundException("Convite não encontrado"));
+        if (request.isTokenExpired()) {
+            throw new BadRequestException("TOKEN_EXPIRED", "Convite expirado");
+        }
+        return request;
     }
 }
