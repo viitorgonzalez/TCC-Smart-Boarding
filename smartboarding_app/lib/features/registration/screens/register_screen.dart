@@ -149,8 +149,13 @@ class _RegisterScreenState extends State<RegisterScreen> {
                           labelText: 'Senha',
                           border: OutlineInputBorder(),
                         ),
-                        validator: (v) =>
-                            (v == null || v.isEmpty) ? 'Informe a senha' : null,
+                        validator: (v) {
+                          if (v == null || v.isEmpty) return 'Informe a senha';
+                          if (v.length < 6) {
+                            return 'Senha deve ter no mínimo 6 caracteres';
+                          }
+                          return null;
+                        },
                       ),
                       const SizedBox(height: 16),
                       switch (provider.institutions) {
@@ -174,6 +179,22 @@ class _RegisterScreenState extends State<RegisterScreen> {
                             validator: (v) =>
                                 v == null ? 'Selecione a instituição' : null,
                           ),
+                        AsyncError(:final message) => Column(
+                          crossAxisAlignment: CrossAxisAlignment.stretch,
+                          children: [
+                            Text(
+                              message,
+                              style: const TextStyle(color: Colors.red),
+                            ),
+                            const SizedBox(height: 8),
+                            TextButton(
+                              onPressed: () => context
+                                  .read<RegistrationProvider>()
+                                  .loadInstitutions(),
+                              child: const Text('Tentar novamente'),
+                            ),
+                          ],
+                        ),
                         _ => const Center(child: CircularProgressIndicator()),
                       },
                       const SizedBox(height: 24),

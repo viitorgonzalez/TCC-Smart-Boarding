@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
 import '../../../core/utils/async_value.dart';
+import '../../../core/widgets/snackbar_utils.dart';
 import '../providers/registration_provider.dart';
 
 // Sem estado próprio — mesmo padrão de RoutesScreen. O load inicial da lista
@@ -23,10 +24,17 @@ class RegistrationApprovalsScreen extends StatelessWidget {
     );
     if (confirmed != true || !context.mounted) return;
     final provider = context.read<RegistrationProvider>();
-    if (approve) {
-      await provider.approve(id);
-    } else {
-      await provider.reject(id);
+    try {
+      if (approve) {
+        await provider.approve(id);
+      } else {
+        await provider.reject(id);
+      }
+      if (context.mounted) {
+        showSuccessSnackBar(context, approve ? 'Cadastro aprovado' : 'Cadastro negado');
+      }
+    } catch (e) {
+      if (context.mounted) showErrorSnackBar(context, e.toString());
     }
   }
 
@@ -48,7 +56,11 @@ class RegistrationApprovalsScreen extends StatelessWidget {
                     margin: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
                     child: ListTile(
                       title: Text(item.fullName ?? item.email),
-                      subtitle: Text(item.email),
+                      subtitle: Text(
+                        item.institutionName != null
+                            ? '${item.email} · ${item.institutionName}'
+                            : item.email,
+                      ),
                       trailing: Row(
                         mainAxisSize: MainAxisSize.min,
                         children: [
