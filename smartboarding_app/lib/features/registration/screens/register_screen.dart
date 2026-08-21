@@ -16,6 +16,7 @@ class _RegisterScreenState extends State<RegisterScreen> {
   final _formKey = GlobalKey<FormState>();
   final _fullNameCtrl = TextEditingController();
   final _passwordCtrl = TextEditingController();
+  final _emailCtrl = TextEditingController();
   String? _selectedInstitutionId;
   bool _submitted = false;
 
@@ -23,7 +24,14 @@ class _RegisterScreenState extends State<RegisterScreen> {
   void initState() {
     super.initState();
     WidgetsBinding.instance.addPostFrameCallback((_) {
-      context.read<RegistrationProvider>().loadInstitutions();
+      final provider = context.read<RegistrationProvider>();
+      provider.validateInvite(widget.token).then((_) {
+        if (!mounted) return;
+        if (provider.inviteEmail case AsyncData(:final value)) {
+          _emailCtrl.text = value;
+          provider.loadInstitutions();
+        }
+      });
     });
   }
 
@@ -31,6 +39,7 @@ class _RegisterScreenState extends State<RegisterScreen> {
   void dispose() {
     _fullNameCtrl.dispose();
     _passwordCtrl.dispose();
+    _emailCtrl.dispose();
     super.dispose();
   }
 
@@ -49,28 +58,37 @@ class _RegisterScreenState extends State<RegisterScreen> {
     }
   }
 
-  @override
-  Widget build(BuildContext context) {
-    if (_submitted) {
-      return Scaffold(
-        body: SafeArea(
-          child: Center(
-            child: Padding(
-              padding: const EdgeInsets.all(24),
-              child: Column(
-                mainAxisSize: MainAxisSize.min,
-                children: const [
-                  Icon(Icons.check_circle_outline, size: 64, color: Colors.green),
-                  SizedBox(height: 16),
-                  Text(
-                    'Cadastro enviado, aguardando aprovação do administrador',
-                    textAlign: TextAlign.center,
-                  ),
-                ],
-              ),
+  Widget _messageScreen({
+    required IconData icon,
+    required Color color,
+    required String text,
+  }) {
+    return Scaffold(
+      body: SafeArea(
+        child: Center(
+          child: Padding(
+            padding: const EdgeInsets.all(24),
+            child: Column(
+              mainAxisSize: MainAxisSize.min,
+              children: [
+                Icon(icon, size: 64, color: color),
+                const SizedBox(height: 16),
+                Text(text, textAlign: TextAlign.center),
+              ],
             ),
           ),
         ),
+      ),
+    );
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    if (_submitted) {
+      return _messageScreen(
+        icon: Icons.check_circle_outline,
+        color: Colors.green,
+        text: 'Cadastro enviado, aguardando aprovação do administrador',
       );
     }
 
@@ -79,53 +97,94 @@ class _RegisterScreenState extends State<RegisterScreen> {
       body: SafeArea(
         child: Consumer<RegistrationProvider>(
           builder: (context, provider, _) {
-            return SingleChildScrollView(
-              padding: const EdgeInsets.all(24),
-              child: Form(
-                key: _formKey,
-                child: Column(
-                  crossAxisAlignment: CrossAxisAlignment.stretch,
-                  children: [
-                    TextFormField(
-                      controller: _fullNameCtrl,
-                      decoration: const InputDecoration(labelText: 'Nome completo', border: OutlineInputBorder()),
-                      validator: (v) => (v == null || v.isEmpty) ? 'Informe o nome' : null,
-                    ),
-                    const SizedBox(height: 16),
-                    TextFormField(
-                      controller: _passwordCtrl,
-                      obscureText: true,
-                      decoration: const InputDecoration(labelText: 'Senha', border: OutlineInputBorder()),
-                      validator: (v) => (v == null || v.isEmpty) ? 'Informe a senha' : null,
-                    ),
-                    const SizedBox(height: 16),
-                    switch (provider.institutions) {
-                      AsyncData(:final value) => DropdownButtonFormField<String>(
-                          initialValue: _selectedInstitutionId,
-                          decoration: const InputDecoration(labelText: 'Instituição', border: OutlineInputBorder()),
-                          items: value
-                              .map((i) => DropdownMenuItem(value: i.id, child: Text(i.name)))
-                              .toList(),
-                          onChanged: (v) => setState(() => _selectedInstitutionId = v),
-                          validator: (v) => v == null ? 'Selecione a instituição' : null,
+            return switch (provider.inviteEmail) {
+              AsyncLoading() => const Center(
+                child: CircularProgressIndicator(),
+              ),
+              AsyncError(:final message) => _messageScreen(
+                icon: Icons.error_outline,
+                color: Colors.red,
+                text: message,
+              ),
+              AsyncData() => SingleChildScrollView(
+                padding: const EdgeInsets.all(24),
+                child: Form(
+                  key: _formKey,
+                  child: Column(
+                    crossAxisAlignment: CrossAxisAlignment.stretch,
+                    children: [
+                      TextFormField(
+                        controller: _emailCtrl,
+                        readOnly: true,
+                        decoration: const InputDecoration(
+                          labelText: 'E-mail',
+                          border: OutlineInputBorder(),
                         ),
-                      _ => const Center(child: CircularProgressIndicator()),
-                    },
-                    const SizedBox(height: 24),
-                    LoadingFilledButton(
-                      loading: provider.submitState is AsyncLoading,
-                      onPressed: _submit,
-                      label: 'Enviar cadastro',
-                    ),
-                    if (provider.submitState case AsyncError(:final message))
-                      Padding(
-                        padding: const EdgeInsets.only(top: 12),
-                        child: Text(message, style: const TextStyle(color: Colors.red)),
                       ),
-                  ],
+                      const SizedBox(height: 16),
+                      TextFormField(
+                        controller: _fullNameCtrl,
+                        decoration: const InputDecoration(
+                          labelText: 'Nome completo',
+                          border: OutlineInputBorder(),
+                        ),
+                        validator: (v) =>
+                            (v == null || v.isEmpty) ? 'Informe o nome' : null,
+                      ),
+                      const SizedBox(height: 16),
+                      TextFormField(
+                        controller: _passwordCtrl,
+                        obscureText: true,
+                        decoration: const InputDecoration(
+                          labelText: 'Senha',
+                          border: OutlineInputBorder(),
+                        ),
+                        validator: (v) =>
+                            (v == null || v.isEmpty) ? 'Informe a senha' : null,
+                      ),
+                      const SizedBox(height: 16),
+                      switch (provider.institutions) {
+                        AsyncData(:final value) =>
+                          DropdownButtonFormField<String>(
+                            initialValue: _selectedInstitutionId,
+                            decoration: const InputDecoration(
+                              labelText: 'Instituição',
+                              border: OutlineInputBorder(),
+                            ),
+                            items: value
+                                .map(
+                                  (i) => DropdownMenuItem(
+                                    value: i.id,
+                                    child: Text(i.name),
+                                  ),
+                                )
+                                .toList(),
+                            onChanged: (v) =>
+                                setState(() => _selectedInstitutionId = v),
+                            validator: (v) =>
+                                v == null ? 'Selecione a instituição' : null,
+                          ),
+                        _ => const Center(child: CircularProgressIndicator()),
+                      },
+                      const SizedBox(height: 24),
+                      LoadingFilledButton(
+                        loading: provider.submitState is AsyncLoading,
+                        onPressed: _submit,
+                        label: 'Enviar cadastro',
+                      ),
+                      if (provider.submitState case AsyncError(:final message))
+                        Padding(
+                          padding: const EdgeInsets.only(top: 12),
+                          child: Text(
+                            message,
+                            style: const TextStyle(color: Colors.red),
+                          ),
+                        ),
+                    ],
+                  ),
                 ),
               ),
-            );
+            };
           },
         ),
       ),

@@ -13,12 +13,26 @@ class RegistrationProvider extends ChangeNotifier {
   AsyncValue<List<InstitutionModel>> _institutions = const AsyncLoading();
   AsyncValue<List<RegistrationRequestModel>> _pending = const AsyncLoading();
   AsyncValue<void> _submitState = const AsyncData(null);
+  AsyncValue<String> _inviteEmail = const AsyncLoading();
 
   AsyncValue<List<InstitutionModel>> get institutions => _institutions;
   AsyncValue<List<RegistrationRequestModel>> get pending => _pending;
   AsyncValue<void> get submitState => _submitState;
+  AsyncValue<String> get inviteEmail => _inviteEmail;
 
   RegistrationProvider(this._registrationService, this._institutionService);
+
+  Future<void> validateInvite(String token) async {
+    _inviteEmail = const AsyncLoading();
+    notifyListeners();
+    try {
+      final result = await _registrationService.getInviteEmail(token);
+      _inviteEmail = AsyncData(result);
+    } catch (e) {
+      _inviteEmail = AsyncError(AppException.fromError(e));
+    }
+    notifyListeners();
+  }
 
   Future<void> loadInstitutions() async {
     _institutions = const AsyncLoading();
