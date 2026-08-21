@@ -92,6 +92,16 @@ class _RegisterScreenState extends State<RegisterScreen> {
       );
     }
 
+    if (context.watch<RegistrationProvider>().inviteEmail case AsyncError(
+      :final message,
+    )) {
+      return _messageScreen(
+        icon: Icons.error_outline,
+        color: Colors.red,
+        text: message,
+      );
+    }
+
     return Scaffold(
       appBar: AppBar(title: const Text('Seu convite')),
       body: SafeArea(
