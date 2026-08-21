@@ -1,5 +1,7 @@
 package com.smartboarding.smartboarding_api.infrastructure.web.registration;
 
+import com.smartboarding.smartboarding_api.domain.institution.entity.Institution;
+import com.smartboarding.smartboarding_api.domain.institution.port.out.InstitutionRepositoryPort;
 import com.smartboarding.smartboarding_api.domain.registration.port.in.ApproveRegistrationUseCase;
 import com.smartboarding.smartboarding_api.domain.registration.port.in.GenerateInviteUseCase;
 import com.smartboarding.smartboarding_api.domain.registration.port.in.ListPendingRegistrationsUseCase;
@@ -22,7 +24,9 @@ import org.springframework.web.bind.annotation.RequestMapping;
 import org.springframework.web.bind.annotation.RestController;
 
 import java.util.List;
+import java.util.Map;
 import java.util.UUID;
+import java.util.stream.Collectors;
 
 @RestController
 @RequestMapping("/api/registration")
@@ -34,19 +38,22 @@ public class RegistrationController {
     private final ListPendingRegistrationsUseCase listPendingRegistrationsUseCase;
     private final ApproveRegistrationUseCase approveRegistrationUseCase;
     private final RejectRegistrationUseCase rejectRegistrationUseCase;
+    private final InstitutionRepositoryPort institutionRepository;
 
     public RegistrationController(GenerateInviteUseCase generateInviteUseCase,
                                    ValidateTokenUseCase validateTokenUseCase,
                                    SubmitRegistrationUseCase submitRegistrationUseCase,
                                    ListPendingRegistrationsUseCase listPendingRegistrationsUseCase,
                                    ApproveRegistrationUseCase approveRegistrationUseCase,
-                                   RejectRegistrationUseCase rejectRegistrationUseCase) {
+                                   RejectRegistrationUseCase rejectRegistrationUseCase,
+                                   InstitutionRepositoryPort institutionRepository) {
         this.generateInviteUseCase = generateInviteUseCase;
         this.validateTokenUseCase = validateTokenUseCase;
         this.submitRegistrationUseCase = submitRegistrationUseCase;
         this.listPendingRegistrationsUseCase = listPendingRegistrationsUseCase;
         this.approveRegistrationUseCase = approveRegistrationUseCase;
         this.rejectRegistrationUseCase = rejectRegistrationUseCase;
+        this.institutionRepository = institutionRepository;
     }
 
     @PostMapping("/invite")
@@ -72,8 +79,15 @@ public class RegistrationController {
 
     @GetMapping("/pending")
     public ResponseEntity<ApiResponse<List<PendingRegistrationResponse>>> pending() {
+        // Lista pequena e admin-facing: busca todas as instituições de uma vez em vez de
+        // um findById por linha (N+1 seria aceitável aqui, mas isso é mais barato ainda).
+        Map<UUID, String> institutionNamesById = institutionRepository.findAll().stream()
+                .collect(Collectors.toMap(Institution::getId, Institution::getName));
+
         var result = listPendingRegistrationsUseCase.listPending().stream()
-                .map(PendingRegistrationResponse::from).toList();
+                .map(request -> PendingRegistrationResponse.from(request,
+                        institutionNamesById.get(request.getInstitutionId())))
+                .toList();
         return ResponseEntity.ok(ApiResponse.data(result));
     }
 

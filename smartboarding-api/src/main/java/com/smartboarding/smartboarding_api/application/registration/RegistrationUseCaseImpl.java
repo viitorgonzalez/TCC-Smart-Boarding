@@ -16,8 +16,10 @@ import com.smartboarding.smartboarding_api.domain.user.entity.Role;
 import com.smartboarding.smartboarding_api.domain.user.entity.User;
 import com.smartboarding.smartboarding_api.domain.user.port.out.UserRepositoryPort;
 import com.smartboarding.smartboarding_api.shared.exception.BadRequestException;
+import com.smartboarding.smartboarding_api.shared.exception.ConflictException;
 import com.smartboarding.smartboarding_api.shared.exception.NotFoundException;
 import lombok.extern.slf4j.Slf4j;
+import org.springframework.beans.factory.annotation.Value;
 import org.springframework.security.crypto.password.PasswordEncoder;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
@@ -41,22 +43,29 @@ public class RegistrationUseCaseImpl implements GenerateInviteUseCase, ValidateT
     private final EmailPort emailPort;
     private final PasswordEncoder passwordEncoder;
     private final UserRepositoryPort userRepository;
+    private final String publicBaseUrl;
 
     public RegistrationUseCaseImpl(RegistrationRequestRepositoryPort registrationRepository,
                                    InstitutionRepositoryPort institutionRepository,
                                    EmailPort emailPort,
                                    PasswordEncoder passwordEncoder,
-                                   UserRepositoryPort userRepository) {
+                                   UserRepositoryPort userRepository,
+                                   @Value("${app.public-base-url:https://smartboarding.app}") String publicBaseUrl) {
         this.registrationRepository = registrationRepository;
         this.institutionRepository = institutionRepository;
         this.emailPort = emailPort;
         this.passwordEncoder = passwordEncoder;
         this.userRepository = userRepository;
+        this.publicBaseUrl = publicBaseUrl;
     }
 
     @Override
     @Transactional
     public void generateInvite(String email) {
+        if (userRepository.existsByEmail(email)) {
+            throw new ConflictException("EMAIL_ALREADY_EXISTS", "E-mail já cadastrado: " + email);
+        }
+
         String token = generateToken();
         RegistrationRequest request = RegistrationRequest.builder()
                 .email(email)
@@ -66,7 +75,7 @@ public class RegistrationUseCaseImpl implements GenerateInviteUseCase, ValidateT
                 .build();
         registrationRepository.save(request);
 
-        String link = "https://smartboarding.app/register/" + token; // domínio real fica pendente do deploy — ver spec §5
+        String link = publicBaseUrl + "/register/" + token;
         emailPort.send(email, "Convite Smart Boarding",
                 "<p>Você foi convidado a se cadastrar no Smart Boarding.</p><p><a href=\"" + link + "\">Completar cadastro</a></p>");
         log.info("Convite de cadastro gerado pra {}", email);
@@ -84,6 +93,12 @@ public class RegistrationUseCaseImpl implements GenerateInviteUseCase, ValidateT
                 .orElseThrow(() -> new NotFoundException("Convite não encontrado"));
         if (request.isTokenExpired()) {
             throw new BadRequestException("TOKEN_EXPIRED", "Convite expirado");
+        }
+        // RN14: REJECTED continua validando (reenvio reabre o cadastro) — só APPROVED é terminal,
+        // senão um resubmit sobrescreve um pedido já virado User e o approve() seguinte colide
+        // com o UNIQUE(email) de users.
+        if (request.getStatus() == RegistrationStatus.APPROVED) {
+            throw new BadRequestException("ALREADY_APPROVED", "Cadastro já aprovado");
         }
         return request;
     }
@@ -121,6 +136,13 @@ public class RegistrationUseCaseImpl implements GenerateInviteUseCase, ValidateT
         RegistrationRequest request = registrationRepository.findById(id)
                 .orElseThrow(() -> new NotFoundException("Pedido de cadastro não encontrado"));
 
+        if (request.getStatus() != RegistrationStatus.PENDING) {
+            throw new ConflictException("NOT_PENDING", "Pedido de cadastro não está pendente");
+        }
+        if (userRepository.existsByEmail(request.getEmail())) {
+            throw new ConflictException("EMAIL_ALREADY_EXISTS", "E-mail já cadastrado: " + request.getEmail());
+        }
+
         // RN14: aprovar é o único ponto em que um RegistrationRequest vira um User de fato —
         // a instituição escolhida no cadastro precisa ser copiada junto (mesma checagem defensiva
         // de submitRegistration, já que o vínculo foi validado na submissão mas pode ter sido
@@ -153,6 +175,9 @@ public class RegistrationUseCaseImpl implements GenerateInviteUseCase, ValidateT
     public void reject(UUID id) {
         RegistrationRequest request = registrationRepository.findById(id)
                 .orElseThrow(() -> new NotFoundException("Pedido de cadastro não encontrado"));
+        if (request.getStatus() != RegistrationStatus.PENDING) {
+            throw new ConflictException("NOT_PENDING", "Pedido de cadastro não está pendente");
+        }
         request.setStatus(RegistrationStatus.REJECTED);
         registrationRepository.save(request);
         log.info("Cadastro negado: {}", request.getEmail());
