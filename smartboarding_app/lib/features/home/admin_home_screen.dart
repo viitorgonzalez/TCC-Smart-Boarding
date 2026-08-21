@@ -5,6 +5,8 @@ import '../../core/utils/date_format.dart';
 import '../../core/widgets/async_builder.dart';
 import '../../core/widgets/empty_state.dart';
 import '../../core/widgets/entity_list_tile.dart';
+import '../../core/widgets/loading_filled_button.dart';
+import '../../core/widgets/snackbar_utils.dart';
 import '../../core/widgets/status_pill.dart';
 import '../lists/models/daily_list_model.dart';
 import '../lists/providers/admin_list_provider.dart';
@@ -12,6 +14,7 @@ import '../lists/screens/admin_list_entries_screen.dart';
 import '../notifications/providers/notification_provider.dart';
 import '../notifications/screens/broadcast_screen.dart';
 import '../notifications/services/notification_service.dart';
+import '../registration/services/institution_service.dart';
 import '../reports/providers/report_provider.dart';
 import '../reports/screens/reports_screen.dart';
 import '../reports/services/report_service.dart';
@@ -70,6 +73,15 @@ class _AdminShellState extends State<_AdminShell> {
       appBar: AppBar(
         title: const Text('Smart Boarding'),
         actions: [
+          if (_index == 1)
+            IconButton(
+              icon: const Icon(Icons.school_outlined),
+              tooltip: 'Nova instituição',
+              onPressed: () => showDialog<bool>(
+                context: context,
+                builder: (_) => const _CreateInstitutionDialog(),
+              ),
+            ),
           IconButton(
             icon: const Icon(Icons.logout),
             tooltip: 'Sair',
@@ -180,6 +192,77 @@ class _ListTile extends StatelessWidget {
         context,
         MaterialPageRoute(builder: (_) => AdminListEntriesScreen(list: list)),
       ),
+    );
+  }
+}
+
+// ─── Diálogo de criar instituição (mínimo pro dropdown do cadastro) ──────────
+
+class _CreateInstitutionDialog extends StatefulWidget {
+  const _CreateInstitutionDialog();
+
+  @override
+  State<_CreateInstitutionDialog> createState() => _CreateInstitutionDialogState();
+}
+
+class _CreateInstitutionDialogState extends State<_CreateInstitutionDialog> {
+  final _formKey = GlobalKey<FormState>();
+  final _nameCtrl = TextEditingController();
+  final _addressCtrl = TextEditingController();
+  final _service = InstitutionService();
+  bool _loading = false;
+
+  @override
+  void dispose() {
+    _nameCtrl.dispose();
+    _addressCtrl.dispose();
+    super.dispose();
+  }
+
+  Future<void> _submit() async {
+    if (!_formKey.currentState!.validate()) return;
+    setState(() => _loading = true);
+    try {
+      await _service.createInstitution(
+        _nameCtrl.text.trim(),
+        _addressCtrl.text.trim(),
+        null,
+        null,
+      );
+      if (mounted) Navigator.pop(context, true);
+    } catch (e) {
+      if (mounted) showErrorSnackBar(context, 'Falha ao criar instituição: $e');
+    } finally {
+      if (mounted) setState(() => _loading = false);
+    }
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    return AlertDialog(
+      title: const Text('Nova instituição'),
+      content: Form(
+        key: _formKey,
+        child: Column(
+          mainAxisSize: MainAxisSize.min,
+          children: [
+            TextFormField(
+              controller: _nameCtrl,
+              decoration: const InputDecoration(labelText: 'Nome'),
+              validator: (v) => (v == null || v.isEmpty) ? 'Informe o nome' : null,
+            ),
+            const SizedBox(height: 12),
+            TextFormField(
+              controller: _addressCtrl,
+              decoration: const InputDecoration(labelText: 'Endereço (opcional)'),
+            ),
+          ],
+        ),
+      ),
+      actions: [
+        TextButton(onPressed: () => Navigator.pop(context, false), child: const Text('Cancelar')),
+        LoadingFilledButton(loading: _loading, onPressed: _submit, label: 'Criar'),
+      ],
     );
   }
 }
