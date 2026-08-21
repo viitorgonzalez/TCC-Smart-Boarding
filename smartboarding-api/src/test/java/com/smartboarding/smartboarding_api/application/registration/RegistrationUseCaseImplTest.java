@@ -25,10 +25,12 @@ class RegistrationUseCaseImplTest {
     @Mock EmailPort emailPort;
 
     @Test
-    void gerarConviteCriaPedidoComTokenEEnviaEmail() {
+    void gerarConviteCriaPedidoComTokenECodigoEEnviaEmail() {
         var userRepository = mock(com.smartboarding.smartboarding_api.domain.user.port.out.UserRepositoryPort.class);
-        var useCase = new RegistrationUseCaseImpl(registrationRepository, null, emailPort, null, userRepository, "https://smartboarding.app");
+        var passwordEncoder = mock(org.springframework.security.crypto.password.PasswordEncoder.class);
+        var useCase = new RegistrationUseCaseImpl(registrationRepository, null, emailPort, passwordEncoder, userRepository);
         when(userRepository.existsByEmail("aluno@edu.unifor.br")).thenReturn(false);
+        when(passwordEncoder.encode(anyString())).thenReturn("hash-fake-do-codigo");
         when(registrationRepository.save(any())).thenAnswer(inv -> inv.getArgument(0));
 
         useCase.generateInvite("aluno@edu.unifor.br");
@@ -41,12 +43,21 @@ class RegistrationUseCaseImplTest {
         assertThat(saved.getStatus()).isEqualTo(RegistrationStatus.INVITED);
         assertThat(saved.getToken()).isNotBlank();
         assertThat(saved.getTokenExpiresAt()).isAfter(LocalDateTime.now().plusDays(6));
-        verify(emailPort).send(eq("aluno@edu.unifor.br"), anyString(), contains(saved.getToken()));
+        assertThat(saved.getCodeHash()).isEqualTo("hash-fake-do-codigo");
+        assertThat(saved.getCodeExpiresAt()).isAfter(LocalDateTime.now().plusMinutes(14));
+        assertThat(saved.getCodeAttempts()).isZero();
+
+        ArgumentCaptor<String> bodyCaptor = ArgumentCaptor.forClass(String.class);
+        verify(emailPort).send(eq("aluno@edu.unifor.br"), anyString(), bodyCaptor.capture());
+        assertThat(bodyCaptor.getValue()).containsPattern("\\d{6}");
+        // Código nunca é enviado em texto puro pro repositório -- só o hash. O e-mail é o único
+        // lugar onde o valor puro existe, e não é este teste que consegue lê-lo de volta (o
+        // passwordEncoder está mockado); a asserção acima só confirma o formato (6 dígitos).
     }
 
     @Test
     void validarTokenExpiradoLancaExcecao() {
-        var useCase = new RegistrationUseCaseImpl(registrationRepository, null, emailPort, null, null, "https://smartboarding.app");
+        var useCase = new RegistrationUseCaseImpl(registrationRepository, null, emailPort, null, null);
         var expired = RegistrationRequest.builder()
                 .email("aluno@edu.unifor.br").token("abc")
                 .tokenExpiresAt(LocalDateTime.now().minusDays(1))
@@ -60,7 +71,7 @@ class RegistrationUseCaseImplTest {
 
     @Test
     void validarTokenInexistenteLancaExcecao() {
-        var useCase = new RegistrationUseCaseImpl(registrationRepository, null, emailPort, null, null, "https://smartboarding.app");
+        var useCase = new RegistrationUseCaseImpl(registrationRepository, null, emailPort, null, null);
         when(registrationRepository.findByToken("xyz")).thenReturn(java.util.Optional.empty());
 
         assertThatThrownBy(() -> useCase.validateToken("xyz"))
@@ -69,7 +80,7 @@ class RegistrationUseCaseImplTest {
 
     @Test
     void validarTokenValidoRetornaOPedido() {
-        var useCase = new RegistrationUseCaseImpl(registrationRepository, null, emailPort, null, null, "https://smartboarding.app");
+        var useCase = new RegistrationUseCaseImpl(registrationRepository, null, emailPort, null, null);
         var valid = RegistrationRequest.builder()
                 .email("aluno@edu.unifor.br").token("ok")
                 .tokenExpiresAt(LocalDateTime.now().plusDays(1))
@@ -86,7 +97,7 @@ class RegistrationUseCaseImplTest {
     void submeterComTokenValidoMarcaComoPending() {
         var institutionRepository = mock(com.smartboarding.smartboarding_api.domain.institution.port.out.InstitutionRepositoryPort.class);
         var passwordEncoder = mock(org.springframework.security.crypto.password.PasswordEncoder.class);
-        var useCase = new RegistrationUseCaseImpl(registrationRepository, institutionRepository, emailPort, passwordEncoder, null, "https://smartboarding.app");
+        var useCase = new RegistrationUseCaseImpl(registrationRepository, institutionRepository, emailPort, passwordEncoder, null);
 
         var institutionId = java.util.UUID.randomUUID();
         var invited = RegistrationRequest.builder()
@@ -113,7 +124,7 @@ class RegistrationUseCaseImplTest {
     void submeterComInstituicaoInexistenteLancaExcecao() {
         var institutionRepository = mock(com.smartboarding.smartboarding_api.domain.institution.port.out.InstitutionRepositoryPort.class);
         var passwordEncoder = mock(org.springframework.security.crypto.password.PasswordEncoder.class);
-        var useCase = new RegistrationUseCaseImpl(registrationRepository, institutionRepository, emailPort, passwordEncoder, null, "https://smartboarding.app");
+        var useCase = new RegistrationUseCaseImpl(registrationRepository, institutionRepository, emailPort, passwordEncoder, null);
 
         var invited = RegistrationRequest.builder()
                 .email("aluno@edu.unifor.br").token("ok")
@@ -135,7 +146,7 @@ class RegistrationUseCaseImplTest {
     void reenvioAposNegacaoVoltaPraPending() {
         var institutionRepository = mock(com.smartboarding.smartboarding_api.domain.institution.port.out.InstitutionRepositoryPort.class);
         var passwordEncoder = mock(org.springframework.security.crypto.password.PasswordEncoder.class);
-        var useCase = new RegistrationUseCaseImpl(registrationRepository, institutionRepository, emailPort, passwordEncoder, null, "https://smartboarding.app");
+        var useCase = new RegistrationUseCaseImpl(registrationRepository, institutionRepository, emailPort, passwordEncoder, null);
 
         var institutionId = java.util.UUID.randomUUID();
         var rejected = RegistrationRequest.builder()
@@ -158,7 +169,7 @@ class RegistrationUseCaseImplTest {
 
     @Test
     void listarPendentesRetornaSoOsPending() {
-        var useCase = new RegistrationUseCaseImpl(registrationRepository, null, emailPort, null, null, "https://smartboarding.app");
+        var useCase = new RegistrationUseCaseImpl(registrationRepository, null, emailPort, null, null);
         var pending = RegistrationRequest.builder().status(RegistrationStatus.PENDING).build();
         when(registrationRepository.findAllByStatus(RegistrationStatus.PENDING)).thenReturn(List.of(pending));
 
@@ -174,7 +185,7 @@ class RegistrationUseCaseImplTest {
         // null porque approve() resolve o nome da instituição antes de montar o User.
         var institutionRepository = mock(com.smartboarding.smartboarding_api.domain.institution.port.out.InstitutionRepositoryPort.class);
         var userRepository = mock(com.smartboarding.smartboarding_api.domain.user.port.out.UserRepositoryPort.class);
-        var useCase = new RegistrationUseCaseImpl(registrationRepository, institutionRepository, emailPort, null, userRepository, "https://smartboarding.app");
+        var useCase = new RegistrationUseCaseImpl(registrationRepository, institutionRepository, emailPort, null, userRepository);
 
         var id = java.util.UUID.randomUUID();
         var institutionId = java.util.UUID.randomUUID();
@@ -205,7 +216,7 @@ class RegistrationUseCaseImplTest {
         // silenciosamente cria o User sem instituição.
         var institutionRepository = mock(com.smartboarding.smartboarding_api.domain.institution.port.out.InstitutionRepositoryPort.class);
         var userRepository = mock(com.smartboarding.smartboarding_api.domain.user.port.out.UserRepositoryPort.class);
-        var useCase = new RegistrationUseCaseImpl(registrationRepository, institutionRepository, emailPort, null, userRepository, "https://smartboarding.app");
+        var useCase = new RegistrationUseCaseImpl(registrationRepository, institutionRepository, emailPort, null, userRepository);
 
         var id = java.util.UUID.randomUUID();
         var institutionId = java.util.UUID.randomUUID();
@@ -224,7 +235,7 @@ class RegistrationUseCaseImplTest {
     @Test
     void negarMarcaComoRejectedSemCriarConta() {
         var userRepository = mock(com.smartboarding.smartboarding_api.domain.user.port.out.UserRepositoryPort.class);
-        var useCase = new RegistrationUseCaseImpl(registrationRepository, null, emailPort, null, userRepository, "https://smartboarding.app");
+        var useCase = new RegistrationUseCaseImpl(registrationRepository, null, emailPort, null, userRepository);
 
         var id = java.util.UUID.randomUUID();
         var pending = RegistrationRequest.builder().id(id).status(RegistrationStatus.PENDING).build();
@@ -241,7 +252,7 @@ class RegistrationUseCaseImplTest {
     void validarTokenDeCadastroJaAprovadoLancaExcecao() {
         // C1 do review final: um convite já APPROVED não pode voltar a validar — senão o aluno
         // reabre o link antigo, reenvia o submit e o approve() seguinte colide com o UNIQUE(email).
-        var useCase = new RegistrationUseCaseImpl(registrationRepository, null, emailPort, null, null, "https://smartboarding.app");
+        var useCase = new RegistrationUseCaseImpl(registrationRepository, null, emailPort, null, null);
         var approved = RegistrationRequest.builder()
                 .email("aluno@edu.unifor.br").token("ok")
                 .tokenExpiresAt(LocalDateTime.now().plusDays(1))
@@ -256,7 +267,7 @@ class RegistrationUseCaseImplTest {
     @Test
     void aprovarPedidoNaoPendenteLancaConflito() {
         var userRepository = mock(com.smartboarding.smartboarding_api.domain.user.port.out.UserRepositoryPort.class);
-        var useCase = new RegistrationUseCaseImpl(registrationRepository, null, emailPort, null, userRepository, "https://smartboarding.app");
+        var useCase = new RegistrationUseCaseImpl(registrationRepository, null, emailPort, null, userRepository);
 
         var id = java.util.UUID.randomUUID();
         var alreadyApproved = RegistrationRequest.builder().id(id).email("aluno@edu.unifor.br")
@@ -272,7 +283,7 @@ class RegistrationUseCaseImplTest {
     void aprovarComEmailJaExistenteLancaConflito() {
         var institutionRepository = mock(com.smartboarding.smartboarding_api.domain.institution.port.out.InstitutionRepositoryPort.class);
         var userRepository = mock(com.smartboarding.smartboarding_api.domain.user.port.out.UserRepositoryPort.class);
-        var useCase = new RegistrationUseCaseImpl(registrationRepository, institutionRepository, emailPort, null, userRepository, "https://smartboarding.app");
+        var useCase = new RegistrationUseCaseImpl(registrationRepository, institutionRepository, emailPort, null, userRepository);
 
         var id = java.util.UUID.randomUUID();
         var pending = RegistrationRequest.builder().id(id).email("aluno@edu.unifor.br")
@@ -288,7 +299,7 @@ class RegistrationUseCaseImplTest {
 
     @Test
     void negarPedidoNaoPendenteLancaConflito() {
-        var useCase = new RegistrationUseCaseImpl(registrationRepository, null, emailPort, null, null, "https://smartboarding.app");
+        var useCase = new RegistrationUseCaseImpl(registrationRepository, null, emailPort, null, null);
 
         var id = java.util.UUID.randomUUID();
         var alreadyRejected = RegistrationRequest.builder().id(id).status(RegistrationStatus.REJECTED).build();
@@ -302,12 +313,115 @@ class RegistrationUseCaseImplTest {
     @Test
     void gerarConviteComEmailJaExistenteLancaConflito() {
         var userRepository = mock(com.smartboarding.smartboarding_api.domain.user.port.out.UserRepositoryPort.class);
-        var useCase = new RegistrationUseCaseImpl(registrationRepository, null, emailPort, null, userRepository, "https://smartboarding.app");
+        var useCase = new RegistrationUseCaseImpl(registrationRepository, null, emailPort, null, userRepository);
         when(userRepository.existsByEmail("aluno@edu.unifor.br")).thenReturn(true);
 
         assertThatThrownBy(() -> useCase.generateInvite("aluno@edu.unifor.br"))
                 .isInstanceOf(com.smartboarding.smartboarding_api.shared.exception.ConflictException.class);
         verify(registrationRepository, never()).save(any());
         verify(emailPort, never()).send(any(), any(), any());
+    }
+
+    @Test
+    void verificarCodigoValidoRetornaOToken() {
+        var passwordEncoder = mock(org.springframework.security.crypto.password.PasswordEncoder.class);
+        var useCase = new RegistrationUseCaseImpl(registrationRepository, null, emailPort, passwordEncoder, null);
+
+        var request = RegistrationRequest.builder()
+                .email("aluno@edu.unifor.br").token("token-interno")
+                .codeHash("hash-do-123456").codeExpiresAt(LocalDateTime.now().plusMinutes(10))
+                .codeAttempts(0).status(RegistrationStatus.INVITED)
+                .build();
+        when(registrationRepository.findTopByEmailOrderByCreatedAtDesc("aluno@edu.unifor.br"))
+                .thenReturn(java.util.Optional.of(request));
+        when(passwordEncoder.matches("123456", "hash-do-123456")).thenReturn(true);
+
+        var token = useCase.verifyCode("aluno@edu.unifor.br", "123456");
+
+        assertThat(token).isEqualTo("token-interno");
+        verify(registrationRepository, never()).save(any());
+    }
+
+    @Test
+    void verificarCodigoErradoIncrementaTentativasELancaExcecao() {
+        var passwordEncoder = mock(org.springframework.security.crypto.password.PasswordEncoder.class);
+        var useCase = new RegistrationUseCaseImpl(registrationRepository, null, emailPort, passwordEncoder, null);
+
+        var request = RegistrationRequest.builder()
+                .email("aluno@edu.unifor.br")
+                .codeHash("hash-do-123456").codeExpiresAt(LocalDateTime.now().plusMinutes(10))
+                .codeAttempts(2).status(RegistrationStatus.INVITED)
+                .build();
+        when(registrationRepository.findTopByEmailOrderByCreatedAtDesc("aluno@edu.unifor.br"))
+                .thenReturn(java.util.Optional.of(request));
+        when(passwordEncoder.matches("000000", "hash-do-123456")).thenReturn(false);
+        when(registrationRepository.save(any())).thenAnswer(inv -> inv.getArgument(0));
+
+        assertThatThrownBy(() -> useCase.verifyCode("aluno@edu.unifor.br", "000000"))
+                .isInstanceOf(com.smartboarding.smartboarding_api.shared.exception.BadRequestException.class);
+
+        ArgumentCaptor<RegistrationRequest> captor = ArgumentCaptor.forClass(RegistrationRequest.class);
+        verify(registrationRepository).save(captor.capture());
+        assertThat(captor.getValue().getCodeAttempts()).isEqualTo(3);
+    }
+
+    @Test
+    void verificarCodigoComTentativasEsgotadasLancaExcecaoSemChecarHash() {
+        var passwordEncoder = mock(org.springframework.security.crypto.password.PasswordEncoder.class);
+        var useCase = new RegistrationUseCaseImpl(registrationRepository, null, emailPort, passwordEncoder, null);
+
+        var request = RegistrationRequest.builder()
+                .email("aluno@edu.unifor.br")
+                .codeHash("hash-do-123456").codeExpiresAt(LocalDateTime.now().plusMinutes(10))
+                .codeAttempts(5).status(RegistrationStatus.INVITED)
+                .build();
+        when(registrationRepository.findTopByEmailOrderByCreatedAtDesc("aluno@edu.unifor.br"))
+                .thenReturn(java.util.Optional.of(request));
+
+        assertThatThrownBy(() -> useCase.verifyCode("aluno@edu.unifor.br", "123456"))
+                .isInstanceOf(com.smartboarding.smartboarding_api.shared.exception.BadRequestException.class);
+        verify(passwordEncoder, never()).matches(any(), any());
+        verify(registrationRepository, never()).save(any());
+    }
+
+    @Test
+    void verificarCodigoExpiradoLancaExcecao() {
+        var useCase = new RegistrationUseCaseImpl(registrationRepository, null, emailPort, null, null);
+
+        var request = RegistrationRequest.builder()
+                .email("aluno@edu.unifor.br")
+                .codeHash("hash-do-123456").codeExpiresAt(LocalDateTime.now().minusMinutes(1))
+                .codeAttempts(0).status(RegistrationStatus.INVITED)
+                .build();
+        when(registrationRepository.findTopByEmailOrderByCreatedAtDesc("aluno@edu.unifor.br"))
+                .thenReturn(java.util.Optional.of(request));
+
+        assertThatThrownBy(() -> useCase.verifyCode("aluno@edu.unifor.br", "123456"))
+                .isInstanceOf(com.smartboarding.smartboarding_api.shared.exception.BadRequestException.class);
+    }
+
+    @Test
+    void verificarCodigoDeEmailInexistenteLancaExcecao() {
+        var useCase = new RegistrationUseCaseImpl(registrationRepository, null, emailPort, null, null);
+        when(registrationRepository.findTopByEmailOrderByCreatedAtDesc("ninguem@edu.unifor.br"))
+                .thenReturn(java.util.Optional.empty());
+
+        assertThatThrownBy(() -> useCase.verifyCode("ninguem@edu.unifor.br", "123456"))
+                .isInstanceOf(com.smartboarding.smartboarding_api.shared.exception.NotFoundException.class);
+    }
+
+    @Test
+    void verificarCodigoDeCadastroJaAprovadoLancaExcecao() {
+        var useCase = new RegistrationUseCaseImpl(registrationRepository, null, emailPort, null, null);
+
+        var request = RegistrationRequest.builder()
+                .email("aluno@edu.unifor.br").status(RegistrationStatus.APPROVED)
+                .codeHash("hash-do-123456").codeExpiresAt(LocalDateTime.now().plusMinutes(10))
+                .build();
+        when(registrationRepository.findTopByEmailOrderByCreatedAtDesc("aluno@edu.unifor.br"))
+                .thenReturn(java.util.Optional.of(request));
+
+        assertThatThrownBy(() -> useCase.verifyCode("aluno@edu.unifor.br", "123456"))
+                .isInstanceOf(com.smartboarding.smartboarding_api.shared.exception.BadRequestException.class);
     }
 }

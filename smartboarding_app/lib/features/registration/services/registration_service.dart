@@ -13,6 +13,14 @@ class RegistrationService {
     return response.data['data']['email'] as String;
   }
 
+  Future<String> verifyCode(String email, String code) async {
+    final response = await _dio.post(
+      '/api/registration/verify-code',
+      data: {'email': email, 'code': code},
+    );
+    return response.data['data']['token'] as String;
+  }
+
   Future<void> submit({
     required String token,
     required String fullName,

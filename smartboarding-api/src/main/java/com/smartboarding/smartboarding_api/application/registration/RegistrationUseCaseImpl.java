@@ -10,6 +10,7 @@ import com.smartboarding.smartboarding_api.domain.registration.port.in.ListPendi
 import com.smartboarding.smartboarding_api.domain.registration.port.in.RejectRegistrationUseCase;
 import com.smartboarding.smartboarding_api.domain.registration.port.in.SubmitRegistrationUseCase;
 import com.smartboarding.smartboarding_api.domain.registration.port.in.ValidateTokenUseCase;
+import com.smartboarding.smartboarding_api.domain.registration.port.in.VerifyInviteCodeUseCase;
 import com.smartboarding.smartboarding_api.domain.registration.port.out.RegistrationRequestRepositoryPort;
 import com.smartboarding.smartboarding_api.domain.shared.port.out.EmailPort;
 import com.smartboarding.smartboarding_api.domain.user.entity.Role;
@@ -19,7 +20,6 @@ import com.smartboarding.smartboarding_api.shared.exception.BadRequestException;
 import com.smartboarding.smartboarding_api.shared.exception.ConflictException;
 import com.smartboarding.smartboarding_api.shared.exception.NotFoundException;
 import lombok.extern.slf4j.Slf4j;
-import org.springframework.beans.factory.annotation.Value;
 import org.springframework.security.crypto.password.PasswordEncoder;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
@@ -33,9 +33,12 @@ import java.util.UUID;
 @Slf4j
 @Service
 public class RegistrationUseCaseImpl implements GenerateInviteUseCase, ValidateTokenUseCase,
-        SubmitRegistrationUseCase, ListPendingRegistrationsUseCase, ApproveRegistrationUseCase, RejectRegistrationUseCase {
+        SubmitRegistrationUseCase, ListPendingRegistrationsUseCase, ApproveRegistrationUseCase, RejectRegistrationUseCase,
+        VerifyInviteCodeUseCase {
 
     private static final long TOKEN_TTL_DAYS = 7;
+    private static final long CODE_TTL_MINUTES = 15;
+    private static final int MAX_CODE_ATTEMPTS = 5;
     private static final SecureRandom RANDOM = new SecureRandom();
 
     private final RegistrationRequestRepositoryPort registrationRepository;
@@ -43,20 +46,17 @@ public class RegistrationUseCaseImpl implements GenerateInviteUseCase, ValidateT
     private final EmailPort emailPort;
     private final PasswordEncoder passwordEncoder;
     private final UserRepositoryPort userRepository;
-    private final String publicBaseUrl;
 
     public RegistrationUseCaseImpl(RegistrationRequestRepositoryPort registrationRepository,
                                    InstitutionRepositoryPort institutionRepository,
                                    EmailPort emailPort,
                                    PasswordEncoder passwordEncoder,
-                                   UserRepositoryPort userRepository,
-                                   @Value("${app.public-base-url:https://smartboarding.app}") String publicBaseUrl) {
+                                   UserRepositoryPort userRepository) {
         this.registrationRepository = registrationRepository;
         this.institutionRepository = institutionRepository;
         this.emailPort = emailPort;
         this.passwordEncoder = passwordEncoder;
         this.userRepository = userRepository;
-        this.publicBaseUrl = publicBaseUrl;
     }
 
     @Override
@@ -67,25 +67,24 @@ public class RegistrationUseCaseImpl implements GenerateInviteUseCase, ValidateT
         }
 
         String token = generateToken();
+        String code = generateCode();
         RegistrationRequest request = RegistrationRequest.builder()
                 .email(email)
                 .token(token)
                 .tokenExpiresAt(LocalDateTime.now().plusDays(TOKEN_TTL_DAYS))
+                .codeHash(passwordEncoder.encode(code))
+                .codeExpiresAt(LocalDateTime.now().plusMinutes(CODE_TTL_MINUTES))
                 .status(RegistrationStatus.INVITED)
                 .build();
         registrationRepository.save(request);
 
-        // Dois links: o https:// é o App Link "de verdade" (precisa de domínio publicado +
-        // assetlinks.json pra abrir o app direto — pendência de deploy, ver spec §5/§7); o
-        // smartboarding:// é um scheme customizado que não depende de DNS nem verificação de
-        // domínio nenhuma, funciona idêntico em dev e produção assim que o app está instalado —
-        // é o fallback garantido enquanto o domínio não existe.
-        String httpsLink = publicBaseUrl + "/register/" + token;
-        String appLink = "smartboarding://register/" + token;
-        emailPort.send(email, "Convite Smart Boarding",
-                "<p>Você foi convidado a se cadastrar no Smart Boarding.</p>"
-                        + "<p><a href=\"" + httpsLink + "\">Completar cadastro</a></p>"
-                        + "<p><a href=\"" + appLink + "\">Abrir direto no app</a></p>");
+        // Código de 6 dígitos em vez de link: App Link https:// exige domínio publicado +
+        // verificado (assetlinks.json), pendência de deploy — código funciona sem nenhuma
+        // dependência de domínio, em dev e produção, desde já. Validade curta (15min) + limite
+        // de tentativas (verifyCode) compensam a entropia bem menor que o token de 256 bits.
+        emailPort.send(email, "Código de verificação Smart Boarding",
+                "<p>Seu código de verificação: <strong>" + code + "</strong></p>"
+                        + "<p>Válido por " + CODE_TTL_MINUTES + " minutos.</p>");
         log.info("Convite de cadastro gerado pra {}", email);
     }
 
@@ -93,6 +92,34 @@ public class RegistrationUseCaseImpl implements GenerateInviteUseCase, ValidateT
         byte[] bytes = new byte[32];
         RANDOM.nextBytes(bytes);
         return HexFormat.of().formatHex(bytes);
+    }
+
+    private String generateCode() {
+        return String.format("%06d", RANDOM.nextInt(1_000_000));
+    }
+
+    @Override
+    @Transactional
+    public String verifyCode(String email, String code) {
+        RegistrationRequest request = registrationRepository.findTopByEmailOrderByCreatedAtDesc(email)
+                .orElseThrow(() -> new NotFoundException("Convite não encontrado"));
+
+        if (request.getStatus() == RegistrationStatus.APPROVED) {
+            throw new BadRequestException("ALREADY_APPROVED", "Cadastro já aprovado");
+        }
+        if (request.isCodeExpired()) {
+            throw new BadRequestException("CODE_EXPIRED", "Código expirado, peça um novo convite");
+        }
+        if (request.getCodeAttempts() >= MAX_CODE_ATTEMPTS) {
+            throw new BadRequestException("TOO_MANY_ATTEMPTS", "Muitas tentativas, peça um novo convite");
+        }
+        if (!passwordEncoder.matches(code, request.getCodeHash())) {
+            request.setCodeAttempts(request.getCodeAttempts() + 1);
+            registrationRepository.save(request);
+            throw new BadRequestException("INVALID_CODE", "Código inválido");
+        }
+
+        return request.getToken();
     }
 
     @Override

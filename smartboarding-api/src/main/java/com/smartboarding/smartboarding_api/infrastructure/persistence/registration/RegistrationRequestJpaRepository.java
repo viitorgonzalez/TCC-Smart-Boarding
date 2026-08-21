@@ -11,4 +11,5 @@ import java.util.UUID;
 public interface RegistrationRequestJpaRepository extends JpaRepository<RegistrationRequest, UUID> {
     Optional<RegistrationRequest> findByToken(String token);
     List<RegistrationRequest> findAllByStatus(RegistrationStatus status);
+    Optional<RegistrationRequest> findTopByEmailOrderByCreatedAtDesc(String email);
 }

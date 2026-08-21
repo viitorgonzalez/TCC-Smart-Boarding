@@ -8,10 +8,13 @@ import com.smartboarding.smartboarding_api.domain.registration.port.in.ListPendi
 import com.smartboarding.smartboarding_api.domain.registration.port.in.RejectRegistrationUseCase;
 import com.smartboarding.smartboarding_api.domain.registration.port.in.SubmitRegistrationUseCase;
 import com.smartboarding.smartboarding_api.domain.registration.port.in.ValidateTokenUseCase;
+import com.smartboarding.smartboarding_api.domain.registration.port.in.VerifyInviteCodeUseCase;
 import com.smartboarding.smartboarding_api.infrastructure.web.registration.dto.InviteInfoResponse;
 import com.smartboarding.smartboarding_api.infrastructure.web.registration.dto.InviteRequest;
 import com.smartboarding.smartboarding_api.infrastructure.web.registration.dto.PendingRegistrationResponse;
 import com.smartboarding.smartboarding_api.infrastructure.web.registration.dto.SubmitRegistrationRequest;
+import com.smartboarding.smartboarding_api.infrastructure.web.registration.dto.VerifyInviteCodeRequest;
+import com.smartboarding.smartboarding_api.infrastructure.web.registration.dto.VerifyInviteCodeResponse;
 import com.smartboarding.smartboarding_api.shared.web.ApiResponse;
 import jakarta.validation.Valid;
 import org.springframework.http.HttpStatus;
@@ -38,6 +41,7 @@ public class RegistrationController {
     private final ListPendingRegistrationsUseCase listPendingRegistrationsUseCase;
     private final ApproveRegistrationUseCase approveRegistrationUseCase;
     private final RejectRegistrationUseCase rejectRegistrationUseCase;
+    private final VerifyInviteCodeUseCase verifyInviteCodeUseCase;
     private final InstitutionRepositoryPort institutionRepository;
 
     public RegistrationController(GenerateInviteUseCase generateInviteUseCase,
@@ -46,6 +50,7 @@ public class RegistrationController {
                                    ListPendingRegistrationsUseCase listPendingRegistrationsUseCase,
                                    ApproveRegistrationUseCase approveRegistrationUseCase,
                                    RejectRegistrationUseCase rejectRegistrationUseCase,
+                                   VerifyInviteCodeUseCase verifyInviteCodeUseCase,
                                    InstitutionRepositoryPort institutionRepository) {
         this.generateInviteUseCase = generateInviteUseCase;
         this.validateTokenUseCase = validateTokenUseCase;
@@ -53,6 +58,7 @@ public class RegistrationController {
         this.listPendingRegistrationsUseCase = listPendingRegistrationsUseCase;
         this.approveRegistrationUseCase = approveRegistrationUseCase;
         this.rejectRegistrationUseCase = rejectRegistrationUseCase;
+        this.verifyInviteCodeUseCase = verifyInviteCodeUseCase;
         this.institutionRepository = institutionRepository;
     }
 
@@ -60,6 +66,12 @@ public class RegistrationController {
     public ResponseEntity<ApiResponse<?>> invite(@RequestBody @Valid InviteRequest request) {
         generateInviteUseCase.generateInvite(request.email());
         return ResponseEntity.status(HttpStatus.CREATED).body(ApiResponse.success());
+    }
+
+    @PostMapping("/verify-code")
+    public ResponseEntity<ApiResponse<VerifyInviteCodeResponse>> verifyCode(@RequestBody @Valid VerifyInviteCodeRequest request) {
+        String token = verifyInviteCodeUseCase.verifyCode(request.email(), request.code());
+        return ResponseEntity.ok(ApiResponse.data(new VerifyInviteCodeResponse(token)));
     }
 
     @GetMapping("/invite/{token}")

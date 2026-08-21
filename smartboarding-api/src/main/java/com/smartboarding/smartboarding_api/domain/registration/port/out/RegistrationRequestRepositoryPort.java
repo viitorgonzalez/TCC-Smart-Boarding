@@ -11,5 +11,6 @@ public interface RegistrationRequestRepositoryPort {
     RegistrationRequest save(RegistrationRequest request);
     Optional<RegistrationRequest> findByToken(String token);
     Optional<RegistrationRequest> findById(UUID id);
+    Optional<RegistrationRequest> findTopByEmailOrderByCreatedAtDesc(String email);
     List<RegistrationRequest> findAllByStatus(RegistrationStatus status);
 }

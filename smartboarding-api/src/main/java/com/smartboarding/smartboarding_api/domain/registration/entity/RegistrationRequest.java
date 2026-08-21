@@ -29,6 +29,16 @@ public class RegistrationRequest {
     @Column(name = "token_expires_at", nullable = false)
     private LocalDateTime tokenExpiresAt;
 
+    @Column(name = "code_hash")
+    private String codeHash;
+
+    @Column(name = "code_expires_at")
+    private LocalDateTime codeExpiresAt;
+
+    @Column(name = "code_attempts", nullable = false)
+    @Builder.Default
+    private int codeAttempts = 0;
+
     @Enumerated(EnumType.STRING)
     @Column(nullable = false)
     private RegistrationStatus status;
@@ -73,5 +83,9 @@ public class RegistrationRequest {
 
     public boolean isTokenExpired() {
         return LocalDateTime.now().isAfter(tokenExpiresAt);
+    }
+
+    public boolean isCodeExpired() {
+        return codeExpiresAt == null || LocalDateTime.now().isAfter(codeExpiresAt);
     }
 }

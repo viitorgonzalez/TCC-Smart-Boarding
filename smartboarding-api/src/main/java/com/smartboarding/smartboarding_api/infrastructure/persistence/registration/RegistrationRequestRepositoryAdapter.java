@@ -22,4 +22,5 @@ public class RegistrationRequestRepositoryAdapter implements RegistrationRequest
     @Override public Optional<RegistrationRequest> findByToken(String token) { return jpa.findByToken(token); }
     @Override public Optional<RegistrationRequest> findById(UUID id) { return jpa.findById(id); }
     @Override public List<RegistrationRequest> findAllByStatus(RegistrationStatus status) { return jpa.findAllByStatus(status); }
+    @Override public Optional<RegistrationRequest> findTopByEmailOrderByCreatedAtDesc(String email) { return jpa.findTopByEmailOrderByCreatedAtDesc(email); }
 }
