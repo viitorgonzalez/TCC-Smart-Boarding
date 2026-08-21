@@ -75,9 +75,17 @@ public class RegistrationUseCaseImpl implements GenerateInviteUseCase, ValidateT
                 .build();
         registrationRepository.save(request);
 
-        String link = publicBaseUrl + "/register/" + token;
+        // Dois links: o https:// é o App Link "de verdade" (precisa de domínio publicado +
+        // assetlinks.json pra abrir o app direto — pendência de deploy, ver spec §5/§7); o
+        // smartboarding:// é um scheme customizado que não depende de DNS nem verificação de
+        // domínio nenhuma, funciona idêntico em dev e produção assim que o app está instalado —
+        // é o fallback garantido enquanto o domínio não existe.
+        String httpsLink = publicBaseUrl + "/register/" + token;
+        String appLink = "smartboarding://register/" + token;
         emailPort.send(email, "Convite Smart Boarding",
-                "<p>Você foi convidado a se cadastrar no Smart Boarding.</p><p><a href=\"" + link + "\">Completar cadastro</a></p>");
+                "<p>Você foi convidado a se cadastrar no Smart Boarding.</p>"
+                        + "<p><a href=\"" + httpsLink + "\">Completar cadastro</a></p>"
+                        + "<p><a href=\"" + appLink + "\">Abrir direto no app</a></p>");
         log.info("Convite de cadastro gerado pra {}", email);
     }
 

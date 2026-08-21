@@ -44,7 +44,16 @@ class _SmartBoardingAppState extends State<SmartBoardingApp> {
   }
 
   void _handleLink(Uri? uri) {
-    if (uri == null || !uri.path.startsWith('/register/')) return;
+    if (uri == null) return;
+    // Dois formatos aceitos: o App Link https:// (precisa de domínio
+    // publicado+verificado, hoje pendência de deploy) e o scheme customizado
+    // smartboarding:// (sem DNS/verificação nenhuma, funciona local e em
+    // produção assim que o app está instalado — ver e-mail em
+    // RegistrationUseCaseImpl.generateInvite).
+    final isHttpsRegisterLink = uri.scheme == 'https' && uri.path.startsWith('/register/');
+    final isAppSchemeRegisterLink = uri.scheme == 'smartboarding' && uri.host == 'register';
+    if (!isHttpsRegisterLink && !isAppSchemeRegisterLink) return;
+    if (uri.pathSegments.isEmpty) return;
     final token = uri.pathSegments.last;
     // Quem clica o link do convite não está logado — RegisterScreen nunca
     // está dentro da árvore de providers do AdminHomeScreen, então precisa
