@@ -14,7 +14,10 @@ import '../lists/screens/admin_list_entries_screen.dart';
 import '../notifications/providers/notification_provider.dart';
 import '../notifications/screens/broadcast_screen.dart';
 import '../notifications/services/notification_service.dart';
+import '../registration/providers/registration_provider.dart';
+import '../registration/screens/registration_approvals_screen.dart';
 import '../registration/services/institution_service.dart';
+import '../registration/services/registration_service.dart';
 import '../reports/providers/report_provider.dart';
 import '../reports/screens/reports_screen.dart';
 import '../reports/services/report_service.dart';
@@ -49,6 +52,9 @@ class AdminHomeScreen extends StatelessWidget {
         ChangeNotifierProvider(
           create: (_) => UserProvider(UserService())..load(),
         ),
+        ChangeNotifierProvider(
+          create: (_) => RegistrationProvider(RegistrationService(), InstitutionService())..loadPending(),
+        ),
       ],
       child: const _AdminShell(),
     );
@@ -82,6 +88,15 @@ class _AdminShellState extends State<_AdminShell> {
                 builder: (_) => const _CreateInstitutionDialog(),
               ),
             ),
+          if (_index == 5)
+            IconButton(
+              icon: const Icon(Icons.person_add_alt_outlined),
+              tooltip: 'Gerar convite',
+              onPressed: () => showDialog<bool>(
+                context: context,
+                builder: (_) => const _GenerateInviteDialog(),
+              ),
+            ),
           IconButton(
             icon: const Icon(Icons.logout),
             tooltip: 'Sair',
@@ -97,6 +112,7 @@ class _AdminShellState extends State<_AdminShell> {
           ReportsScreen(),
           BroadcastScreen(),
           UserManagementScreen(),
+          RegistrationApprovalsScreen(),
         ],
       ),
       bottomNavigationBar: NavigationBar(
@@ -127,6 +143,11 @@ class _AdminShellState extends State<_AdminShell> {
             icon: Icon(Icons.group_outlined),
             selectedIcon: Icon(Icons.group),
             label: 'Usuários',
+          ),
+          NavigationDestination(
+            icon: Icon(Icons.how_to_reg_outlined),
+            selectedIcon: Icon(Icons.how_to_reg),
+            label: 'Cadastros',
           ),
         ],
       ),
@@ -262,6 +283,64 @@ class _CreateInstitutionDialogState extends State<_CreateInstitutionDialog> {
       actions: [
         TextButton(onPressed: () => Navigator.pop(context, false), child: const Text('Cancelar')),
         LoadingFilledButton(loading: _loading, onPressed: _submit, label: 'Criar'),
+      ],
+    );
+  }
+}
+
+// ─── Diálogo de gerar convite (aba Cadastros) ────────────────────────────────
+
+class _GenerateInviteDialog extends StatefulWidget {
+  const _GenerateInviteDialog();
+
+  @override
+  State<_GenerateInviteDialog> createState() => _GenerateInviteDialogState();
+}
+
+class _GenerateInviteDialogState extends State<_GenerateInviteDialog> {
+  final _formKey = GlobalKey<FormState>();
+  final _emailCtrl = TextEditingController();
+  final _service = RegistrationService();
+  bool _loading = false;
+
+  @override
+  void dispose() {
+    _emailCtrl.dispose();
+    super.dispose();
+  }
+
+  Future<void> _submit() async {
+    if (!_formKey.currentState!.validate()) return;
+    setState(() => _loading = true);
+    try {
+      await _service.generateInvite(_emailCtrl.text.trim());
+      if (mounted) {
+        showSuccessSnackBar(context, 'Convite enviado');
+        Navigator.pop(context, true);
+      }
+    } catch (e) {
+      if (mounted) showErrorSnackBar(context, 'Falha ao gerar convite: $e');
+    } finally {
+      if (mounted) setState(() => _loading = false);
+    }
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    return AlertDialog(
+      title: const Text('Gerar convite'),
+      content: Form(
+        key: _formKey,
+        child: TextFormField(
+          controller: _emailCtrl,
+          decoration: const InputDecoration(labelText: 'E-mail'),
+          keyboardType: TextInputType.emailAddress,
+          validator: (v) => (v == null || !v.contains('@')) ? 'E-mail inválido' : null,
+        ),
+      ),
+      actions: [
+        TextButton(onPressed: () => Navigator.pop(context, false), child: const Text('Cancelar')),
+        LoadingFilledButton(loading: _loading, onPressed: _submit, label: 'Gerar convite'),
       ],
     );
   }
