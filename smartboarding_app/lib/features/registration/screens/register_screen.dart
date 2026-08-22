@@ -62,6 +62,8 @@ class _RegisterScreenState extends State<RegisterScreen> {
     required IconData icon,
     required Color color,
     required String text,
+    String? actionLabel,
+    VoidCallback? onAction,
   }) {
     return Scaffold(
       body: SafeArea(
@@ -74,12 +76,23 @@ class _RegisterScreenState extends State<RegisterScreen> {
                 Icon(icon, size: 64, color: color),
                 const SizedBox(height: 16),
                 Text(text, textAlign: TextAlign.center),
+                if (actionLabel != null && onAction != null) ...[
+                  const SizedBox(height: 24),
+                  FilledButton(onPressed: onAction, child: Text(actionLabel)),
+                ],
               ],
             ),
           ),
         ),
       ),
     );
+  }
+
+  // Tela pushada por cima de tudo (deep-link ou "tenho um convite") -- sem
+  // isso o usuário fica preso aqui, sem AppBar/back nem rota anterior óbvia
+  // pra onde voltar depois de terminar o fluxo.
+  void _backToLogin() {
+    Navigator.of(context).popUntil((route) => route.isFirst);
   }
 
   @override
@@ -89,6 +102,8 @@ class _RegisterScreenState extends State<RegisterScreen> {
         icon: Icons.check_circle_outline,
         color: Colors.green,
         text: 'Cadastro enviado, aguardando aprovação do administrador',
+        actionLabel: 'Voltar para o login',
+        onAction: _backToLogin,
       );
     }
 
@@ -99,6 +114,8 @@ class _RegisterScreenState extends State<RegisterScreen> {
         icon: Icons.error_outline,
         color: Colors.red,
         text: message,
+        actionLabel: 'Voltar',
+        onAction: _backToLogin,
       );
     }
 
