@@ -50,8 +50,10 @@ class _SmartBoardingAppState extends State<SmartBoardingApp> {
     // smartboarding:// (sem DNS/verificação nenhuma, funciona local e em
     // produção assim que o app está instalado — ver e-mail em
     // RegistrationUseCaseImpl.generateInvite).
-    final isHttpsRegisterLink = uri.scheme == 'https' && uri.path.startsWith('/register/');
-    final isAppSchemeRegisterLink = uri.scheme == 'smartboarding' && uri.host == 'register';
+    final isHttpsRegisterLink =
+        uri.scheme == 'https' && uri.path.startsWith('/register/');
+    final isAppSchemeRegisterLink =
+        uri.scheme == 'smartboarding' && uri.host == 'register';
     if (!isHttpsRegisterLink && !isAppSchemeRegisterLink) return;
     if (uri.pathSegments.isEmpty) return;
     final token = uri.pathSegments.last;
@@ -61,7 +63,8 @@ class _SmartBoardingAppState extends State<SmartBoardingApp> {
     navigatorKey.currentState?.push(
       MaterialPageRoute(
         builder: (_) => ChangeNotifierProvider(
-          create: (_) => RegistrationProvider(RegistrationService(), InstitutionService()),
+          create: (_) =>
+              RegistrationProvider(RegistrationService(), InstitutionService()),
           child: RegisterScreen(token: token),
         ),
       ),

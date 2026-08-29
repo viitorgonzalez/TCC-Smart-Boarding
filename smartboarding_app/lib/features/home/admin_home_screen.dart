@@ -53,7 +53,9 @@ class AdminHomeScreen extends StatelessWidget {
           create: (_) => UserProvider(UserService())..load(),
         ),
         ChangeNotifierProvider(
-          create: (_) => RegistrationProvider(RegistrationService(), InstitutionService())..loadPending(),
+          create: (_) =>
+              RegistrationProvider(RegistrationService(), InstitutionService())
+                ..loadPending(),
         ),
       ],
       child: const _AdminShell(),
@@ -223,7 +225,8 @@ class _CreateInstitutionDialog extends StatefulWidget {
   const _CreateInstitutionDialog();
 
   @override
-  State<_CreateInstitutionDialog> createState() => _CreateInstitutionDialogState();
+  State<_CreateInstitutionDialog> createState() =>
+      _CreateInstitutionDialogState();
 }
 
 class _CreateInstitutionDialogState extends State<_CreateInstitutionDialog> {
@@ -270,19 +273,29 @@ class _CreateInstitutionDialogState extends State<_CreateInstitutionDialog> {
             TextFormField(
               controller: _nameCtrl,
               decoration: const InputDecoration(labelText: 'Nome'),
-              validator: (v) => (v == null || v.isEmpty) ? 'Informe o nome' : null,
+              validator: (v) =>
+                  (v == null || v.isEmpty) ? 'Informe o nome' : null,
             ),
             const SizedBox(height: 12),
             TextFormField(
               controller: _addressCtrl,
-              decoration: const InputDecoration(labelText: 'Endereço (opcional)'),
+              decoration: const InputDecoration(
+                labelText: 'Endereço (opcional)',
+              ),
             ),
           ],
         ),
       ),
       actions: [
-        TextButton(onPressed: () => Navigator.pop(context, false), child: const Text('Cancelar')),
-        LoadingFilledButton(loading: _loading, onPressed: _submit, label: 'Criar'),
+        TextButton(
+          onPressed: () => Navigator.pop(context, false),
+          child: const Text('Cancelar'),
+        ),
+        LoadingFilledButton(
+          loading: _loading,
+          onPressed: _submit,
+          label: 'Criar',
+        ),
       ],
     );
   }
@@ -335,12 +348,20 @@ class _GenerateInviteDialogState extends State<_GenerateInviteDialog> {
           controller: _emailCtrl,
           decoration: const InputDecoration(labelText: 'E-mail'),
           keyboardType: TextInputType.emailAddress,
-          validator: (v) => (v == null || !v.contains('@')) ? 'E-mail inválido' : null,
+          validator: (v) =>
+              (v == null || !v.contains('@')) ? 'E-mail inválido' : null,
         ),
       ),
       actions: [
-        TextButton(onPressed: () => Navigator.pop(context, false), child: const Text('Cancelar')),
-        LoadingFilledButton(loading: _loading, onPressed: _submit, label: 'Gerar convite'),
+        TextButton(
+          onPressed: () => Navigator.pop(context, false),
+          child: const Text('Cancelar'),
+        ),
+        LoadingFilledButton(
+          loading: _loading,
+          onPressed: _submit,
+          label: 'Gerar convite',
+        ),
       ],
     );
   }

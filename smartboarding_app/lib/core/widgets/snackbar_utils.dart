@@ -11,9 +11,6 @@ void showErrorSnackBar(BuildContext context, String message) {
 
 void showSuccessSnackBar(BuildContext context, String message) {
   ScaffoldMessenger.of(context).showSnackBar(
-    SnackBar(
-      content: Text(message),
-      backgroundColor: Colors.green,
-    ),
+    SnackBar(content: Text(message), backgroundColor: Colors.green),
   );
 }
