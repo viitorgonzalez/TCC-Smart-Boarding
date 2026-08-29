@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
 import '../../../core/utils/async_value.dart';
 import '../../../core/widgets/loading_filled_button.dart';
+import '../models/invite_info_model.dart';
 import '../providers/registration_provider.dart';
 
 class RegisterScreen extends StatefulWidget {
@@ -27,12 +28,21 @@ class _RegisterScreenState extends State<RegisterScreen> {
       final provider = context.read<RegistrationProvider>();
       provider.validateInvite(widget.token).then((_) {
         if (!mounted) return;
-        if (provider.inviteEmail case AsyncData(:final value)) {
-          _emailCtrl.text = value;
+        if (provider.invite case AsyncData(:final value)) {
+          _prefill(value);
           provider.loadInstitutions();
         }
       });
     });
+  }
+
+  // Reenvio depois de negado (RN14): o aluno corrige o que estava errado em vez
+  // de redigitar tudo. Senha fica de fora de propósito — o backend só devolve o
+  // hash dela, então é sempre redigitada.
+  void _prefill(InviteInfoModel invite) {
+    _emailCtrl.text = invite.email;
+    _fullNameCtrl.text = invite.fullName ?? '';
+    setState(() => _selectedInstitutionId = invite.institutionId);
   }
 
   @override
@@ -44,7 +54,9 @@ class _RegisterScreenState extends State<RegisterScreen> {
   }
 
   Future<void> _submit() async {
-    if (!_formKey.currentState!.validate() || _selectedInstitutionId == null) return;
+    if (!_formKey.currentState!.validate() || _selectedInstitutionId == null) {
+      return;
+    }
     final provider = context.read<RegistrationProvider>();
     await provider.submit(
       token: widget.token,
@@ -107,7 +119,7 @@ class _RegisterScreenState extends State<RegisterScreen> {
       );
     }
 
-    if (context.watch<RegistrationProvider>().inviteEmail case AsyncError(
+    if (context.watch<RegistrationProvider>().invite case AsyncError(
       :final message,
     )) {
       return _messageScreen(
@@ -124,7 +136,7 @@ class _RegisterScreenState extends State<RegisterScreen> {
       body: SafeArea(
         child: Consumer<RegistrationProvider>(
           builder: (context, provider, _) {
-            return switch (provider.inviteEmail) {
+            return switch (provider.invite) {
               AsyncLoading() => const Center(
                 child: CircularProgressIndicator(),
               ),
@@ -133,13 +145,17 @@ class _RegisterScreenState extends State<RegisterScreen> {
                 color: Colors.red,
                 text: message,
               ),
-              AsyncData() => SingleChildScrollView(
+              AsyncData(value: final invite) => SingleChildScrollView(
                 padding: const EdgeInsets.all(24),
                 child: Form(
                   key: _formKey,
                   child: Column(
                     crossAxisAlignment: CrossAxisAlignment.stretch,
                     children: [
+                      if (invite.wasRejected) ...[
+                        _RejectionNotice(reason: invite.rejectionReason),
+                        const SizedBox(height: 16),
+                      ],
                       TextFormField(
                         controller: _emailCtrl,
                         readOnly: true,
@@ -176,26 +192,31 @@ class _RegisterScreenState extends State<RegisterScreen> {
                       ),
                       const SizedBox(height: 16),
                       switch (provider.institutions) {
-                        AsyncData(:final value) =>
-                          DropdownButtonFormField<String>(
-                            initialValue: _selectedInstitutionId,
-                            decoration: const InputDecoration(
-                              labelText: 'Instituição',
-                              border: OutlineInputBorder(),
-                            ),
-                            items: value
-                                .map(
-                                  (i) => DropdownMenuItem(
-                                    value: i.id,
-                                    child: Text(i.name),
-                                  ),
-                                )
-                                .toList(),
-                            onChanged: (v) =>
-                                setState(() => _selectedInstitutionId = v),
-                            validator: (v) =>
-                                v == null ? 'Selecione a instituição' : null,
+                        AsyncData(:final value) => DropdownButtonFormField<String>(
+                          // O Dropdown assere que o valor exista entre os itens:
+                          // instituição do prefill que sumiu da lista derrubaria
+                          // a tela inteira em vez de só não vir selecionada.
+                          initialValue:
+                              value.any((i) => i.id == _selectedInstitutionId)
+                              ? _selectedInstitutionId
+                              : null,
+                          decoration: const InputDecoration(
+                            labelText: 'Instituição',
+                            border: OutlineInputBorder(),
                           ),
+                          items: value
+                              .map(
+                                (i) => DropdownMenuItem(
+                                  value: i.id,
+                                  child: Text(i.name),
+                                ),
+                              )
+                              .toList(),
+                          onChanged: (v) =>
+                              setState(() => _selectedInstitutionId = v),
+                          validator: (v) =>
+                              v == null ? 'Selecione a instituição' : null,
+                        ),
                         AsyncError(:final message) => Column(
                           crossAxisAlignment: CrossAxisAlignment.stretch,
                           children: [
@@ -218,7 +239,9 @@ class _RegisterScreenState extends State<RegisterScreen> {
                       LoadingFilledButton(
                         loading: provider.submitState is AsyncLoading,
                         onPressed: _submit,
-                        label: 'Enviar cadastro',
+                        label: invite.wasRejected
+                            ? 'Reenviar cadastro'
+                            : 'Enviar cadastro',
                       ),
                       if (provider.submitState case AsyncError(:final message))
                         Padding(
@@ -235,6 +258,58 @@ class _RegisterScreenState extends State<RegisterScreen> {
             };
           },
         ),
+      ),
+    );
+  }
+}
+
+// Sem o motivo à vista o aluno reenvia às cegas o mesmo cadastro que já foi
+// negado uma vez.
+class _RejectionNotice extends StatelessWidget {
+  final String? reason;
+  const _RejectionNotice({this.reason});
+
+  @override
+  Widget build(BuildContext context) {
+    final scheme = Theme.of(context).colorScheme;
+    return Container(
+      padding: const EdgeInsets.all(12),
+      decoration: BoxDecoration(
+        color: scheme.errorContainer,
+        borderRadius: BorderRadius.circular(12),
+      ),
+      child: Row(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Icon(Icons.error_outline, color: scheme.onErrorContainer),
+          const SizedBox(width: 12),
+          Expanded(
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                Text(
+                  'Cadastro não aprovado',
+                  style: Theme.of(context).textTheme.titleSmall?.copyWith(
+                    color: scheme.onErrorContainer,
+                    fontWeight: FontWeight.w600,
+                  ),
+                ),
+                if (reason != null && reason!.isNotEmpty) ...[
+                  const SizedBox(height: 4),
+                  Text(
+                    reason!,
+                    style: TextStyle(color: scheme.onErrorContainer),
+                  ),
+                ],
+                const SizedBox(height: 4),
+                Text(
+                  'Corrija os dados abaixo e envie de novo.',
+                  style: TextStyle(color: scheme.onErrorContainer),
+                ),
+              ],
+            ),
+          ),
+        ],
       ),
     );
   }

@@ -12,20 +12,48 @@ class InstitutionService {
         .toList();
   }
 
+  /// [routeId] já vincula a instituição à rota que a atende (RN15).
   Future<void> createInstitution(
-    String name,
+    String name, {
     String? address,
     double? latitude,
     double? longitude,
-  ) async {
+    String? routeId,
+  }) async {
     await _dio.post(
       '/api/institutions',
       data: {
         'name': name,
-        if (address?.isNotEmpty ?? false) 'address': address!,
-        if (latitude case != null) 'latitude': latitude,
-        if (longitude case != null) 'longitude': longitude,
+        'address': ?address,
+        'latitude': ?latitude,
+        'longitude': ?longitude,
+        'routeId': ?routeId,
       },
     );
+  }
+
+  /// routeId nulo desvincula. O backend recusa trocar de rota ativa sem
+  /// desvincular antes (RN15).
+  Future<void> linkRoute(String institutionId, String? routeId) async {
+    await _dio.patch(
+      '/api/institutions/$institutionId/route',
+      data: {'routeId': routeId},
+    );
+  }
+
+  Future<void> updateInstitution(
+    String id, {
+    String? name,
+    String? address,
+  }) async {
+    await _dio.patch(
+      '/api/institutions/$id',
+      data: {'name': ?name, 'address': ?address},
+    );
+  }
+
+  /// O backend recusa se houver aluno vinculado (a rota dele sai daqui).
+  Future<void> deleteInstitution(String id) async {
+    await _dio.delete('/api/institutions/$id');
   }
 }

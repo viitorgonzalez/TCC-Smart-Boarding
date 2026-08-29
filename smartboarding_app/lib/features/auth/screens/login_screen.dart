@@ -1,6 +1,8 @@
 import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
 import '../../../core/providers/auth_provider.dart';
+import '../../../core/theme/app_theme.dart';
+import '../../../core/widgets/app_text_field.dart';
 import '../../../core/widgets/loading_filled_button.dart';
 import '../../../core/widgets/snackbar_utils.dart';
 import '../../registration/screens/verify_invite_code_screen.dart';
@@ -43,83 +45,98 @@ class _LoginScreenState extends State<LoginScreen> {
 
   @override
   Widget build(BuildContext context) {
+    // As telas de autenticação são as únicas sobre Ash Grey no desenho; o resto
+    // do app é #F4F6F4 (ver design-system.md).
     return Scaffold(
+      backgroundColor: AppColors.ashGrey,
       body: SafeArea(
-        child: Padding(
-          padding: const EdgeInsets.all(24),
+        child: SingleChildScrollView(
+          padding: const EdgeInsets.fromLTRB(24, 48, 24, 24),
           child: Form(
             key: _formKey,
             child: Column(
-              mainAxisAlignment: MainAxisAlignment.center,
               crossAxisAlignment: CrossAxisAlignment.stretch,
               children: [
-                Icon(
-                  Icons.directions_bus_rounded,
-                  size: 72,
-                  color: Theme.of(context).colorScheme.primary,
+                Center(
+                  child: Container(
+                    width: 120,
+                    height: 120,
+                    decoration: const BoxDecoration(
+                      color: AppColors.deepTeal,
+                      shape: BoxShape.circle,
+                    ),
+                    child: const Icon(
+                      Icons.directions_bus_rounded,
+                      size: 56,
+                      color: Colors.white,
+                    ),
+                  ),
                 ),
-                const SizedBox(height: 16),
+                const SizedBox(height: 20),
                 Text(
                   'Smart Boarding',
                   textAlign: TextAlign.center,
-                  style: Theme.of(context).textTheme.headlineMedium?.copyWith(
-                    fontWeight: FontWeight.bold,
-                  ),
+                  style: Theme.of(context).textTheme.displaySmall,
                 ),
-                const SizedBox(height: 8),
+                const SizedBox(height: 10),
                 Text(
-                  'Unifor — Controle de Embarque',
+                  'Bem-vindo de volta! Entre para conferir seu transporte.',
                   textAlign: TextAlign.center,
-                  style: Theme.of(
-                    context,
-                  ).textTheme.bodyMedium?.copyWith(color: Colors.grey),
-                ),
-                const SizedBox(height: 48),
-                TextFormField(
-                  key: const Key('login_email_field'),
-                  controller: _emailCtrl,
-                  decoration: const InputDecoration(
-                    labelText: 'E-mail',
-                    border: OutlineInputBorder(),
-                    prefixIcon: Icon(Icons.email_outlined),
+                  style: Theme.of(context).textTheme.bodyLarge?.copyWith(
+                    color: AppColors.textSecondary,
                   ),
+                ),
+                const SizedBox(height: 32),
+                AppTextField(
+                  key: const Key('login_email_field'),
+                  label: 'Email',
+                  controller: _emailCtrl,
+                  icon: Icons.mail_outline,
                   keyboardType: TextInputType.emailAddress,
                   validator: (v) => (v == null || !v.contains('@'))
                       ? 'E-mail inválido'
                       : null,
                 ),
-                const SizedBox(height: 16),
-                TextFormField(
+                const SizedBox(height: 20),
+                AppTextField(
                   key: const Key('login_password_field'),
+                  label: 'Senha',
                   controller: _passCtrl,
+                  icon: Icons.lock_outline,
                   obscureText: _obscure,
-                  decoration: InputDecoration(
-                    labelText: 'Senha',
-                    border: const OutlineInputBorder(),
-                    prefixIcon: const Icon(Icons.lock_outline),
-                    suffixIcon: IconButton(
-                      icon: Icon(
-                        _obscure ? Icons.visibility_off : Icons.visibility,
-                      ),
-                      onPressed: () => setState(() => _obscure = !_obscure),
+                  suffix: IconButton(
+                    icon: Icon(
+                      _obscure
+                          ? Icons.visibility_outlined
+                          : Icons.visibility_off_outlined,
+                      color: AppColors.textSecondary,
                     ),
+                    onPressed: () => setState(() => _obscure = !_obscure),
                   ),
                   validator: (v) =>
                       (v == null || v.isEmpty) ? 'Informe a senha' : null,
                 ),
-                const SizedBox(height: 24),
+                const SizedBox(height: 28),
                 LoadingFilledButton(
                   key: const Key('login_submit_button'),
                   loading: _loading,
                   onPressed: _submit,
                   label: 'Entrar',
                 ),
-                const SizedBox(height: 12),
+                const SizedBox(height: 8),
                 TextButton(
                   onPressed: () => Navigator.of(context).push(
-                    MaterialPageRoute(builder: (_) => const VerifyInviteCodeScreen()),
+                    MaterialPageRoute(
+                      builder: (_) => const VerifyInviteCodeScreen(),
+                    ),
                   ),
-                  child: const Text('Tenho um convite'),
+                  child: const Text(
+                    'Tenho um convite',
+                    style: TextStyle(
+                      color: AppColors.deepTeal,
+                      fontWeight: FontWeight.w700,
+                    ),
+                  ),
                 ),
               ],
             ),

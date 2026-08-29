@@ -1,4 +1,5 @@
 import '../../../core/services/dio_client.dart';
+import '../models/invite_info_model.dart';
 import '../models/registration_request_model.dart';
 
 class RegistrationService {
@@ -8,9 +9,15 @@ class RegistrationService {
     await _dio.post('/api/registration/invite', data: {'email': email});
   }
 
-  Future<String> getInviteEmail(String token) async {
+  Future<InviteInfoModel> getInvite(String token) async {
     final response = await _dio.get('/api/registration/invite/$token');
-    return response.data['data']['email'] as String;
+    return InviteInfoModel.fromJson(
+      response.data['data'] as Map<String, dynamic>,
+    );
+  }
+
+  Future<void> resendCode(String email) async {
+    await _dio.post('/api/registration/resend-code', data: {'email': email});
   }
 
   Future<String> verifyCode(String email, String code) async {
@@ -49,7 +56,9 @@ class RegistrationService {
     final response = await _dio.get('/api/registration/pending');
     final List data = response.data['data'] as List;
     return data
-        .map((e) => RegistrationRequestModel.fromJson(e as Map<String, dynamic>))
+        .map(
+          (e) => RegistrationRequestModel.fromJson(e as Map<String, dynamic>),
+        )
         .toList();
   }
 
@@ -57,7 +66,7 @@ class RegistrationService {
     await _dio.post('/api/registration/$id/approve');
   }
 
-  Future<void> reject(String id) async {
-    await _dio.post('/api/registration/$id/reject');
+  Future<void> reject(String id, String reason) async {
+    await _dio.post('/api/registration/$id/reject', data: {'reason': reason});
   }
 }

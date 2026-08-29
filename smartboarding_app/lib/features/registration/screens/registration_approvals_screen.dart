@@ -1,41 +1,29 @@
 import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
 import '../../../core/utils/async_value.dart';
-import '../../../core/widgets/snackbar_utils.dart';
+import '../models/registration_request_model.dart';
 import '../providers/registration_provider.dart';
+import '../widgets/registration_actions.dart';
+import 'registration_detail_screen.dart';
 
 // Sem estado próprio — mesmo padrão de RoutesScreen. O load inicial da lista
 // de pendentes é responsabilidade de quem cria o RegistrationProvider
-// (Task 14 Step 3, `..loadPending()` no MultiProvider do AdminHomeScreen),
-// não desta tela.
+// (`..loadPending()` no MultiProvider do AdminHomeScreen), não desta tela.
 class RegistrationApprovalsScreen extends StatelessWidget {
   const RegistrationApprovalsScreen({super.key});
 
-  Future<void> _confirmAndAct(BuildContext context, String id, {required bool approve}) async {
-    final confirmed = await showDialog<bool>(
-      context: context,
-      builder: (context) => AlertDialog(
-        title: Text(approve ? 'Aprovar cadastro?' : 'Negar cadastro?'),
-        actions: [
-          TextButton(onPressed: () => Navigator.pop(context, false), child: const Text('Cancelar')),
-          TextButton(onPressed: () => Navigator.pop(context, true), child: const Text('Confirmar')),
-        ],
+  // O push sai no Navigator raiz, acima do MultiProvider do AdminHomeScreen —
+  // sem repassar a instância, a tela de detalhe não acha o RegistrationProvider.
+  void _openDetail(BuildContext context, RegistrationRequestModel item) {
+    Navigator.push(
+      context,
+      MaterialPageRoute(
+        builder: (_) => ChangeNotifierProvider.value(
+          value: context.read<RegistrationProvider>(),
+          child: RegistrationDetailScreen(request: item),
+        ),
       ),
     );
-    if (confirmed != true || !context.mounted) return;
-    final provider = context.read<RegistrationProvider>();
-    try {
-      if (approve) {
-        await provider.approve(id);
-      } else {
-        await provider.reject(id);
-      }
-      if (context.mounted) {
-        showSuccessSnackBar(context, approve ? 'Cadastro aprovado' : 'Cadastro negado');
-      }
-    } catch (e) {
-      if (context.mounted) showErrorSnackBar(context, e.toString());
-    }
   }
 
   @override
@@ -46,15 +34,28 @@ class RegistrationApprovalsScreen extends StatelessWidget {
           return switch (provider.pending) {
             AsyncLoading() => const Center(child: CircularProgressIndicator()),
             AsyncError(:final message) => Center(child: Text(message)),
-            AsyncData(:final value) when value.isEmpty =>
-              const Center(child: Text('Nenhuma solicitação pendente')),
-            AsyncData(:final value) => ListView.builder(
+            AsyncData(:final value) when value.isEmpty => RefreshIndicator(
+              onRefresh: provider.loadPending,
+              child: ListView(
+                children: const [
+                  SizedBox(height: 120),
+                  Center(child: Text('Nenhuma solicitação pendente')),
+                ],
+              ),
+            ),
+            AsyncData(:final value) => RefreshIndicator(
+              onRefresh: provider.loadPending,
+              child: ListView.builder(
                 itemCount: value.length,
                 itemBuilder: (context, index) {
                   final item = value[index];
                   return Card(
-                    margin: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
+                    margin: const EdgeInsets.symmetric(
+                      horizontal: 16,
+                      vertical: 8,
+                    ),
                     child: ListTile(
+                      onTap: () => _openDetail(context, item),
                       title: Text(item.fullName ?? item.email),
                       subtitle: Text(
                         item.institutionName != null
@@ -65,12 +66,18 @@ class RegistrationApprovalsScreen extends StatelessWidget {
                         mainAxisSize: MainAxisSize.min,
                         children: [
                           IconButton(
-                            icon: const Icon(Icons.check_circle_outline, color: Colors.green),
-                            onPressed: () => _confirmAndAct(context, item.id, approve: true),
+                            icon: const Icon(
+                              Icons.check_circle_outline,
+                              color: Colors.green,
+                            ),
+                            onPressed: () => confirmApprove(context, item.id),
                           ),
                           IconButton(
-                            icon: const Icon(Icons.cancel_outlined, color: Colors.red),
-                            onPressed: () => _confirmAndAct(context, item.id, approve: false),
+                            icon: const Icon(
+                              Icons.cancel_outlined,
+                              color: Colors.red,
+                            ),
+                            onPressed: () => promptReject(context, item.id),
                           ),
                         ],
                       ),
@@ -78,6 +85,7 @@ class RegistrationApprovalsScreen extends StatelessWidget {
                   );
                 },
               ),
+            ),
           };
         },
       ),
