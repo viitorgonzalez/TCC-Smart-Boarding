@@ -3,6 +3,7 @@ import 'package:provider/provider.dart';
 import '../../../core/providers/auth_provider.dart';
 import '../../../core/widgets/loading_filled_button.dart';
 import '../../../core/widgets/snackbar_utils.dart';
+import '../../registration/screens/verify_invite_code_screen.dart';
 
 class LoginScreen extends StatefulWidget {
   const LoginScreen({super.key});
@@ -112,6 +113,15 @@ class _LoginScreenState extends State<LoginScreen> {
                   loading: _loading,
                   onPressed: _submit,
                   label: 'Entrar',
+                ),
+                const SizedBox(height: 12),
+                TextButton(
+                  onPressed: () => Navigator.of(context).push(
+                    MaterialPageRoute(
+                      builder: (_) => const VerifyInviteCodeScreen(),
+                    ),
+                  ),
+                  child: const Text('Tenho um convite'),
                 ),
               ],
             ),

@@ -26,6 +26,20 @@
 	<string>$(FLUTTER_BUILD_NUMBER)</string>
 	<key>LSRequiresIPhoneOS</key>
 	<true/>
+	<!-- Scheme customizado (smartboarding://) — alternativa ao Universal Link (applinks:
+	     no Runner.entitlements) que não depende de domínio verificado, funciona igual em
+	     dev e produção assim que o app está instalado. -->
+	<key>CFBundleURLTypes</key>
+	<array>
+		<dict>
+			<key>CFBundleURLName</key>
+			<string>com.smartboarding.smartboarding_app.deeplink</string>
+			<key>CFBundleURLSchemes</key>
+			<array>
+				<string>smartboarding</string>
+			</array>
+		</dict>
+	</array>
 	<key>UIApplicationSceneManifest</key>
 	<dict>
 		<key>UIApplicationSupportsMultipleScenes</key>
