@@ -28,6 +28,11 @@ public class Institution {
     private Double latitude;
     private Double longitude;
 
+    // Uma rota atende várias instituições (RN15); nulo = instituição sem rota,
+    // estado válido enquanto o admin não vincula.
+    @Column(name = "route_id")
+    private UUID routeId;
+
     @Column(name = "created_at", updatable = false)
     private LocalDateTime createdAt;
 

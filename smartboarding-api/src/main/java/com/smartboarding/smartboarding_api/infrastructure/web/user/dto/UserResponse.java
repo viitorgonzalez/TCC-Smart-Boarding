@@ -19,14 +19,14 @@ public record UserResponse(
         LocalDate expiryDate,
         boolean isActive
 ) {
-    public static UserResponse from(User user) {
+    public static UserResponse from(User user, String institutionName) {
         return new UserResponse(
                 user.getId(),
                 user.getEmail(),
                 user.getFullName(),
                 user.getRole(),
                 user.getCourse(),
-                user.getInstitution(),
+                institutionName,
                 user.getPhone(),
                 user.getAddress(),
                 user.getBirthDate(),

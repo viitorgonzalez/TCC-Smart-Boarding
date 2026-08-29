@@ -20,4 +20,5 @@ public class InstitutionRepositoryAdapter implements InstitutionRepositoryPort {
     @Override public Institution save(Institution institution) { return jpa.save(institution); }
     @Override public Optional<Institution> findById(UUID id) { return jpa.findById(id); }
     @Override public List<Institution> findAll() { return jpa.findAll(); }
+    @Override public void deleteById(UUID id) { jpa.deleteById(id); }
 }

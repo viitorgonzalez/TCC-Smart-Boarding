@@ -45,8 +45,9 @@ public class User implements UserDetails {
     @Column(length = 100)
     private String course;
 
-    @Column(length = 100)
-    private String institution;
+    // Referência, não texto: é dela que sai a rota do aluno (RN15).
+    @Column(name = "institution_id")
+    private UUID institutionId;
 
     @Column(length = 20)
     private String phone;

@@ -43,6 +43,6 @@ public class AuthController {
                 .role(request.role())
                 .build();
         User saved = registerUseCase.execute(user, request.password());
-        return ResponseEntity.status(HttpStatus.CREATED).body(ApiResponse.data(UserResponse.from(saved)));
+        return ResponseEntity.status(HttpStatus.CREATED).body(ApiResponse.data(UserResponse.from(saved, null)));
     }
 }

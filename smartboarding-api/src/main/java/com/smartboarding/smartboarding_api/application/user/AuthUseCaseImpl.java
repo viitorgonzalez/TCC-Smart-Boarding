@@ -1,9 +1,11 @@
 package com.smartboarding.smartboarding_api.application.user;
 
+import com.smartboarding.smartboarding_api.domain.user.entity.Role;
 import com.smartboarding.smartboarding_api.domain.user.entity.User;
 import com.smartboarding.smartboarding_api.domain.user.port.in.LoginUseCase;
 import com.smartboarding.smartboarding_api.domain.user.port.in.RegisterUseCase;
 import com.smartboarding.smartboarding_api.domain.user.port.out.UserRepositoryPort;
+import com.smartboarding.smartboarding_api.shared.exception.BadRequestException;
 import com.smartboarding.smartboarding_api.shared.exception.ConflictException;
 import com.smartboarding.smartboarding_api.shared.exception.UnauthorizedException;
 import lombok.extern.slf4j.Slf4j;
@@ -55,6 +57,14 @@ public class AuthUseCaseImpl implements LoginUseCase, RegisterUseCase, UserDetai
     @Override
     @Transactional
     public User execute(User user, String rawPassword) {
+        // Aluno nasce exclusivamente por convite (RN13) — este endpoint existe só
+        // pra um admin criar outro admin. Sem a trava, a criação manual burlaria
+        // todo o fluxo de aprovação.
+        if (user.getRole() != Role.ADMIN) {
+            throw new BadRequestException("ADMIN_ONLY",
+                    "Só é possível criar conta de administrador aqui; aluno entra por convite");
+        }
+
         if (userRepository.existsByEmail(user.getEmail())) {
             throw new ConflictException("EMAIL_ALREADY_EXISTS", "E-mail já cadastrado: " + user.getEmail());
         }
