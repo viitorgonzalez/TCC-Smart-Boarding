@@ -1,11 +1,15 @@
 import 'package:flutter/material.dart';
+import '../../../core/theme/app_theme.dart';
 import '../../../core/utils/date_format.dart';
+import '../../../core/widgets/app_card.dart';
+import '../../../core/widgets/institution_breakdown.dart';
 import '../../../core/widgets/status_pill.dart';
 import '../../../core/widgets/trip_type_chip.dart';
 import '../../lists/models/list_with_enrollment.dart';
 import 'close_countdown.dart';
 import 'list_members_sheet.dart';
 import 'trip_type_picker.dart';
+import 'route_preview.dart';
 
 class StudentListCard extends StatelessWidget {
   final ListWithEnrollment item;
@@ -27,107 +31,176 @@ class StudentListCard extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final list = item.list;
-    final cs = Theme.of(context).colorScheme;
+    // A lista só vira CLOSED na próxima varredura (até 5 min depois do horário).
+    // Sem olhar o relógio, o botão de entrar fica vivo nessa janela e o toque
+    // morre em 400 LIST_CLOSED. Horário desconhecido não é horário vencido.
+    final hasCloseTime = parseTimeOfDay(list.closeTime) != null;
+    final acceptingChanges =
+        list.isOpen &&
+        (!hasCloseTime || timeUntilListClose(list.closeTime) != null);
 
-    return Card(
-      child: Padding(
-        padding: const EdgeInsets.all(16),
-        child: Column(
-          crossAxisAlignment: CrossAxisAlignment.start,
-          children: [
+    return AppCard(
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Row(
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              Expanded(
+                child: Text(
+                  list.routeName,
+                  style: Theme.of(context).textTheme.titleLarge,
+                ),
+              ),
+              const SizedBox(width: 12),
+              StatusPill(
+                label: list.isOpen ? 'ABERTA' : 'FECHADA',
+                tone: list.isOpen
+                    ? StatusPillTone.positive
+                    : StatusPillTone.neutral,
+              ),
+            ],
+          ),
+          const SizedBox(height: 2),
+          Text(
+            formatDate(list.date),
+            style: Theme.of(context).textTheme.bodyMedium,
+          ),
+          const SizedBox(height: 20),
+          Row(
+            children: [
+              Expanded(
+                child: InkWell(
+                  onTap: () =>
+                      showListMembers(context, list.id, list.routeName),
+                  borderRadius: BorderRadius.circular(AppRadius.control),
+                  child: Row(
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    children: [
+                      StatBlock(
+                        label: 'Confirmados',
+                        value: '${list.totalEntries}',
+                      ),
+                      const Padding(
+                        padding: EdgeInsets.only(top: 22, left: 4),
+                        child: Icon(
+                          Icons.chevron_right,
+                          size: 18,
+                          color: AppColors.textSecondary,
+                        ),
+                      ),
+                    ],
+                  ),
+                ),
+              ),
+              Expanded(
+                child: StatBlock(
+                  label: 'Fecha às',
+                  value: hasCloseTime ? formatCloseTime(list.closeTime) : '—',
+                  valueColor: AppColors.deepTeal,
+                ),
+              ),
+            ],
+          ),
+          if (list.entriesByInstitution.isNotEmpty) ...[
+            const SizedBox(height: 14),
+            InstitutionBreakdown(
+              compact: true,
+              counts: {
+                for (final i in list.entriesByInstitution) i.name: i.count,
+              },
+            ),
+          ],
+          if (list.proposedVehicles.isNotEmpty ||
+              list.capacityShortfall > 0) ...[
+            const SizedBox(height: 14),
+            ProposedVehicle(
+              vehicles: list.proposedVehicles,
+              shortfall: list.capacityShortfall,
+            ),
+          ] else if (list.vehicles.isNotEmpty) ...[
+            const SizedBox(height: 14),
+            // Antes do fechamento a frota é só informação: o veículo definitivo
+            // depende do total final de confirmados (RN16).
+            Wrap(
+              spacing: 8,
+              runSpacing: 8,
+              children: list.vehicles
+                  .map(
+                    (v) => Chip(
+                      avatar: const Icon(
+                        Icons.directions_bus_outlined,
+                        size: 16,
+                        color: AppColors.deepTeal,
+                      ),
+                      label: Text('${v.label} · ${v.capacity} lugares'),
+                      visualDensity: VisualDensity.compact,
+                      backgroundColor: AppColors.background,
+                      side: const BorderSide(color: AppColors.stroke),
+                    ),
+                  )
+                  .toList(),
+            ),
+          ],
+          if (list.stops.any((s) => s.hasCoordinates)) ...[
+            const SizedBox(height: 18),
+            RoutePreview(list: list),
+          ],
+          if (item.isEnrolled) ...[
+            const SizedBox(height: 16),
             Row(
               children: [
+                Icon(
+                  Icons.check_circle,
+                  size: 18,
+                  color: Theme.of(context).colorScheme.primary,
+                ),
+                const SizedBox(width: 6),
                 Expanded(
                   child: Text(
-                    list.routeName,
-                    style: const TextStyle(
-                      fontWeight: FontWeight.bold,
-                      fontSize: 16,
-                    ),
-                  ),
-                ),
-                StatusPill(
-                  label: list.isOpen ? 'Aberta' : 'Fechada',
-                  tone: list.isOpen
-                      ? StatusPillTone.positive
-                      : StatusPillTone.neutral,
-                ),
-              ],
-            ),
-            const SizedBox(height: 4),
-            Text(
-              '${list.totalEntries} inscrito(s) · ${formatDate(list.date)}',
-              style: TextStyle(color: Colors.grey.shade600, fontSize: 13),
-            ),
-            Align(
-              alignment: Alignment.centerLeft,
-              child: TextButton.icon(
-                style: TextButton.styleFrom(
-                  padding: const EdgeInsets.symmetric(horizontal: 4),
-                  minimumSize: const Size(0, 32),
-                  tapTargetSize: MaterialTapTargetSize.shrinkWrap,
-                ),
-                onPressed: () =>
-                    showListMembers(context, list.id, list.routeName),
-                icon: const Icon(Icons.people_outline, size: 18),
-                label: const Text('Ver quem está na lista'),
-              ),
-            ),
-            if (item.isEnrolled) ...[
-              const SizedBox(height: 10),
-              Row(
-                children: [
-                  Icon(Icons.check_circle, size: 18, color: cs.primary),
-                  const SizedBox(width: 6),
-                  Text(
                     'Você está na lista',
                     style: TextStyle(
-                      color: cs.primary,
-                      fontWeight: FontWeight.w600,
+                      color: Theme.of(context).colorScheme.primary,
+                      fontWeight: FontWeight.w700,
                     ),
                   ),
-                ],
-              ),
-              const SizedBox(height: 8),
-              // Direção atual + trocar (enquanto a lista estiver aberta)
-              Row(
-                children: [
-                  TripTypeChip(tripType: item.tripType, iconSize: 18),
-                  if (list.isOpen)
-                    TextButton.icon(
-                      onPressed: () =>
-                          _pickAndEnter(context, current: item.tripType),
-                      icon: const Icon(Icons.edit, size: 16),
-                      label: const Text('Trocar direção'),
-                    ),
-                ],
-              ),
-            ],
-            if (list.isOpen) ...[
-              const SizedBox(height: 12),
-              const CloseCountdown(),
-              const SizedBox(height: 12),
-              SizedBox(
-                width: double.infinity,
-                child: item.isEnrolled
-                    ? OutlinedButton.icon(
-                        style: OutlinedButton.styleFrom(
-                          foregroundColor: cs.error,
-                        ),
-                        onPressed: onLeave,
-                        icon: const Icon(Icons.exit_to_app),
-                        label: const Text('Sair da lista'),
-                      )
-                    : FilledButton.icon(
-                        onPressed: () => _pickAndEnter(context),
-                        icon: const Icon(Icons.add),
-                        label: const Text('Entrar na lista'),
-                      ),
-              ),
-            ],
+                ),
+                TripTypeChip(tripType: item.tripType, iconSize: 18),
+                if (acceptingChanges)
+                  IconButton(
+                    tooltip: 'Trocar direção',
+                    onPressed: () =>
+                        _pickAndEnter(context, current: item.tripType),
+                    icon: const Icon(Icons.edit, size: 18),
+                  ),
+              ],
+            ),
           ],
-        ),
+          if (acceptingChanges) ...[
+            if (hasCloseTime) ...[
+              const SizedBox(height: 18),
+              CloseCountdown(closeTime: list.closeTime),
+            ],
+            const SizedBox(height: 18),
+            item.isEnrolled
+                ? OutlinedButton.icon(
+                    style: OutlinedButton.styleFrom(
+                      foregroundColor: AppColors.danger,
+                    ),
+                    onPressed: onLeave,
+                    icon: const Icon(Icons.exit_to_app),
+                    label: const Text('Sair da lista'),
+                  )
+                : FilledButton.icon(
+                    onPressed: () => _pickAndEnter(context),
+                    icon: const Icon(Icons.login),
+                    label: const Text('Entrar na lista'),
+                  ),
+          ],
+        ],
       ),
     );
   }
 }
+
+/// Resultado da RN16: o transporte definido pelo total de confirmados.

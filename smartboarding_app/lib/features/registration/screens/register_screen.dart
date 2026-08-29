@@ -2,7 +2,9 @@ import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
 import '../../../core/utils/async_value.dart';
 import '../../../core/widgets/loading_filled_button.dart';
+import '../models/invite_info_model.dart';
 import '../providers/registration_provider.dart';
+import '../widgets/rejection_notice.dart';
 
 class RegisterScreen extends StatefulWidget {
   final String token;
@@ -27,12 +29,21 @@ class _RegisterScreenState extends State<RegisterScreen> {
       final provider = context.read<RegistrationProvider>();
       provider.validateInvite(widget.token).then((_) {
         if (!mounted) return;
-        if (provider.inviteEmail case AsyncData(:final value)) {
-          _emailCtrl.text = value;
+        if (provider.invite case AsyncData(:final value)) {
+          _prefill(value);
           provider.loadInstitutions();
         }
       });
     });
+  }
+
+  // Reenvio depois de negado (RN14): o aluno corrige o que estava errado em vez
+  // de redigitar tudo. Senha fica de fora de propósito — o backend só devolve o
+  // hash dela, então é sempre redigitada.
+  void _prefill(InviteInfoModel invite) {
+    _emailCtrl.text = invite.email;
+    _fullNameCtrl.text = invite.fullName ?? '';
+    setState(() => _selectedInstitutionId = invite.institutionId);
   }
 
   @override
@@ -109,7 +120,7 @@ class _RegisterScreenState extends State<RegisterScreen> {
       );
     }
 
-    if (context.watch<RegistrationProvider>().inviteEmail case AsyncError(
+    if (context.watch<RegistrationProvider>().invite case AsyncError(
       :final message,
     )) {
       return _messageScreen(
@@ -126,7 +137,7 @@ class _RegisterScreenState extends State<RegisterScreen> {
       body: SafeArea(
         child: Consumer<RegistrationProvider>(
           builder: (context, provider, _) {
-            return switch (provider.inviteEmail) {
+            return switch (provider.invite) {
               AsyncLoading() => const Center(
                 child: CircularProgressIndicator(),
               ),
@@ -135,13 +146,17 @@ class _RegisterScreenState extends State<RegisterScreen> {
                 color: Colors.red,
                 text: message,
               ),
-              AsyncData() => SingleChildScrollView(
+              AsyncData(value: final invite) => SingleChildScrollView(
                 padding: const EdgeInsets.all(24),
                 child: Form(
                   key: _formKey,
                   child: Column(
                     crossAxisAlignment: CrossAxisAlignment.stretch,
                     children: [
+                      if (invite.wasRejected) ...[
+                        RejectionNotice(reason: invite.rejectionReason),
+                        const SizedBox(height: 16),
+                      ],
                       TextFormField(
                         controller: _emailCtrl,
                         readOnly: true,
@@ -178,26 +193,31 @@ class _RegisterScreenState extends State<RegisterScreen> {
                       ),
                       const SizedBox(height: 16),
                       switch (provider.institutions) {
-                        AsyncData(:final value) =>
-                          DropdownButtonFormField<String>(
-                            initialValue: _selectedInstitutionId,
-                            decoration: const InputDecoration(
-                              labelText: 'Instituição',
-                              border: OutlineInputBorder(),
-                            ),
-                            items: value
-                                .map(
-                                  (i) => DropdownMenuItem(
-                                    value: i.id,
-                                    child: Text(i.name),
-                                  ),
-                                )
-                                .toList(),
-                            onChanged: (v) =>
-                                setState(() => _selectedInstitutionId = v),
-                            validator: (v) =>
-                                v == null ? 'Selecione a instituição' : null,
+                        AsyncData(:final value) => DropdownButtonFormField<String>(
+                          // O Dropdown assere que o valor exista entre os itens:
+                          // instituição do prefill que sumiu da lista derrubaria
+                          // a tela inteira em vez de só não vir selecionada.
+                          initialValue:
+                              value.any((i) => i.id == _selectedInstitutionId)
+                              ? _selectedInstitutionId
+                              : null,
+                          decoration: const InputDecoration(
+                            labelText: 'Instituição',
+                            border: OutlineInputBorder(),
                           ),
+                          items: value
+                              .map(
+                                (i) => DropdownMenuItem(
+                                  value: i.id,
+                                  child: Text(i.name),
+                                ),
+                              )
+                              .toList(),
+                          onChanged: (v) =>
+                              setState(() => _selectedInstitutionId = v),
+                          validator: (v) =>
+                              v == null ? 'Selecione a instituição' : null,
+                        ),
                         AsyncError(:final message) => Column(
                           crossAxisAlignment: CrossAxisAlignment.stretch,
                           children: [
@@ -220,7 +240,9 @@ class _RegisterScreenState extends State<RegisterScreen> {
                       LoadingFilledButton(
                         loading: provider.submitState is AsyncLoading,
                         onPressed: _submit,
-                        label: 'Enviar cadastro',
+                        label: invite.wasRejected
+                            ? 'Reenviar cadastro'
+                            : 'Enviar cadastro',
                       ),
                       if (provider.submitState case AsyncError(:final message))
                         Padding(
@@ -241,3 +263,6 @@ class _RegisterScreenState extends State<RegisterScreen> {
     );
   }
 }
+
+// Sem o motivo à vista o aluno reenvia às cegas o mesmo cadastro que já foi
+// negado uma vez.

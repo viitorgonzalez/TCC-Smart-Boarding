@@ -10,12 +10,21 @@ class NotificationProvider extends ChangeNotifier {
 
   NotificationProvider(this._service);
 
-  /// Envia broadcast para todos. Lança [AppException] em caso de erro.
-  Future<void> broadcast(String title, String body) async {
+  Future<void> broadcast(
+    String title,
+    String body, {
+    required String routeId,
+    int? durationHours,
+  }) async {
     _isSending = true;
     notifyListeners();
     try {
-      await _service.broadcast(title, body);
+      await _service.broadcast(
+        title,
+        body,
+        routeId: routeId,
+        durationHours: durationHours,
+      );
     } catch (e) {
       throw AppException(AppException.fromError(e));
     } finally {

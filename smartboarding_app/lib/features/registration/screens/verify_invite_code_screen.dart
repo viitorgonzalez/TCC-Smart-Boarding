@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
+import '../../../core/errors/app_exception.dart';
 import '../../../core/widgets/loading_filled_button.dart';
 import '../../../core/widgets/snackbar_utils.dart';
 import '../providers/registration_provider.dart';
@@ -24,6 +25,7 @@ class _VerifyInviteCodeScreenState extends State<VerifyInviteCodeScreen> {
   final _codeCtrl = TextEditingController();
   final _service = RegistrationService();
   bool _loading = false;
+  bool _resending = false;
 
   @override
   void dispose() {
@@ -53,9 +55,37 @@ class _VerifyInviteCodeScreenState extends State<VerifyInviteCodeScreen> {
         ),
       );
     } catch (e) {
-      if (mounted) showErrorSnackBar(context, 'Código inválido: $e');
+      // Rotular tudo como "código inválido" fazia o aluno com código expirado
+      // redigitar o mesmo código e queimar tentativas, em vez de pedir outro.
+      if (mounted) showErrorSnackBar(context, AppException.fromError(e));
     } finally {
       if (mounted) setState(() => _loading = false);
+    }
+  }
+
+  // Código vale 15 minutos, mas a negação do cadastro pode chegar dias depois
+  // (RN14) — sem isso o aluno negado não tem como voltar pro formulário e o
+  // reenvio dependeria do admin gerar outro convite, perdendo os dados.
+  Future<void> _resendCode() async {
+    final email = _emailCtrl.text.trim();
+    if (!email.contains('@')) {
+      showErrorSnackBar(context, 'Informe o e-mail pra receber um novo código');
+      return;
+    }
+    setState(() => _resending = true);
+    try {
+      await _service.resendCode(email);
+      if (!mounted) return;
+      // Mensagem igual pra e-mail com e sem convite — o endpoint é público e
+      // não deve revelar quem tem cadastro em aberto.
+      showSuccessSnackBar(
+        context,
+        'Se houver um convite pra esse e-mail, o código chega em instantes',
+      );
+    } catch (e) {
+      if (mounted) showErrorSnackBar(context, e.toString());
+    } finally {
+      if (mounted) setState(() => _resending = false);
     }
   }
 
@@ -105,6 +135,15 @@ class _VerifyInviteCodeScreenState extends State<VerifyInviteCodeScreen> {
                   loading: _loading,
                   onPressed: _submit,
                   label: 'Continuar',
+                ),
+                const SizedBox(height: 8),
+                TextButton(
+                  onPressed: _resending ? null : _resendCode,
+                  child: Text(
+                    _resending
+                        ? 'Enviando...'
+                        : 'Não recebeu o código? Pedir outro',
+                  ),
                 ),
               ],
             ),

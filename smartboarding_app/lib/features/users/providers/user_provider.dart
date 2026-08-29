@@ -12,18 +12,19 @@ class UserProvider extends ChangeNotifier {
 
   UserProvider(this._service);
 
+  String? routeId;
+
   Future<void> load() async {
     _state = const AsyncLoading();
     notifyListeners();
     try {
-      _state = AsyncData(await _service.getUsers());
+      _state = AsyncData(await _service.getUsers(routeId: routeId));
     } catch (e) {
       _state = AsyncError(AppException.fromError(e));
     }
     notifyListeners();
   }
 
-  /// Cria um usuário e recarrega a lista. Lança exceção em caso de erro.
   Future<void> create({
     required String fullName,
     required String email,

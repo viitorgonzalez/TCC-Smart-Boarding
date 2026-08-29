@@ -1,22 +1,22 @@
 import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
 import '../../core/providers/auth_provider.dart';
-import '../../core/utils/date_format.dart';
-import '../../core/widgets/async_builder.dart';
-import '../../core/widgets/empty_state.dart';
-import '../../core/widgets/entity_list_tile.dart';
-import '../../core/widgets/status_pill.dart';
-import '../lists/models/daily_list_model.dart';
-import '../lists/providers/admin_list_provider.dart';
-import '../lists/screens/admin_list_entries_screen.dart';
+import '../../core/theme/app_theme.dart';
+import '../../core/utils/async_value.dart';
+import '../../core/widgets/app_card.dart';
+import '../../core/widgets/app_header.dart';
+import '../../core/widgets/feature_card.dart';
+import '../admin/providers/admin_stats_provider.dart';
+import '../admin/services/admin_stats_service.dart';
 import '../notifications/providers/notification_provider.dart';
 import '../notifications/screens/broadcast_screen.dart';
+import '../warnings/screens/warnings_screen.dart';
+import '../notifications/screens/notifications_inbox_screen.dart';
 import '../notifications/services/notification_service.dart';
 import '../registration/providers/registration_provider.dart';
 import '../registration/screens/registration_approvals_screen.dart';
 import '../registration/services/institution_service.dart';
 import '../registration/services/registration_service.dart';
-import 'widgets/create_institution_dialog.dart';
 import 'widgets/generate_invite_dialog.dart';
 import '../reports/providers/report_provider.dart';
 import '../reports/screens/reports_screen.dart';
@@ -24,10 +24,10 @@ import '../reports/services/report_service.dart';
 import '../routes/providers/route_provider.dart';
 import '../routes/screens/routes_screen.dart';
 import '../routes/services/route_service.dart';
-import '../lists/services/list_service.dart';
 import '../users/providers/user_provider.dart';
 import '../users/screens/user_management_screen.dart';
 import '../users/services/user_service.dart';
+import 'widgets/today_summary.dart';
 
 class AdminHomeScreen extends StatelessWidget {
   const AdminHomeScreen({super.key});
@@ -37,9 +37,6 @@ class AdminHomeScreen extends StatelessWidget {
     // Providers escopados ao admin — criados aqui, destruídos ao sair
     return MultiProvider(
       providers: [
-        ChangeNotifierProvider(
-          create: (_) => AdminListProvider(ListService())..load(),
-        ),
         ChangeNotifierProvider(
           create: (_) => RouteProvider(RouteService())..load(),
         ),
@@ -57,163 +54,219 @@ class AdminHomeScreen extends StatelessWidget {
               RegistrationProvider(RegistrationService(), InstitutionService())
                 ..loadPending(),
         ),
+        ChangeNotifierProvider(
+          create: (_) => AdminStatsProvider(AdminStatsService())..load(),
+        ),
       ],
-      child: const _AdminShell(),
+      child: const _AdminDashboard(),
     );
   }
 }
 
-// ─── Shell do admin com NavigationBar ────────────────────────────────────────
+// ─── Painel do admin (dashboard de cards) ────────────────────────────────────
 
-class _AdminShell extends StatefulWidget {
-  const _AdminShell();
+class _AdminDashboard extends StatelessWidget {
+  const _AdminDashboard();
 
-  @override
-  State<_AdminShell> createState() => _AdminShellState();
-}
+  /// O push sai no Navigator raiz, acima do MultiProvider — sem repassar as
+  /// instâncias, cada tela abriria sem o seu provider.
+  void _open(
+    BuildContext context,
+    String title,
+    Widget child, {
+    List<Widget>? actions,
+  }) {
+    final routeProvider = context.read<RouteProvider>();
+    final reportProvider = context.read<ReportProvider>();
+    final notificationProvider = context.read<NotificationProvider>();
+    final userProvider = context.read<UserProvider>();
+    final registrationProvider = context.read<RegistrationProvider>();
 
-class _AdminShellState extends State<_AdminShell> {
-  int _index = 0;
-
-  @override
-  Widget build(BuildContext context) {
-    return Scaffold(
-      appBar: AppBar(
-        title: const Text('Smart Boarding'),
-        actions: [
-          if (_index == 1)
-            IconButton(
-              icon: const Icon(Icons.school_outlined),
-              tooltip: 'Nova instituição',
-              onPressed: () => showDialog<bool>(
-                context: context,
-                builder: (_) => const CreateInstitutionDialog(),
-              ),
-            ),
-          if (_index == 5)
-            IconButton(
-              icon: const Icon(Icons.person_add_alt_outlined),
-              tooltip: 'Gerar convite',
-              onPressed: () => showDialog<bool>(
-                context: context,
-                builder: (_) => const GenerateInviteDialog(),
-              ),
-            ),
-          IconButton(
-            icon: const Icon(Icons.logout),
-            tooltip: 'Sair',
-            onPressed: () => context.read<AuthProvider>().logout(),
+    Navigator.push(
+      context,
+      MaterialPageRoute(
+        builder: (_) => MultiProvider(
+          providers: [
+            ChangeNotifierProvider.value(value: routeProvider),
+            ChangeNotifierProvider.value(value: reportProvider),
+            ChangeNotifierProvider.value(value: notificationProvider),
+            ChangeNotifierProvider.value(value: userProvider),
+            ChangeNotifierProvider.value(value: registrationProvider),
+          ],
+          child: Scaffold(
+            appBar: AppBar(title: Text(title), actions: actions),
+            body: child,
           ),
-        ],
-      ),
-      body: IndexedStack(
-        index: _index,
-        children: const [
-          _AdminListsTab(),
-          RoutesScreen(),
-          ReportsScreen(),
-          BroadcastScreen(),
-          UserManagementScreen(),
-          RegistrationApprovalsScreen(),
-        ],
-      ),
-      bottomNavigationBar: NavigationBar(
-        selectedIndex: _index,
-        onDestinationSelected: (i) => setState(() => _index = i),
-        destinations: const [
-          NavigationDestination(
-            icon: Icon(Icons.list_alt_outlined),
-            selectedIcon: Icon(Icons.list_alt),
-            label: 'Listas',
-          ),
-          NavigationDestination(
-            icon: Icon(Icons.route_outlined),
-            selectedIcon: Icon(Icons.route),
-            label: 'Rotas',
-          ),
-          NavigationDestination(
-            icon: Icon(Icons.bar_chart_outlined),
-            selectedIcon: Icon(Icons.bar_chart),
-            label: 'Relatórios',
-          ),
-          NavigationDestination(
-            icon: Icon(Icons.campaign_outlined),
-            selectedIcon: Icon(Icons.campaign),
-            label: 'Broadcast',
-          ),
-          NavigationDestination(
-            icon: Icon(Icons.group_outlined),
-            selectedIcon: Icon(Icons.group),
-            label: 'Usuários',
-          ),
-          NavigationDestination(
-            icon: Icon(Icons.how_to_reg_outlined),
-            selectedIcon: Icon(Icons.how_to_reg),
-            label: 'Cadastros',
-          ),
-        ],
-      ),
-    );
-  }
-}
-
-// ─── Tab de listas (admin) ────────────────────────────────────────────────────
-
-class _AdminListsTab extends StatelessWidget {
-  const _AdminListsTab();
-
-  @override
-  Widget build(BuildContext context) {
-    return Consumer<AdminListProvider>(
-      builder: (context, provider, _) => AsyncBuilder(
-        value: provider.state,
-        onRetry: provider.load,
-        builder: (lists) => lists.isEmpty
-            ? const EmptyState(
-                icon: Icons.event_busy,
-                title: 'Nenhuma lista disponível hoje',
-              )
-            : RefreshIndicator(
-                onRefresh: provider.load,
-                child: ListView.separated(
-                  padding: const EdgeInsets.all(16),
-                  itemCount: lists.length,
-                  separatorBuilder: (_, _) => const SizedBox(height: 10),
-                  itemBuilder: (_, i) => _ListTile(list: lists[i]),
-                ),
-              ),
-      ),
-    );
-  }
-}
-
-class _ListTile extends StatelessWidget {
-  final DailyList list;
-  const _ListTile({required this.list});
-
-  @override
-  Widget build(BuildContext context) {
-    return EntityListTile(
-      leading: CircleAvatar(
-        backgroundColor: list.isOpen
-            ? Colors.green.shade50
-            : Colors.grey.shade100,
-        child: Icon(
-          Icons.people_alt_outlined,
-          color: list.isOpen ? Colors.green : Colors.grey,
         ),
       ),
-      title: list.routeName,
-      subtitle: Text(
-        '${list.totalEntries} inscrito(s) · ${formatDate(list.date)}',
-      ),
-      trailing: StatusPill(
-        label: list.isOpen ? 'Aberta' : 'Fechada',
-        tone: list.isOpen ? StatusPillTone.positive : StatusPillTone.neutral,
-      ),
-      onTap: () => Navigator.push(
-        context,
-        MaterialPageRoute(builder: (_) => AdminListEntriesScreen(list: list)),
+    );
+  }
+
+  Future<void> _refresh(BuildContext context) async {
+    await Future.wait([
+      context.read<RegistrationProvider>().loadPending(),
+      context.read<AdminStatsProvider>().load(),
+    ]);
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    final auth = context.watch<AuthProvider>();
+    final name = auth.token?.fullName ?? 'Admin';
+    final pending = switch (context.watch<RegistrationProvider>().pending) {
+      AsyncData(:final value) => value.length,
+      _ => 0,
+    };
+
+    return Scaffold(
+      body: Column(
+        children: [
+          AppHeader(
+            overline: 'GESTÃO DE TRANSPORTE',
+            title: 'Painel do Admin',
+            trailing: CircleAvatar(
+              radius: 24,
+              backgroundColor: AppColors.mutedTeal,
+              child: Text(
+                name.isNotEmpty ? name[0].toUpperCase() : 'A',
+                style: const TextStyle(
+                  color: Colors.white,
+                  fontSize: 18,
+                  fontWeight: FontWeight.w700,
+                ),
+              ),
+            ),
+          ),
+          Expanded(
+            child: RefreshIndicator(
+              onRefresh: () => _refresh(context),
+              child: ListView(
+                padding: const EdgeInsets.all(20),
+                children: [
+                  AlertCard(
+                    icon: Icons.person_add_alt_1,
+                    title: 'Solicitações',
+                    subtitle: 'Aguardando aprovação',
+                    count: pending,
+                    onTap: () => _open(
+                      context,
+                      'Solicitações de cadastro',
+                      const RegistrationApprovalsScreen(),
+                      actions: [
+                        IconButton(
+                          icon: const Icon(Icons.mail_outline),
+                          tooltip: 'Gerar convite',
+                          onPressed: () => showDialog<void>(
+                            context: context,
+                            builder: (_) => const GenerateInviteDialog(),
+                          ),
+                        ),
+                      ],
+                    ),
+                  ),
+                  const SizedBox(height: 24),
+                  const SectionTitle('Funcionalidades'),
+                  const SizedBox(height: 12),
+                  GridView.count(
+                    crossAxisCount: 2,
+                    shrinkWrap: true,
+                    physics: const NeverScrollableScrollPhysics(),
+                    crossAxisSpacing: 12,
+                    mainAxisSpacing: 12,
+                    childAspectRatio: 1.25,
+                    children: [
+                      FeatureCard(
+                        icon: Icons.route_outlined,
+                        label: 'Rotas e Listas',
+                        onTap: () => _open(
+                          context,
+                          'Rotas e Listas',
+                          const RoutesScreen(),
+                        ),
+                      ),
+                      FeatureCard(
+                        icon: Icons.campaign_outlined,
+                        label: 'Enviar Aviso',
+                        onTap: () => _open(
+                          context,
+                          'Enviar Aviso',
+                          const BroadcastScreen(),
+                        ),
+                      ),
+                      FeatureCard(
+                        icon: Icons.notifications_none,
+                        label: 'Avisos enviados',
+                        onTap: () => Navigator.push(
+                          context,
+                          MaterialPageRoute(
+                            builder: (_) =>
+                                const NotificationsInboxScreen(canManage: true),
+                          ),
+                        ),
+                      ),
+                      FeatureCard(
+                        icon: Icons.report_gmailerrorred_outlined,
+                        label: 'Advertências',
+                        onTap: () => Navigator.push(
+                          context,
+                          MaterialPageRoute(
+                            builder: (_) =>
+                                const WarningsScreen(canManage: true),
+                          ),
+                        ),
+                      ),
+                      FeatureCard(
+                        icon: Icons.bar_chart_outlined,
+                        label: 'Relatórios',
+                        onTap: () =>
+                            _open(context, 'Relatórios', const ReportsScreen()),
+                      ),
+                      FeatureCard(
+                        icon: Icons.group_outlined,
+                        label: 'Usuários',
+                        onTap: () => _open(
+                          context,
+                          'Usuários',
+                          const UserManagementScreen(),
+                          // Aluno só nasce por convite; sem isto a tela de
+                          // usuários não teria como trazer um.
+                          actions: [
+                            IconButton(
+                              icon: const Icon(Icons.person_add_alt_outlined),
+                              tooltip: 'Convidar aluno',
+                              onPressed: () => showDialog<bool>(
+                                context: context,
+                                builder: (_) => const GenerateInviteDialog(),
+                              ),
+                            ),
+                          ],
+                        ),
+                      ),
+                    ],
+                  ),
+                  const SizedBox(height: 24),
+                  const SectionTitle('Resumo de Hoje'),
+                  const SizedBox(height: 12),
+                  const TodaySummary(),
+                  const SizedBox(height: 24),
+                  Center(
+                    child: TextButton(
+                      onPressed: auth.logout,
+                      child: const Text(
+                        'Sair do Painel',
+                        style: TextStyle(
+                          color: AppColors.danger,
+                          fontWeight: FontWeight.w700,
+                          fontSize: 16,
+                        ),
+                      ),
+                    ),
+                  ),
+                ],
+              ),
+            ),
+          ),
+        ],
       ),
     );
   }

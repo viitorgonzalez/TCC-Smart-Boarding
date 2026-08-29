@@ -57,6 +57,9 @@ class _SmartBoardingAppState extends State<SmartBoardingApp> {
     if (!isHttpsRegisterLink && !isAppSchemeRegisterLink) return;
     if (uri.pathSegments.isEmpty) return;
     final token = uri.pathSegments.last;
+    // "/register/" (barra final) passa no startsWith e produz pathSegments
+    // ['register', ''] — sem isso o app abriria a tela e falharia no GET.
+    if (token.isEmpty) return;
     // Quem clica o link do convite não está logado — RegisterScreen nunca
     // está dentro da árvore de providers do AdminHomeScreen, então precisa
     // do próprio RegistrationProvider aqui, não herdado de lugar nenhum.
@@ -84,8 +87,6 @@ class _SmartBoardingAppState extends State<SmartBoardingApp> {
         // Auth — global, persiste toda a sessão
         ChangeNotifierProvider(create: (_) => AuthProvider()..init()),
 
-        // StudentListProvider recebe o email via ProxyProvider
-        // assim que o login é concluído
         ChangeNotifierProxyProvider<AuthProvider, StudentListProvider>(
           create: (_) => StudentListProvider(ListService()),
           update: (_, auth, prev) {
@@ -101,7 +102,9 @@ class _SmartBoardingAppState extends State<SmartBoardingApp> {
         debugShowCheckedModeBanner: false,
         theme: AppTheme.light,
         darkTheme: AppTheme.dark,
-        themeMode: ThemeMode.system,
+        // O Figma desenhou só o tema claro; deixar seguir o sistema faria o
+        // app abrir escuro e fora do desenho em metade dos aparelhos.
+        themeMode: ThemeMode.light,
         home: const AuthGate(),
       ),
     );

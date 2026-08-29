@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 import '../../../core/errors/app_exception.dart';
 import '../../../core/utils/async_value.dart';
 import '../models/institution_model.dart';
+import '../models/invite_info_model.dart';
 import '../models/registration_request_model.dart';
 import '../services/institution_service.dart';
 import '../services/registration_service.dart';
@@ -13,23 +14,37 @@ class RegistrationProvider extends ChangeNotifier {
   AsyncValue<List<InstitutionModel>> _institutions = const AsyncLoading();
   AsyncValue<List<RegistrationRequestModel>> _pending = const AsyncLoading();
   AsyncValue<void> _submitState = const AsyncData(null);
-  AsyncValue<String> _inviteEmail = const AsyncLoading();
+  AsyncValue<InviteInfoModel> _invite = const AsyncLoading();
+  AsyncValue<void> _resendState = const AsyncData(null);
 
   AsyncValue<List<InstitutionModel>> get institutions => _institutions;
   AsyncValue<List<RegistrationRequestModel>> get pending => _pending;
   AsyncValue<void> get submitState => _submitState;
-  AsyncValue<String> get inviteEmail => _inviteEmail;
+  AsyncValue<InviteInfoModel> get invite => _invite;
+  AsyncValue<void> get resendState => _resendState;
 
   RegistrationProvider(this._registrationService, this._institutionService);
 
   Future<void> validateInvite(String token) async {
-    _inviteEmail = const AsyncLoading();
+    _invite = const AsyncLoading();
     notifyListeners();
     try {
-      final result = await _registrationService.getInviteEmail(token);
-      _inviteEmail = AsyncData(result);
+      final result = await _registrationService.getInvite(token);
+      _invite = AsyncData(result);
     } catch (e) {
-      _inviteEmail = AsyncError(AppException.fromError(e));
+      _invite = AsyncError(AppException.fromError(e));
+    }
+    notifyListeners();
+  }
+
+  Future<void> resendCode(String email) async {
+    _resendState = const AsyncLoading();
+    notifyListeners();
+    try {
+      await _registrationService.resendCode(email);
+      _resendState = const AsyncData(null);
+    } catch (e) {
+      _resendState = AsyncError(AppException.fromError(e));
     }
     notifyListeners();
   }
@@ -63,8 +78,8 @@ class RegistrationProvider extends ChangeNotifier {
     await loadPending();
   }
 
-  Future<void> reject(String id) async {
-    await _registrationService.reject(id);
+  Future<void> reject(String id, String reason) async {
+    await _registrationService.reject(id, reason);
     await loadPending();
   }
 

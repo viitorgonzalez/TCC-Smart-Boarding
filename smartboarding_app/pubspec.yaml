@@ -36,6 +36,10 @@ dependencies:
   provider: ^6.1.2
   shared_preferences: ^2.3.2
   google_fonts: ^8.2.1
+  # Mapa das paradas: OpenStreetMap via flutter_map — sem chave de API nem
+  # cobrança, diferente do Google Maps.
+  flutter_map: ^8.1.1
+  latlong2: ^0.9.1
   app_links: ^6.3.3
 
 dev_dependencies:
