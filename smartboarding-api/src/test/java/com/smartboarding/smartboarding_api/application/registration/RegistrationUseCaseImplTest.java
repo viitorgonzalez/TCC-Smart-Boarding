@@ -180,9 +180,8 @@ class RegistrationUseCaseImplTest {
 
     @Test
     void aprovarCriaAContaDeFatoEMarcaComoApproved() {
-        // Ruling do controller: approve() precisa copiar a instituição escolhida pro User criado
-        // (RN14) — diferente do 5-arg literal do brief, aqui institutionRepository não pode ser
-        // null porque approve() resolve o nome da instituição antes de montar o User.
+        // approve() precisa levar a instituição escolhida pro User criado (RN14/RN15);
+        // institutionRepository não pode ser null porque a instituição é resolvida antes.
         var institutionRepository = mock(com.smartboarding.smartboarding_api.domain.institution.port.out.InstitutionRepositoryPort.class);
         var userRepository = mock(com.smartboarding.smartboarding_api.domain.user.port.out.UserRepositoryPort.class);
         var useCase = new RegistrationUseCaseImpl(registrationRepository, institutionRepository, emailPort, null, userRepository);
@@ -205,7 +204,8 @@ class RegistrationUseCaseImplTest {
         assertThat(user.getEmail()).isEqualTo("aluno@edu.unifor.br");
         assertThat(user.getRole()).isEqualTo(com.smartboarding.smartboarding_api.domain.user.entity.Role.STUDENT);
         assertThat(user.getPassword()).isEqualTo("hash-fake");
-        assertThat(user.getInstitution()).isEqualTo("Unifor");
+        // A instituição agora viaja como referência: é dela que sai a rota (RN15).
+        assertThat(user.getInstitutionId()).isEqualTo(institutionId);
         verify(registrationRepository).save(argThat(r -> r.getStatus() == RegistrationStatus.APPROVED));
     }
 
@@ -242,10 +242,185 @@ class RegistrationUseCaseImplTest {
         when(registrationRepository.findById(id)).thenReturn(java.util.Optional.of(pending));
         when(registrationRepository.save(any())).thenAnswer(inv -> inv.getArgument(0));
 
-        useCase.reject(id);
+        useCase.reject(id, "Documento ilegível");
 
         verify(registrationRepository).save(argThat(r -> r.getStatus() == RegistrationStatus.REJECTED));
         verify(userRepository, never()).save(any());
+    }
+
+    @Test
+    void reenviarCodigoGeraCodigoNovoZeraTentativasEEnviaEmail() {
+        var passwordEncoder = mock(org.springframework.security.crypto.password.PasswordEncoder.class);
+        var useCase = new RegistrationUseCaseImpl(registrationRepository, null, emailPort, passwordEncoder, null);
+
+        var rejected = RegistrationRequest.builder()
+                .email("aluno@edu.unifor.br").token("ok")
+                .tokenExpiresAt(LocalDateTime.now().plusDays(1))
+                .codeHash("hash-antigo")
+                .codeExpiresAt(LocalDateTime.now().minusMinutes(30))
+                .codeAttempts(5)
+                .status(RegistrationStatus.REJECTED)
+                .build();
+        when(registrationRepository.findTopByEmailOrderByCreatedAtDesc("aluno@edu.unifor.br"))
+                .thenReturn(java.util.Optional.of(rejected));
+        when(passwordEncoder.encode(anyString())).thenReturn("hash-novo");
+        when(registrationRepository.save(any())).thenAnswer(inv -> inv.getArgument(0));
+
+        useCase.resendCode("aluno@edu.unifor.br");
+
+        ArgumentCaptor<RegistrationRequest> captor = ArgumentCaptor.forClass(RegistrationRequest.class);
+        verify(registrationRepository).save(captor.capture());
+        RegistrationRequest saved = captor.getValue();
+        assertThat(saved.getCodeHash()).isEqualTo("hash-novo");
+        assertThat(saved.getCodeAttempts()).isZero();
+        assertThat(saved.getCodeExpiresAt()).isAfter(LocalDateTime.now());
+        // O pedido continua sendo o mesmo — é o que preserva os dados pro prefill.
+        assertThat(saved.getToken()).isEqualTo("ok");
+        verify(emailPort).send(eq("aluno@edu.unifor.br"), anyString(), anyString());
+    }
+
+    @Test
+    void reenviarCodigoDeEmailInexistenteNaoEnviaNemLanca() {
+        var useCase = new RegistrationUseCaseImpl(registrationRepository, null, emailPort, null, null);
+        when(registrationRepository.findTopByEmailOrderByCreatedAtDesc("ninguem@edu.unifor.br"))
+                .thenReturn(java.util.Optional.empty());
+
+        useCase.resendCode("ninguem@edu.unifor.br");
+
+        verify(emailPort, never()).send(anyString(), anyString(), anyString());
+        verify(registrationRepository, never()).save(any());
+    }
+
+    @Test
+    void reenviarCodigoDeCadastroJaAprovadoNaoEnvia() {
+        var useCase = new RegistrationUseCaseImpl(registrationRepository, null, emailPort, null, null);
+        var approved = RegistrationRequest.builder()
+                .email("aluno@edu.unifor.br").status(RegistrationStatus.APPROVED).build();
+        when(registrationRepository.findTopByEmailOrderByCreatedAtDesc("aluno@edu.unifor.br"))
+                .thenReturn(java.util.Optional.of(approved));
+
+        useCase.resendCode("aluno@edu.unifor.br");
+
+        verify(emailPort, never()).send(anyString(), anyString(), anyString());
+        verify(registrationRepository, never()).save(any());
+    }
+
+    @Test
+    void reenviarCodigoRecemEnviadoRespeitaOCooldownSemDenunciarOEmail() {
+        var useCase = new RegistrationUseCaseImpl(registrationRepository, null, emailPort, null, null);
+        var recemEnviado = RegistrationRequest.builder()
+                .email("aluno@edu.unifor.br").status(RegistrationStatus.INVITED)
+                .codeExpiresAt(LocalDateTime.now().plusMinutes(15))
+                .build();
+        when(registrationRepository.findTopByEmailOrderByCreatedAtDesc("aluno@edu.unifor.br"))
+                .thenReturn(java.util.Optional.of(recemEnviado));
+
+        // Não lança: um 400 só quando existe convite aberto viraria detector de e-mail.
+        useCase.resendCode("aluno@edu.unifor.br");
+
+        verify(emailPort, never()).send(anyString(), anyString(), anyString());
+        verify(registrationRepository, never()).save(any());
+    }
+
+    @Test
+    void reenviarCodigoRenovaAValidadeDoToken() {
+        var passwordEncoder = mock(org.springframework.security.crypto.password.PasswordEncoder.class);
+        var useCase = new RegistrationUseCaseImpl(registrationRepository, null, emailPort, passwordEncoder, null);
+
+        var vencido = RegistrationRequest.builder()
+                .email("aluno@edu.unifor.br").token("ok")
+                .tokenExpiresAt(LocalDateTime.now().minusDays(2))
+                .codeExpiresAt(LocalDateTime.now().minusMinutes(30))
+                .status(RegistrationStatus.REJECTED)
+                .build();
+        when(registrationRepository.findTopByEmailOrderByCreatedAtDesc("aluno@edu.unifor.br"))
+                .thenReturn(java.util.Optional.of(vencido));
+        when(passwordEncoder.encode(anyString())).thenReturn("hash-novo");
+        when(registrationRepository.save(any())).thenAnswer(inv -> inv.getArgument(0));
+
+        useCase.resendCode("aluno@edu.unifor.br");
+
+        ArgumentCaptor<RegistrationRequest> captor = ArgumentCaptor.forClass(RegistrationRequest.class);
+        verify(registrationRepository).save(captor.capture());
+        assertThat(captor.getValue().getTokenExpiresAt()).isAfter(LocalDateTime.now());
+    }
+
+    @Test
+    void verificarCodigoComSucessoInvalidaOCodigo() {
+        var passwordEncoder = mock(org.springframework.security.crypto.password.PasswordEncoder.class);
+        var useCase = new RegistrationUseCaseImpl(registrationRepository, null, emailPort, passwordEncoder, null);
+
+        var invited = RegistrationRequest.builder()
+                .email("aluno@edu.unifor.br").token("tok")
+                .codeHash("hash").codeExpiresAt(LocalDateTime.now().plusMinutes(10))
+                .codeAttempts(2).status(RegistrationStatus.INVITED)
+                .build();
+        when(registrationRepository.findTopByEmailOrderByCreatedAtDesc("aluno@edu.unifor.br"))
+                .thenReturn(java.util.Optional.of(invited));
+        when(passwordEncoder.matches("123456", "hash")).thenReturn(true);
+        when(registrationRepository.save(any())).thenAnswer(inv -> inv.getArgument(0));
+
+        var token = useCase.verifyCode("aluno@edu.unifor.br", "123456");
+
+        assertThat(token).isEqualTo("tok");
+        ArgumentCaptor<RegistrationRequest> captor = ArgumentCaptor.forClass(RegistrationRequest.class);
+        verify(registrationRepository).save(captor.capture());
+        assertThat(captor.getValue().getCodeHash()).isNull();
+        assertThat(captor.getValue().getCodeAttempts()).isZero();
+    }
+
+    @Test
+    void negarGravaOMotivoEAvisaOAlunoPorEmail() {
+        var userRepository = mock(com.smartboarding.smartboarding_api.domain.user.port.out.UserRepositoryPort.class);
+        var useCase = new RegistrationUseCaseImpl(registrationRepository, null, emailPort, null, userRepository);
+
+        var id = java.util.UUID.randomUUID();
+        var pending = RegistrationRequest.builder()
+                .id(id).email("aluno@edu.unifor.br").status(RegistrationStatus.PENDING).build();
+        when(registrationRepository.findById(id)).thenReturn(java.util.Optional.of(pending));
+        when(registrationRepository.save(any())).thenAnswer(inv -> inv.getArgument(0));
+
+        useCase.reject(id, "Documento ilegível");
+
+        verify(registrationRepository).save(argThat(r -> "Documento ilegível".equals(r.getRejectionReason())));
+        verify(emailPort).send(eq("aluno@edu.unifor.br"), anyString(), contains("Documento ilegível"));
+    }
+
+    @Test
+    void negarSemMotivoLancaExcecao() {
+        var useCase = new RegistrationUseCaseImpl(registrationRepository, null, emailPort, null, null);
+
+        var id = java.util.UUID.randomUUID();
+
+        assertThatThrownBy(() -> useCase.reject(id, "   "))
+                .isInstanceOf(com.smartboarding.smartboarding_api.shared.exception.BadRequestException.class);
+        verify(registrationRepository, never()).save(any());
+    }
+
+    @Test
+    void reenvioAposNegacaoLimpaOMotivoAnterior() {
+        var institutionRepository = mock(com.smartboarding.smartboarding_api.domain.institution.port.out.InstitutionRepositoryPort.class);
+        var passwordEncoder = mock(org.springframework.security.crypto.password.PasswordEncoder.class);
+        var useCase = new RegistrationUseCaseImpl(registrationRepository, institutionRepository, emailPort, passwordEncoder, null);
+
+        var institutionId = java.util.UUID.randomUUID();
+        var rejected = RegistrationRequest.builder()
+                .email("aluno@edu.unifor.br").token("ok")
+                .tokenExpiresAt(LocalDateTime.now().plusDays(1))
+                .status(RegistrationStatus.REJECTED)
+                .rejectionReason("Documento ilegível")
+                .build();
+        when(registrationRepository.findByToken("ok")).thenReturn(java.util.Optional.of(rejected));
+        when(institutionRepository.findById(institutionId))
+                .thenReturn(java.util.Optional.of(com.smartboarding.smartboarding_api.domain.institution.entity.Institution.builder().id(institutionId).build()));
+        when(passwordEncoder.encode(anyString())).thenReturn("hash-fake");
+        when(registrationRepository.save(any())).thenAnswer(inv -> inv.getArgument(0));
+
+        var data = new com.smartboarding.smartboarding_api.domain.registration.port.in.SubmitRegistrationUseCase.SubmitData(
+                "Maria Oliveira", "senha123", institutionId, null, null, null, null);
+        var result = useCase.submitRegistration("ok", data);
+
+        assertThat(result.getRejectionReason()).isNull();
     }
 
     @Test
@@ -305,7 +480,7 @@ class RegistrationUseCaseImplTest {
         var alreadyRejected = RegistrationRequest.builder().id(id).status(RegistrationStatus.REJECTED).build();
         when(registrationRepository.findById(id)).thenReturn(java.util.Optional.of(alreadyRejected));
 
-        assertThatThrownBy(() -> useCase.reject(id))
+        assertThatThrownBy(() -> useCase.reject(id, "Documento ilegível"))
                 .isInstanceOf(com.smartboarding.smartboarding_api.shared.exception.ConflictException.class);
         verify(registrationRepository, never()).save(any());
     }
@@ -335,11 +510,11 @@ class RegistrationUseCaseImplTest {
         when(registrationRepository.findTopByEmailOrderByCreatedAtDesc("aluno@edu.unifor.br"))
                 .thenReturn(java.util.Optional.of(request));
         when(passwordEncoder.matches("123456", "hash-do-123456")).thenReturn(true);
+        when(registrationRepository.save(any())).thenAnswer(inv -> inv.getArgument(0));
 
         var token = useCase.verifyCode("aluno@edu.unifor.br", "123456");
 
         assertThat(token).isEqualTo("token-interno");
-        verify(registrationRepository, never()).save(any());
     }
 
     @Test

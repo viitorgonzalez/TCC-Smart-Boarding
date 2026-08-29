@@ -6,12 +6,15 @@ import com.smartboarding.smartboarding_api.domain.registration.port.in.ApproveRe
 import com.smartboarding.smartboarding_api.domain.registration.port.in.GenerateInviteUseCase;
 import com.smartboarding.smartboarding_api.domain.registration.port.in.ListPendingRegistrationsUseCase;
 import com.smartboarding.smartboarding_api.domain.registration.port.in.RejectRegistrationUseCase;
+import com.smartboarding.smartboarding_api.domain.registration.port.in.ResendCodeUseCase;
 import com.smartboarding.smartboarding_api.domain.registration.port.in.SubmitRegistrationUseCase;
 import com.smartboarding.smartboarding_api.domain.registration.port.in.ValidateTokenUseCase;
 import com.smartboarding.smartboarding_api.domain.registration.port.in.VerifyInviteCodeUseCase;
 import com.smartboarding.smartboarding_api.infrastructure.web.registration.dto.InviteInfoResponse;
 import com.smartboarding.smartboarding_api.infrastructure.web.registration.dto.InviteRequest;
 import com.smartboarding.smartboarding_api.infrastructure.web.registration.dto.PendingRegistrationResponse;
+import com.smartboarding.smartboarding_api.infrastructure.web.registration.dto.RejectRegistrationRequest;
+import com.smartboarding.smartboarding_api.infrastructure.web.registration.dto.ResendCodeRequest;
 import com.smartboarding.smartboarding_api.infrastructure.web.registration.dto.SubmitRegistrationRequest;
 import com.smartboarding.smartboarding_api.infrastructure.web.registration.dto.VerifyInviteCodeRequest;
 import com.smartboarding.smartboarding_api.infrastructure.web.registration.dto.VerifyInviteCodeResponse;
@@ -42,6 +45,7 @@ public class RegistrationController {
     private final ApproveRegistrationUseCase approveRegistrationUseCase;
     private final RejectRegistrationUseCase rejectRegistrationUseCase;
     private final VerifyInviteCodeUseCase verifyInviteCodeUseCase;
+    private final ResendCodeUseCase resendCodeUseCase;
     private final InstitutionRepositoryPort institutionRepository;
 
     public RegistrationController(GenerateInviteUseCase generateInviteUseCase,
@@ -51,6 +55,7 @@ public class RegistrationController {
                                    ApproveRegistrationUseCase approveRegistrationUseCase,
                                    RejectRegistrationUseCase rejectRegistrationUseCase,
                                    VerifyInviteCodeUseCase verifyInviteCodeUseCase,
+                                   ResendCodeUseCase resendCodeUseCase,
                                    InstitutionRepositoryPort institutionRepository) {
         this.generateInviteUseCase = generateInviteUseCase;
         this.validateTokenUseCase = validateTokenUseCase;
@@ -59,6 +64,7 @@ public class RegistrationController {
         this.approveRegistrationUseCase = approveRegistrationUseCase;
         this.rejectRegistrationUseCase = rejectRegistrationUseCase;
         this.verifyInviteCodeUseCase = verifyInviteCodeUseCase;
+        this.resendCodeUseCase = resendCodeUseCase;
         this.institutionRepository = institutionRepository;
     }
 
@@ -66,6 +72,12 @@ public class RegistrationController {
     public ResponseEntity<ApiResponse<?>> invite(@RequestBody @Valid InviteRequest request) {
         generateInviteUseCase.generateInvite(request.email());
         return ResponseEntity.status(HttpStatus.CREATED).body(ApiResponse.success());
+    }
+
+    @PostMapping("/resend-code")
+    public ResponseEntity<ApiResponse<?>> resendCode(@RequestBody @Valid ResendCodeRequest request) {
+        resendCodeUseCase.resendCode(request.email());
+        return ResponseEntity.ok(ApiResponse.success());
     }
 
     @PostMapping("/verify-code")
@@ -110,8 +122,9 @@ public class RegistrationController {
     }
 
     @PostMapping("/{id}/reject")
-    public ResponseEntity<ApiResponse<?>> reject(@PathVariable UUID id) {
-        rejectRegistrationUseCase.reject(id);
+    public ResponseEntity<ApiResponse<?>> reject(@PathVariable UUID id,
+                                                 @RequestBody @Valid RejectRegistrationRequest request) {
+        rejectRegistrationUseCase.reject(id, request.reason());
         return ResponseEntity.ok(ApiResponse.success());
     }
 }

@@ -8,11 +8,11 @@ import java.time.LocalDate;
 import java.util.UUID;
 
 public record SubmitRegistrationRequest(
-        @NotBlank(message = "fullName can't be empty") String fullName,
+        @NotBlank(message = "fullName can't be empty") @Size(max = 150) String fullName,
         @NotBlank(message = "password can't be empty") @Size(min = 6) String password,
         @NotNull(message = "institutionId is required") UUID institutionId,
-        String course,
-        String phone,
+        @Size(max = 100) String course,
+        @Size(max = 20) String phone,
         String address,
         LocalDate birthDate
 ) {}

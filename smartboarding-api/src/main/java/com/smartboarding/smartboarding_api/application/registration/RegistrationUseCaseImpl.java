@@ -8,6 +8,7 @@ import com.smartboarding.smartboarding_api.domain.registration.port.in.ApproveRe
 import com.smartboarding.smartboarding_api.domain.registration.port.in.GenerateInviteUseCase;
 import com.smartboarding.smartboarding_api.domain.registration.port.in.ListPendingRegistrationsUseCase;
 import com.smartboarding.smartboarding_api.domain.registration.port.in.RejectRegistrationUseCase;
+import com.smartboarding.smartboarding_api.domain.registration.port.in.ResendCodeUseCase;
 import com.smartboarding.smartboarding_api.domain.registration.port.in.SubmitRegistrationUseCase;
 import com.smartboarding.smartboarding_api.domain.registration.port.in.ValidateTokenUseCase;
 import com.smartboarding.smartboarding_api.domain.registration.port.in.VerifyInviteCodeUseCase;
@@ -33,12 +34,13 @@ import java.util.UUID;
 @Slf4j
 @Service
 public class RegistrationUseCaseImpl implements GenerateInviteUseCase, ValidateTokenUseCase,
-        SubmitRegistrationUseCase, ListPendingRegistrationsUseCase, ApproveRegistrationUseCase, RejectRegistrationUseCase,
+        SubmitRegistrationUseCase, ListPendingRegistrationsUseCase, ApproveRegistrationUseCase, RejectRegistrationUseCase, ResendCodeUseCase,
         VerifyInviteCodeUseCase {
 
     private static final long TOKEN_TTL_DAYS = 7;
     private static final long CODE_TTL_MINUTES = 15;
     private static final int MAX_CODE_ATTEMPTS = 5;
+    private static final long RESEND_COOLDOWN_SECONDS = 60;
     private static final SecureRandom RANDOM = new SecureRandom();
 
     private final RegistrationRequestRepositoryPort registrationRepository;
@@ -78,14 +80,78 @@ public class RegistrationUseCaseImpl implements GenerateInviteUseCase, ValidateT
                 .build();
         registrationRepository.save(request);
 
-        // Código de 6 dígitos em vez de link: App Link https:// exige domínio publicado +
-        // verificado (assetlinks.json), pendência de deploy — código funciona sem nenhuma
-        // dependência de domínio, em dev e produção, desde já. Validade curta (15min) + limite
-        // de tentativas (verifyCode) compensam a entropia bem menor que o token de 256 bits.
-        emailPort.send(email, "Código de verificação Smart Boarding",
+        // Código em vez de link: App Link exige domínio publicado e verificado,
+        // pendência de deploy. Validade curta e limite de tentativas compensam a
+        // entropia menor que a do token.
+        sendEmailBestEffort(email, "Código de verificação Smart Boarding",
                 "<p>Seu código de verificação: <strong>" + code + "</strong></p>"
                         + "<p>Válido por " + CODE_TTL_MINUTES + " minutos.</p>");
         log.info("Convite de cadastro gerado pra {}", email);
+    }
+
+    @Override
+    @Transactional
+    public void resendCode(String email) {
+        // Endpoint público: responder igual com e sem convite evita enumerar
+        // quem tem cadastro aberto.
+        var found = registrationRepository.findTopByEmailOrderByCreatedAtDesc(email);
+        if (found.isEmpty()) {
+            log.info("Reenvio de código pedido pra e-mail sem convite");
+            return;
+        }
+
+        RegistrationRequest request = found.get();
+        if (request.getStatus() == RegistrationStatus.APPROVED) {
+            log.info("Reenvio de código ignorado, cadastro já aprovado");
+            return;
+        }
+        // Silencioso como os ramos acima: um 400 aqui viraria detector de e-mail.
+        if (isWithinResendCooldown(request)) {
+            log.info("Reenvio de código ignorado, dentro do cooldown");
+            return;
+        }
+
+        String code = generateCode();
+        request.setCodeHash(passwordEncoder.encode(code));
+        request.setCodeExpiresAt(LocalDateTime.now().plusMinutes(CODE_TTL_MINUTES));
+        request.setCodeAttempts(0);
+        // Renova o token junto: a negação pode chegar depois dos 7 dias (RN14) e
+        // o código novo entregaria um token vencido, sem saída pro aluno.
+        request.setTokenExpiresAt(LocalDateTime.now().plusDays(TOKEN_TTL_DAYS));
+        registrationRepository.save(request);
+
+        sendEmailBestEffort(email, "Código de verificação Smart Boarding",
+                "<p>Seu código de verificação: <strong>" + code + "</strong></p>"
+                        + "<p>Válido por " + CODE_TTL_MINUTES + " minutos.</p>");
+        log.info("Código de verificação reenviado pra {}", email);
+    }
+
+    // Sem isso o endpoint público vira um jeito de inundar a caixa de entrada de
+    // qualquer aluno com convite aberto.
+    private boolean isWithinResendCooldown(RegistrationRequest request) {
+        if (request.getCodeExpiresAt() == null) {
+            return false;
+        }
+        LocalDateTime issuedAt = request.getCodeExpiresAt().minusMinutes(CODE_TTL_MINUTES);
+        return LocalDateTime.now().isBefore(issuedAt.plusSeconds(RESEND_COOLDOWN_SECONDS));
+    }
+
+    // O envio roda dentro da transação: deixar a exceção subir desfazia a ação
+    // inteira e virava 500 genérico. Quem não recebeu o e-mail pede outro código.
+    private void sendEmailBestEffort(String to, String subject, String htmlBody) {
+        try {
+            emailPort.send(to, subject, htmlBody);
+        } catch (Exception e) {
+            log.error("Falha ao enviar e-mail '{}' — a ação foi mantida: {}", subject, e.getMessage());
+        }
+    }
+
+    // O motivo é texto livre do admin indo pra dentro de um corpo HTML.
+    private static String escapeHtml(String raw) {
+        return raw.replace("&", "&amp;")
+                .replace("<", "&lt;")
+                .replace(">", "&gt;")
+                .replace("\"", "&quot;");
     }
 
     private String generateToken() {
@@ -98,8 +164,10 @@ public class RegistrationUseCaseImpl implements GenerateInviteUseCase, ValidateT
         return String.format("%06d", RANDOM.nextInt(1_000_000));
     }
 
+    // Sem @Transactional de propósito: o contador é gravado e a exceção lançada em
+    // seguida. Numa transação única o rollback descartaria o incremento e
+    // MAX_CODE_ATTEMPTS nunca seria atingido — força bruta livre.
     @Override
-    @Transactional
     public String verifyCode(String email, String code) {
         RegistrationRequest request = registrationRepository.findTopByEmailOrderByCreatedAtDesc(email)
                 .orElseThrow(() -> new NotFoundException("Convite não encontrado"));
@@ -119,6 +187,13 @@ public class RegistrationUseCaseImpl implements GenerateInviteUseCase, ValidateT
             throw new BadRequestException("INVALID_CODE", "Código inválido");
         }
 
+        // Uso único: código que segue valendo é replayável se vazar, e a contagem
+        // velha encurtaria o orçamento da próxima verificação.
+        request.setCodeHash(null);
+        request.setCodeExpiresAt(null);
+        request.setCodeAttempts(0);
+        registrationRepository.save(request);
+
         return request.getToken();
     }
 
@@ -129,9 +204,8 @@ public class RegistrationUseCaseImpl implements GenerateInviteUseCase, ValidateT
         if (request.isTokenExpired()) {
             throw new BadRequestException("TOKEN_EXPIRED", "Convite expirado");
         }
-        // RN14: REJECTED continua validando (reenvio reabre o cadastro) — só APPROVED é terminal,
-        // senão um resubmit sobrescreve um pedido já virado User e o approve() seguinte colide
-        // com o UNIQUE(email) de users.
+        // RN14: REJECTED continua válido (reenvio reabre). Só APPROVED é terminal —
+        // senão um resubmit sobrescreveria um pedido já virado User.
         if (request.getStatus() == RegistrationStatus.APPROVED) {
             throw new BadRequestException("ALREADY_APPROVED", "Cadastro já aprovado");
         }
@@ -154,6 +228,7 @@ public class RegistrationUseCaseImpl implements GenerateInviteUseCase, ValidateT
         request.setAddress(data.address());
         request.setBirthDate(data.birthDate());
         request.setStatus(RegistrationStatus.PENDING);
+        request.setRejectionReason(null);
 
         RegistrationRequest saved = registrationRepository.save(request);
         log.info("Cadastro submetido: {}", request.getEmail());
@@ -178,10 +253,8 @@ public class RegistrationUseCaseImpl implements GenerateInviteUseCase, ValidateT
             throw new ConflictException("EMAIL_ALREADY_EXISTS", "E-mail já cadastrado: " + request.getEmail());
         }
 
-        // RN14: aprovar é o único ponto em que um RegistrationRequest vira um User de fato —
-        // a instituição escolhida no cadastro precisa ser copiada junto (mesma checagem defensiva
-        // de submitRegistration, já que o vínculo foi validado na submissão mas pode ter sido
-        // removido nesse meio-tempo).
+        // A instituição escolhida no cadastro precisa vir junto (RN15). Revalidada
+        // aqui porque pode ter sido removida entre o envio e a aprovação.
         Institution institution = institutionRepository.findById(request.getInstitutionId())
                 .orElseThrow(() -> new NotFoundException("Instituição não encontrada"));
 
@@ -191,7 +264,7 @@ public class RegistrationUseCaseImpl implements GenerateInviteUseCase, ValidateT
                 .role(Role.STUDENT)
                 .fullName(request.getFullName())
                 .course(request.getCourse())
-                .institution(institution.getName())
+                .institutionId(institution.getId())
                 .phone(request.getPhone())
                 .address(request.getAddress())
                 .birthDate(request.getBirthDate())
@@ -207,14 +280,28 @@ public class RegistrationUseCaseImpl implements GenerateInviteUseCase, ValidateT
 
     @Override
     @Transactional
-    public void reject(UUID id) {
+    public void reject(UUID id, String reason) {
+        // Sem motivo o reenvio (RN14) vira tentativa às cegas.
+        if (reason == null || reason.isBlank()) {
+            throw new BadRequestException("REASON_REQUIRED", "Motivo da negação é obrigatório");
+        }
+
         RegistrationRequest request = registrationRepository.findById(id)
                 .orElseThrow(() -> new NotFoundException("Pedido de cadastro não encontrado"));
         if (request.getStatus() != RegistrationStatus.PENDING) {
             throw new ConflictException("NOT_PENDING", "Pedido de cadastro não está pendente");
         }
+
+        String trimmedReason = reason.trim();
         request.setStatus(RegistrationStatus.REJECTED);
+        request.setRejectionReason(trimmedReason);
         registrationRepository.save(request);
+
+        sendEmailBestEffort(request.getEmail(), "Cadastro Smart Boarding não aprovado",
+                "<p>Seu cadastro não foi aprovado.</p>"
+                        + "<p>Motivo: <strong>" + escapeHtml(trimmedReason) + "</strong></p>"
+                        + "<p>Você pode corrigir os dados e enviar de novo: peça um novo código "
+                        + "de verificação no app.</p>");
         log.info("Cadastro negado: {}", request.getEmail());
     }
 }
