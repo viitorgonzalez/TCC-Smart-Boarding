@@ -5,6 +5,7 @@ class ListEntry {
   final String email;
   final String? tripType;
   final String createdAt;
+  final String? institutionName;
 
   const ListEntry({
     required this.id,
@@ -13,6 +14,7 @@ class ListEntry {
     required this.email,
     this.tripType,
     required this.createdAt,
+    this.institutionName,
   });
 
   factory ListEntry.fromJson(Map<String, dynamic> json) {
@@ -23,6 +25,7 @@ class ListEntry {
       email: json['email'] as String,
       tripType: json['tripType'] as String?,
       createdAt: json['createdAt'] as String,
+      institutionName: json['institutionName'] as String?,
     );
   }
 }
