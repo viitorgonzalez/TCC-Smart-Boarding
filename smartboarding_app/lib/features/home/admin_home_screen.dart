@@ -1,18 +1,20 @@
 import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
+import '../../core/errors/app_exception.dart';
 import '../../core/providers/auth_provider.dart';
-import '../../core/utils/date_format.dart';
-import '../../core/widgets/async_builder.dart';
-import '../../core/widgets/empty_state.dart';
-import '../../core/widgets/entity_list_tile.dart';
+import '../../core/theme/app_theme.dart';
+import '../../core/utils/async_value.dart';
+import '../../core/widgets/app_card.dart';
+import '../../core/widgets/app_header.dart';
+import '../../core/widgets/feature_card.dart';
 import '../../core/widgets/loading_filled_button.dart';
 import '../../core/widgets/snackbar_utils.dart';
-import '../../core/widgets/status_pill.dart';
-import '../lists/models/daily_list_model.dart';
-import '../lists/providers/admin_list_provider.dart';
-import '../lists/screens/admin_list_entries_screen.dart';
+import '../admin/providers/admin_stats_provider.dart';
+import '../admin/services/admin_stats_service.dart';
 import '../notifications/providers/notification_provider.dart';
 import '../notifications/screens/broadcast_screen.dart';
+import '../warnings/screens/warnings_screen.dart';
+import '../notifications/screens/notifications_inbox_screen.dart';
 import '../notifications/services/notification_service.dart';
 import '../registration/providers/registration_provider.dart';
 import '../registration/screens/registration_approvals_screen.dart';
@@ -24,7 +26,6 @@ import '../reports/services/report_service.dart';
 import '../routes/providers/route_provider.dart';
 import '../routes/screens/routes_screen.dart';
 import '../routes/services/route_service.dart';
-import '../lists/services/list_service.dart';
 import '../users/providers/user_provider.dart';
 import '../users/screens/user_management_screen.dart';
 import '../users/services/user_service.dart';
@@ -38,9 +39,6 @@ class AdminHomeScreen extends StatelessWidget {
     return MultiProvider(
       providers: [
         ChangeNotifierProvider(
-          create: (_) => AdminListProvider(ListService())..load(),
-        ),
-        ChangeNotifierProvider(
           create: (_) => RouteProvider(RouteService())..load(),
         ),
         ChangeNotifierProvider(
@@ -53,240 +51,292 @@ class AdminHomeScreen extends StatelessWidget {
           create: (_) => UserProvider(UserService())..load(),
         ),
         ChangeNotifierProvider(
-          create: (_) => RegistrationProvider(RegistrationService(), InstitutionService())..loadPending(),
+          create: (_) =>
+              RegistrationProvider(RegistrationService(), InstitutionService())
+                ..loadPending(),
+        ),
+        ChangeNotifierProvider(
+          create: (_) => AdminStatsProvider(AdminStatsService())..load(),
         ),
       ],
-      child: const _AdminShell(),
+      child: const _AdminDashboard(),
     );
   }
 }
 
-// ─── Shell do admin com NavigationBar ────────────────────────────────────────
+// ─── Painel do admin (dashboard de cards) ────────────────────────────────────
 
-class _AdminShell extends StatefulWidget {
-  const _AdminShell();
+class _AdminDashboard extends StatelessWidget {
+  const _AdminDashboard();
 
-  @override
-  State<_AdminShell> createState() => _AdminShellState();
-}
+  /// O push sai no Navigator raiz, acima do MultiProvider — sem repassar as
+  /// instâncias, cada tela abriria sem o seu provider.
+  void _open(
+    BuildContext context,
+    String title,
+    Widget child, {
+    List<Widget>? actions,
+  }) {
+    final routeProvider = context.read<RouteProvider>();
+    final reportProvider = context.read<ReportProvider>();
+    final notificationProvider = context.read<NotificationProvider>();
+    final userProvider = context.read<UserProvider>();
+    final registrationProvider = context.read<RegistrationProvider>();
 
-class _AdminShellState extends State<_AdminShell> {
-  int _index = 0;
+    Navigator.push(
+      context,
+      MaterialPageRoute(
+        builder: (_) => MultiProvider(
+          providers: [
+            ChangeNotifierProvider.value(value: routeProvider),
+            ChangeNotifierProvider.value(value: reportProvider),
+            ChangeNotifierProvider.value(value: notificationProvider),
+            ChangeNotifierProvider.value(value: userProvider),
+            ChangeNotifierProvider.value(value: registrationProvider),
+          ],
+          child: Scaffold(
+            appBar: AppBar(title: Text(title), actions: actions),
+            body: child,
+          ),
+        ),
+      ),
+    );
+  }
+
+  Future<void> _refresh(BuildContext context) async {
+    await Future.wait([
+      context.read<RegistrationProvider>().loadPending(),
+      context.read<AdminStatsProvider>().load(),
+    ]);
+  }
 
   @override
   Widget build(BuildContext context) {
+    final auth = context.watch<AuthProvider>();
+    final name = auth.token?.fullName ?? 'Admin';
+    final pending = switch (context.watch<RegistrationProvider>().pending) {
+      AsyncData(:final value) => value.length,
+      _ => 0,
+    };
+
     return Scaffold(
-      appBar: AppBar(
-        title: const Text('Smart Boarding'),
-        actions: [
-          if (_index == 1)
-            IconButton(
-              icon: const Icon(Icons.school_outlined),
-              tooltip: 'Nova instituição',
-              onPressed: () => showDialog<bool>(
-                context: context,
-                builder: (_) => const _CreateInstitutionDialog(),
+      body: Column(
+        children: [
+          AppHeader(
+            overline: 'GESTÃO DE TRANSPORTE',
+            title: 'Painel do Admin',
+            trailing: CircleAvatar(
+              radius: 24,
+              backgroundColor: AppColors.mutedTeal,
+              child: Text(
+                name.isNotEmpty ? name[0].toUpperCase() : 'A',
+                style: const TextStyle(
+                  color: Colors.white,
+                  fontSize: 18,
+                  fontWeight: FontWeight.w700,
+                ),
               ),
             ),
-          if (_index == 5)
-            IconButton(
-              icon: const Icon(Icons.person_add_alt_outlined),
-              tooltip: 'Gerar convite',
-              onPressed: () => showDialog<bool>(
-                context: context,
-                builder: (_) => const _GenerateInviteDialog(),
+          ),
+          Expanded(
+            child: RefreshIndicator(
+              onRefresh: () => _refresh(context),
+              child: ListView(
+                padding: const EdgeInsets.all(20),
+                children: [
+                  AlertCard(
+                    icon: Icons.person_add_alt_1,
+                    title: 'Solicitações',
+                    subtitle: 'Aguardando aprovação',
+                    count: pending,
+                    onTap: () => _open(
+                      context,
+                      'Solicitações de cadastro',
+                      const RegistrationApprovalsScreen(),
+                      actions: [
+                        IconButton(
+                          icon: const Icon(Icons.mail_outline),
+                          tooltip: 'Gerar convite',
+                          onPressed: () => showDialog<void>(
+                            context: context,
+                            builder: (_) => const _GenerateInviteDialog(),
+                          ),
+                        ),
+                      ],
+                    ),
+                  ),
+                  const SizedBox(height: 24),
+                  const SectionTitle('Funcionalidades'),
+                  const SizedBox(height: 12),
+                  GridView.count(
+                    crossAxisCount: 2,
+                    shrinkWrap: true,
+                    physics: const NeverScrollableScrollPhysics(),
+                    crossAxisSpacing: 12,
+                    mainAxisSpacing: 12,
+                    childAspectRatio: 1.25,
+                    children: [
+                      FeatureCard(
+                        icon: Icons.route_outlined,
+                        label: 'Rotas e Listas',
+                        onTap: () => _open(
+                          context,
+                          'Rotas e Listas',
+                          const RoutesScreen(),
+                        ),
+                      ),
+                      FeatureCard(
+                        icon: Icons.campaign_outlined,
+                        label: 'Enviar Aviso',
+                        onTap: () => _open(
+                          context,
+                          'Enviar Aviso',
+                          const BroadcastScreen(),
+                        ),
+                      ),
+                      FeatureCard(
+                        icon: Icons.notifications_none,
+                        label: 'Avisos enviados',
+                        onTap: () => Navigator.push(
+                          context,
+                          MaterialPageRoute(
+                            builder: (_) =>
+                                const NotificationsInboxScreen(canManage: true),
+                          ),
+                        ),
+                      ),
+                      FeatureCard(
+                        icon: Icons.report_gmailerrorred_outlined,
+                        label: 'Advertências',
+                        onTap: () => Navigator.push(
+                          context,
+                          MaterialPageRoute(
+                            builder: (_) =>
+                                const WarningsScreen(canManage: true),
+                          ),
+                        ),
+                      ),
+                      FeatureCard(
+                        icon: Icons.bar_chart_outlined,
+                        label: 'Relatórios',
+                        onTap: () =>
+                            _open(context, 'Relatórios', const ReportsScreen()),
+                      ),
+                      FeatureCard(
+                        icon: Icons.group_outlined,
+                        label: 'Usuários',
+                        onTap: () => _open(
+                          context,
+                          'Usuários',
+                          const UserManagementScreen(),
+                          // Aluno só nasce por convite; sem isto a tela de
+                          // usuários não teria como trazer um.
+                          actions: [
+                            IconButton(
+                              icon: const Icon(Icons.person_add_alt_outlined),
+                              tooltip: 'Convidar aluno',
+                              onPressed: () => showDialog<bool>(
+                                context: context,
+                                builder: (_) => const _GenerateInviteDialog(),
+                              ),
+                            ),
+                          ],
+                        ),
+                      ),
+                    ],
+                  ),
+                  const SizedBox(height: 24),
+                  const SectionTitle('Resumo de Hoje'),
+                  const SizedBox(height: 12),
+                  const _TodaySummary(),
+                  const SizedBox(height: 24),
+                  Center(
+                    child: TextButton(
+                      onPressed: auth.logout,
+                      child: const Text(
+                        'Sair do Painel',
+                        style: TextStyle(
+                          color: AppColors.danger,
+                          fontWeight: FontWeight.w700,
+                          fontSize: 16,
+                        ),
+                      ),
+                    ),
+                  ),
+                ],
               ),
             ),
-          IconButton(
-            icon: const Icon(Icons.logout),
-            tooltip: 'Sair',
-            onPressed: () => context.read<AuthProvider>().logout(),
           ),
         ],
       ),
-      body: IndexedStack(
-        index: _index,
-        children: const [
-          _AdminListsTab(),
-          RoutesScreen(),
-          ReportsScreen(),
-          BroadcastScreen(),
-          UserManagementScreen(),
-          RegistrationApprovalsScreen(),
-        ],
-      ),
-      bottomNavigationBar: NavigationBar(
-        selectedIndex: _index,
-        onDestinationSelected: (i) => setState(() => _index = i),
-        destinations: const [
-          NavigationDestination(
-            icon: Icon(Icons.list_alt_outlined),
-            selectedIcon: Icon(Icons.list_alt),
-            label: 'Listas',
+    );
+  }
+}
+
+class _TodaySummary extends StatelessWidget {
+  const _TodaySummary();
+
+  @override
+  Widget build(BuildContext context) {
+    return Consumer<AdminStatsProvider>(
+      builder: (context, provider, _) {
+        final rows = switch (provider.state) {
+          AsyncData(:final value) => [
+            ('Alunos Ativos', '${value.activeStudents}'),
+            ('Rotas em Uso', '${value.routesInUse}'),
+            ('Ocupação', '${value.occupancyPercent}%'),
+          ],
+          AsyncError() => [('Não foi possível carregar', '—')],
+          _ => [
+            ('Alunos Ativos', '…'),
+            ('Rotas em Uso', '…'),
+            ('Ocupação', '…'),
+          ],
+        };
+        return Container(
+          decoration: BoxDecoration(
+            color: AppColors.charcoal,
+            borderRadius: BorderRadius.circular(AppRadius.card),
           ),
-          NavigationDestination(
-            icon: Icon(Icons.route_outlined),
-            selectedIcon: Icon(Icons.route),
-            label: 'Rotas',
+          padding: const EdgeInsets.symmetric(horizontal: 20, vertical: 6),
+          child: Column(
+            children: [
+              for (var i = 0; i < rows.length; i++) ...[
+                if (i > 0) const Divider(color: Colors.white24, height: 1),
+                Padding(
+                  padding: const EdgeInsets.symmetric(vertical: 16),
+                  child: Row(
+                    children: [
+                      Expanded(
+                        child: Text(
+                          rows[i].$1,
+                          style: const TextStyle(
+                            color: Colors.white70,
+                            fontSize: 15,
+                          ),
+                        ),
+                      ),
+                      Text(
+                        rows[i].$2,
+                        style: const TextStyle(
+                          color: Colors.white,
+                          fontSize: 20,
+                          fontWeight: FontWeight.w800,
+                        ),
+                      ),
+                    ],
+                  ),
+                ),
+              ],
+            ],
           ),
-          NavigationDestination(
-            icon: Icon(Icons.bar_chart_outlined),
-            selectedIcon: Icon(Icons.bar_chart),
-            label: 'Relatórios',
-          ),
-          NavigationDestination(
-            icon: Icon(Icons.campaign_outlined),
-            selectedIcon: Icon(Icons.campaign),
-            label: 'Broadcast',
-          ),
-          NavigationDestination(
-            icon: Icon(Icons.group_outlined),
-            selectedIcon: Icon(Icons.group),
-            label: 'Usuários',
-          ),
-          NavigationDestination(
-            icon: Icon(Icons.how_to_reg_outlined),
-            selectedIcon: Icon(Icons.how_to_reg),
-            label: 'Cadastros',
-          ),
-        ],
-      ),
+        );
+      },
     );
   }
 }
 
 // ─── Tab de listas (admin) ────────────────────────────────────────────────────
-
-class _AdminListsTab extends StatelessWidget {
-  const _AdminListsTab();
-
-  @override
-  Widget build(BuildContext context) {
-    return Consumer<AdminListProvider>(
-      builder: (context, provider, _) => AsyncBuilder(
-        value: provider.state,
-        onRetry: provider.load,
-        builder: (lists) => lists.isEmpty
-            ? const EmptyState(
-                icon: Icons.event_busy,
-                title: 'Nenhuma lista disponível hoje',
-              )
-            : RefreshIndicator(
-                onRefresh: provider.load,
-                child: ListView.separated(
-                  padding: const EdgeInsets.all(16),
-                  itemCount: lists.length,
-                  separatorBuilder: (_, _) => const SizedBox(height: 10),
-                  itemBuilder: (_, i) => _ListTile(list: lists[i]),
-                ),
-              ),
-      ),
-    );
-  }
-}
-
-class _ListTile extends StatelessWidget {
-  final DailyList list;
-  const _ListTile({required this.list});
-
-  @override
-  Widget build(BuildContext context) {
-    return EntityListTile(
-      leading: CircleAvatar(
-        backgroundColor: list.isOpen
-            ? Colors.green.shade50
-            : Colors.grey.shade100,
-        child: Icon(
-          Icons.people_alt_outlined,
-          color: list.isOpen ? Colors.green : Colors.grey,
-        ),
-      ),
-      title: list.routeName,
-      subtitle: Text(
-        '${list.totalEntries} inscrito(s) · ${formatDate(list.date)}',
-      ),
-      trailing: StatusPill(
-        label: list.isOpen ? 'Aberta' : 'Fechada',
-        tone: list.isOpen ? StatusPillTone.positive : StatusPillTone.neutral,
-      ),
-      onTap: () => Navigator.push(
-        context,
-        MaterialPageRoute(builder: (_) => AdminListEntriesScreen(list: list)),
-      ),
-    );
-  }
-}
-
-// ─── Diálogo de criar instituição (mínimo pro dropdown do cadastro) ──────────
-
-class _CreateInstitutionDialog extends StatefulWidget {
-  const _CreateInstitutionDialog();
-
-  @override
-  State<_CreateInstitutionDialog> createState() => _CreateInstitutionDialogState();
-}
-
-class _CreateInstitutionDialogState extends State<_CreateInstitutionDialog> {
-  final _formKey = GlobalKey<FormState>();
-  final _nameCtrl = TextEditingController();
-  final _addressCtrl = TextEditingController();
-  final _service = InstitutionService();
-  bool _loading = false;
-
-  @override
-  void dispose() {
-    _nameCtrl.dispose();
-    _addressCtrl.dispose();
-    super.dispose();
-  }
-
-  Future<void> _submit() async {
-    if (!_formKey.currentState!.validate()) return;
-    setState(() => _loading = true);
-    try {
-      await _service.createInstitution(
-        _nameCtrl.text.trim(),
-        _addressCtrl.text.trim(),
-        null,
-        null,
-      );
-      if (mounted) Navigator.pop(context, true);
-    } catch (e) {
-      if (mounted) showErrorSnackBar(context, 'Falha ao criar instituição: $e');
-    } finally {
-      if (mounted) setState(() => _loading = false);
-    }
-  }
-
-  @override
-  Widget build(BuildContext context) {
-    return AlertDialog(
-      title: const Text('Nova instituição'),
-      content: Form(
-        key: _formKey,
-        child: Column(
-          mainAxisSize: MainAxisSize.min,
-          children: [
-            TextFormField(
-              controller: _nameCtrl,
-              decoration: const InputDecoration(labelText: 'Nome'),
-              validator: (v) => (v == null || v.isEmpty) ? 'Informe o nome' : null,
-            ),
-            const SizedBox(height: 12),
-            TextFormField(
-              controller: _addressCtrl,
-              decoration: const InputDecoration(labelText: 'Endereço (opcional)'),
-            ),
-          ],
-        ),
-      ),
-      actions: [
-        TextButton(onPressed: () => Navigator.pop(context, false), child: const Text('Cancelar')),
-        LoadingFilledButton(loading: _loading, onPressed: _submit, label: 'Criar'),
-      ],
-    );
-  }
-}
 
 // ─── Diálogo de gerar convite (aba Cadastros) ────────────────────────────────
 
@@ -319,7 +369,7 @@ class _GenerateInviteDialogState extends State<_GenerateInviteDialog> {
         Navigator.pop(context, true);
       }
     } catch (e) {
-      if (mounted) showErrorSnackBar(context, 'Falha ao gerar convite: $e');
+      if (mounted) showErrorSnackBar(context, AppException.fromError(e));
     } finally {
       if (mounted) setState(() => _loading = false);
     }
@@ -335,12 +385,20 @@ class _GenerateInviteDialogState extends State<_GenerateInviteDialog> {
           controller: _emailCtrl,
           decoration: const InputDecoration(labelText: 'E-mail'),
           keyboardType: TextInputType.emailAddress,
-          validator: (v) => (v == null || !v.contains('@')) ? 'E-mail inválido' : null,
+          validator: (v) =>
+              (v == null || !v.contains('@')) ? 'E-mail inválido' : null,
         ),
       ),
       actions: [
-        TextButton(onPressed: () => Navigator.pop(context, false), child: const Text('Cancelar')),
-        LoadingFilledButton(loading: _loading, onPressed: _submit, label: 'Gerar convite'),
+        TextButton(
+          onPressed: () => Navigator.pop(context, false),
+          child: const Text('Cancelar'),
+        ),
+        LoadingFilledButton(
+          loading: _loading,
+          onPressed: _submit,
+          label: 'Gerar convite',
+        ),
       ],
     );
   }
