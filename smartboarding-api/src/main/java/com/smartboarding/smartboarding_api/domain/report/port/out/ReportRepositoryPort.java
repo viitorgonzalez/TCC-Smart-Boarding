@@ -11,4 +11,5 @@ public interface ReportRepositoryPort {
     Report save(Report report);
     Optional<Report> findById(UUID id);
     Page<Report> findAll(Pageable pageable);
+    Optional<Report> findByDailyListId(UUID dailyListId);
 }

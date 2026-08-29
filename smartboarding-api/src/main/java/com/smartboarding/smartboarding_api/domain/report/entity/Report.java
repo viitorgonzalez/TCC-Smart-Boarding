@@ -33,6 +33,15 @@ public class Report {
     @Column(name = "snapshot_data", columnDefinition = "TEXT")
     private String snapshotData;
 
+    /// JSON dos veículos propostos pelo algoritmo guloso da RN16.
+    @Column(name = "proposed_vehicles", columnDefinition = "TEXT")
+    private String proposedVehicles;
+
+    /// Quantos inscritos ficaram sem lugar; 0 = frota cobre todo mundo.
+    @Column(name = "capacity_shortfall", nullable = false)
+    @Builder.Default
+    private int capacityShortfall = 0;
+
     @PrePersist
     void onCreate() {
         generatedAt = LocalDateTime.now();
