@@ -44,8 +44,9 @@ class _RegisterScreenState extends State<RegisterScreen> {
   }
 
   Future<void> _submit() async {
-    if (!_formKey.currentState!.validate() || _selectedInstitutionId == null)
+    if (!_formKey.currentState!.validate() || _selectedInstitutionId == null) {
       return;
+    }
     final provider = context.read<RegistrationProvider>();
     await provider.submit(
       token: widget.token,
