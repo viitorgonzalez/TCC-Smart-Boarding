@@ -3,7 +3,6 @@ import 'package:provider/provider.dart';
 import '../../../core/widgets/loading_filled_button.dart';
 import '../../../core/widgets/snackbar_utils.dart';
 import '../providers/user_provider.dart';
-import 'role_meta.dart';
 
 class CreateUserForm extends StatefulWidget {
   const CreateUserForm({super.key});
@@ -17,7 +16,6 @@ class _CreateUserFormState extends State<CreateUserForm> {
   final _nameCtrl = TextEditingController();
   final _emailCtrl = TextEditingController();
   final _passCtrl = TextEditingController();
-  String _role = 'STUDENT';
   bool _saving = false;
 
   @override
@@ -36,12 +34,12 @@ class _CreateUserFormState extends State<CreateUserForm> {
         fullName: _nameCtrl.text.trim(),
         email: _emailCtrl.text.trim(),
         password: _passCtrl.text,
-        role: _role,
+        role: 'ADMIN',
       );
       if (!mounted) return;
       Navigator.pop(context);
       ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(content: Text('Usuário criado com sucesso.')),
+        const SnackBar(content: Text('Administrador criado com sucesso.')),
       );
     } catch (e) {
       if (!mounted) return;
@@ -66,7 +64,16 @@ class _CreateUserFormState extends State<CreateUserForm> {
           mainAxisSize: MainAxisSize.min,
           crossAxisAlignment: CrossAxisAlignment.stretch,
           children: [
-            Text('Novo usuário', style: Theme.of(context).textTheme.titleLarge),
+            Text(
+              'Novo administrador',
+              style: Theme.of(context).textTheme.titleLarge,
+            ),
+            const SizedBox(height: 8),
+            Text(
+              'Aluno não é criado por aqui: ele entra pelo convite e precisa da '
+              'sua aprovação.',
+              style: Theme.of(context).textTheme.bodySmall,
+            ),
             const SizedBox(height: 16),
             TextFormField(
               controller: _nameCtrl,
@@ -90,31 +97,11 @@ class _CreateUserFormState extends State<CreateUserForm> {
               validator: (v) =>
                   (v == null || v.length < 6) ? 'Mínimo 6 caracteres' : null,
             ),
-            const SizedBox(height: 12),
-            DropdownButtonFormField<String>(
-              initialValue: _role,
-              decoration: const InputDecoration(labelText: 'Papel'),
-              items: roleHierarchy
-                  .map(
-                    (r) => DropdownMenuItem(
-                      value: r,
-                      child: Row(
-                        children: [
-                          Icon(metaFor(r).icon, size: 18),
-                          const SizedBox(width: 8),
-                          Text(metaFor(r).singular),
-                        ],
-                      ),
-                    ),
-                  )
-                  .toList(),
-              onChanged: (r) => setState(() => _role = r ?? 'STUDENT'),
-            ),
             const SizedBox(height: 24),
             LoadingFilledButton(
               loading: _saving,
               onPressed: _submit,
-              label: 'Criar usuário',
+              label: 'Criar administrador',
             ),
           ],
         ),
