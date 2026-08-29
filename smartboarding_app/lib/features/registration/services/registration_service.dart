@@ -49,7 +49,9 @@ class RegistrationService {
     final response = await _dio.get('/api/registration/pending');
     final List data = response.data['data'] as List;
     return data
-        .map((e) => RegistrationRequestModel.fromJson(e as Map<String, dynamic>))
+        .map(
+          (e) => RegistrationRequestModel.fromJson(e as Map<String, dynamic>),
+        )
         .toList();
   }
 

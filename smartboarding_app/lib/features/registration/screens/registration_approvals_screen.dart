@@ -11,14 +11,24 @@ import '../providers/registration_provider.dart';
 class RegistrationApprovalsScreen extends StatelessWidget {
   const RegistrationApprovalsScreen({super.key});
 
-  Future<void> _confirmAndAct(BuildContext context, String id, {required bool approve}) async {
+  Future<void> _confirmAndAct(
+    BuildContext context,
+    String id, {
+    required bool approve,
+  }) async {
     final confirmed = await showDialog<bool>(
       context: context,
       builder: (context) => AlertDialog(
         title: Text(approve ? 'Aprovar cadastro?' : 'Negar cadastro?'),
         actions: [
-          TextButton(onPressed: () => Navigator.pop(context, false), child: const Text('Cancelar')),
-          TextButton(onPressed: () => Navigator.pop(context, true), child: const Text('Confirmar')),
+          TextButton(
+            onPressed: () => Navigator.pop(context, false),
+            child: const Text('Cancelar'),
+          ),
+          TextButton(
+            onPressed: () => Navigator.pop(context, true),
+            child: const Text('Confirmar'),
+          ),
         ],
       ),
     );
@@ -31,7 +41,10 @@ class RegistrationApprovalsScreen extends StatelessWidget {
         await provider.reject(id);
       }
       if (context.mounted) {
-        showSuccessSnackBar(context, approve ? 'Cadastro aprovado' : 'Cadastro negado');
+        showSuccessSnackBar(
+          context,
+          approve ? 'Cadastro aprovado' : 'Cadastro negado',
+        );
       }
     } catch (e) {
       if (context.mounted) showErrorSnackBar(context, e.toString());
@@ -46,38 +59,50 @@ class RegistrationApprovalsScreen extends StatelessWidget {
           return switch (provider.pending) {
             AsyncLoading() => const Center(child: CircularProgressIndicator()),
             AsyncError(:final message) => Center(child: Text(message)),
-            AsyncData(:final value) when value.isEmpty =>
-              const Center(child: Text('Nenhuma solicitação pendente')),
+            AsyncData(:final value) when value.isEmpty => const Center(
+              child: Text('Nenhuma solicitação pendente'),
+            ),
             AsyncData(:final value) => ListView.builder(
-                itemCount: value.length,
-                itemBuilder: (context, index) {
-                  final item = value[index];
-                  return Card(
-                    margin: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
-                    child: ListTile(
-                      title: Text(item.fullName ?? item.email),
-                      subtitle: Text(
-                        item.institutionName != null
-                            ? '${item.email} · ${item.institutionName}'
-                            : item.email,
-                      ),
-                      trailing: Row(
-                        mainAxisSize: MainAxisSize.min,
-                        children: [
-                          IconButton(
-                            icon: const Icon(Icons.check_circle_outline, color: Colors.green),
-                            onPressed: () => _confirmAndAct(context, item.id, approve: true),
-                          ),
-                          IconButton(
-                            icon: const Icon(Icons.cancel_outlined, color: Colors.red),
-                            onPressed: () => _confirmAndAct(context, item.id, approve: false),
-                          ),
-                        ],
-                      ),
+              itemCount: value.length,
+              itemBuilder: (context, index) {
+                final item = value[index];
+                return Card(
+                  margin: const EdgeInsets.symmetric(
+                    horizontal: 16,
+                    vertical: 8,
+                  ),
+                  child: ListTile(
+                    title: Text(item.fullName ?? item.email),
+                    subtitle: Text(
+                      item.institutionName != null
+                          ? '${item.email} · ${item.institutionName}'
+                          : item.email,
                     ),
-                  );
-                },
-              ),
+                    trailing: Row(
+                      mainAxisSize: MainAxisSize.min,
+                      children: [
+                        IconButton(
+                          icon: const Icon(
+                            Icons.check_circle_outline,
+                            color: Colors.green,
+                          ),
+                          onPressed: () =>
+                              _confirmAndAct(context, item.id, approve: true),
+                        ),
+                        IconButton(
+                          icon: const Icon(
+                            Icons.cancel_outlined,
+                            color: Colors.red,
+                          ),
+                          onPressed: () =>
+                              _confirmAndAct(context, item.id, approve: false),
+                        ),
+                      ],
+                    ),
+                  ),
+                );
+              },
+            ),
           };
         },
       ),

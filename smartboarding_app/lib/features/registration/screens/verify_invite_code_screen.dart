@@ -36,12 +36,18 @@ class _VerifyInviteCodeScreenState extends State<VerifyInviteCodeScreen> {
     if (!_formKey.currentState!.validate()) return;
     setState(() => _loading = true);
     try {
-      final token = await _service.verifyCode(_emailCtrl.text.trim(), _codeCtrl.text.trim());
+      final token = await _service.verifyCode(
+        _emailCtrl.text.trim(),
+        _codeCtrl.text.trim(),
+      );
       if (!mounted) return;
       Navigator.of(context).push(
         MaterialPageRoute(
           builder: (_) => ChangeNotifierProvider(
-            create: (_) => RegistrationProvider(RegistrationService(), InstitutionService()),
+            create: (_) => RegistrationProvider(
+              RegistrationService(),
+              InstitutionService(),
+            ),
             child: RegisterScreen(token: token),
           ),
         ),
@@ -72,17 +78,27 @@ class _VerifyInviteCodeScreenState extends State<VerifyInviteCodeScreen> {
                 const SizedBox(height: 24),
                 TextFormField(
                   controller: _emailCtrl,
-                  decoration: const InputDecoration(labelText: 'E-mail', border: OutlineInputBorder()),
+                  decoration: const InputDecoration(
+                    labelText: 'E-mail',
+                    border: OutlineInputBorder(),
+                  ),
                   keyboardType: TextInputType.emailAddress,
-                  validator: (v) => (v == null || !v.contains('@')) ? 'E-mail inválido' : null,
+                  validator: (v) => (v == null || !v.contains('@'))
+                      ? 'E-mail inválido'
+                      : null,
                 ),
                 const SizedBox(height: 16),
                 TextFormField(
                   controller: _codeCtrl,
-                  decoration: const InputDecoration(labelText: 'Código', border: OutlineInputBorder()),
+                  decoration: const InputDecoration(
+                    labelText: 'Código',
+                    border: OutlineInputBorder(),
+                  ),
                   keyboardType: TextInputType.number,
                   maxLength: 6,
-                  validator: (v) => (v == null || v.length != 6) ? 'Informe os 6 dígitos' : null,
+                  validator: (v) => (v == null || v.length != 6)
+                      ? 'Informe os 6 dígitos'
+                      : null,
                 ),
                 const SizedBox(height: 8),
                 LoadingFilledButton(
