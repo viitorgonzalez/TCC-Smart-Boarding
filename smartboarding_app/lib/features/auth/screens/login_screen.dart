@@ -117,7 +117,9 @@ class _LoginScreenState extends State<LoginScreen> {
                 const SizedBox(height: 12),
                 TextButton(
                   onPressed: () => Navigator.of(context).push(
-                    MaterialPageRoute(builder: (_) => const VerifyInviteCodeScreen()),
+                    MaterialPageRoute(
+                      builder: (_) => const VerifyInviteCodeScreen(),
+                    ),
                   ),
                   child: const Text('Tenho um convite'),
                 ),

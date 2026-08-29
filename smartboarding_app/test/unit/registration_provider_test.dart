@@ -8,6 +8,7 @@ import 'package:smartboarding_app/features/registration/services/institution_ser
 import 'package:smartboarding_app/features/registration/services/registration_service.dart';
 
 class _MockRegistrationService extends Mock implements RegistrationService {}
+
 class _MockInstitutionService extends Mock implements InstitutionService {}
 
 void main() {
@@ -34,7 +35,11 @@ void main() {
   test('loadPending popula a lista de pendentes', () async {
     when(() => registrationService.getPending()).thenAnswer(
       (_) async => const [
-        RegistrationRequestModel(id: '1', email: 'a@x.com', createdAt: '2026-08-20'),
+        RegistrationRequestModel(
+          id: '1',
+          email: 'a@x.com',
+          createdAt: '2026-08-20',
+        ),
       ],
     );
 
@@ -45,7 +50,9 @@ void main() {
 
   test('approve chama o service e recarrega pendentes', () async {
     when(() => registrationService.approve('1')).thenAnswer((_) async {});
-    when(() => registrationService.getPending()).thenAnswer((_) async => const []);
+    when(
+      () => registrationService.getPending(),
+    ).thenAnswer((_) async => const []);
 
     await provider.approve('1');
 
@@ -55,7 +62,9 @@ void main() {
 
   test('reject chama o service e recarrega pendentes', () async {
     when(() => registrationService.reject('1')).thenAnswer((_) async {});
-    when(() => registrationService.getPending()).thenAnswer((_) async => const []);
+    when(
+      () => registrationService.getPending(),
+    ).thenAnswer((_) async => const []);
 
     await provider.reject('1');
 
@@ -64,18 +73,25 @@ void main() {
   });
 
   test('submit propaga erro como AppException legível', () async {
-    when(() => registrationService.submit(
-          token: any(named: 'token'),
-          fullName: any(named: 'fullName'),
-          password: any(named: 'password'),
-          institutionId: any(named: 'institutionId'),
-          course: any(named: 'course'),
-          phone: any(named: 'phone'),
-          address: any(named: 'address'),
-          birthDate: any(named: 'birthDate'),
-        )).thenThrow(Exception('falhou'));
+    when(
+      () => registrationService.submit(
+        token: any(named: 'token'),
+        fullName: any(named: 'fullName'),
+        password: any(named: 'password'),
+        institutionId: any(named: 'institutionId'),
+        course: any(named: 'course'),
+        phone: any(named: 'phone'),
+        address: any(named: 'address'),
+        birthDate: any(named: 'birthDate'),
+      ),
+    ).thenThrow(Exception('falhou'));
 
-    await provider.submit(token: 't', fullName: 'Maria', password: '123456', institutionId: 'inst-1');
+    await provider.submit(
+      token: 't',
+      fullName: 'Maria',
+      password: '123456',
+      institutionId: 'inst-1',
+    );
 
     expect(provider.submitState, isA<AsyncError>());
   });
