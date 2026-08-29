@@ -29,6 +29,14 @@ public class RouteUseCaseImpl implements CreateRouteUseCase, FindRouteUseCase,
     @Override
     @Transactional
     public Route execute(Route route) {
+        // @Builder.Default não protege contra um null explícito vindo do request:
+        // sem isso, criar rota sem informar horário violaria o NOT NULL da coluna.
+        if (route.getOpenTime() == null) {
+            route.setOpenTime(Route.DEFAULT_OPEN_TIME);
+        }
+        if (route.getCloseTime() == null) {
+            route.setCloseTime(Route.DEFAULT_CLOSE_TIME);
+        }
         if (routeRepository.existsByName(route.getName())) {
             throw new ConflictException("ROUTE_ALREADY_EXISTS", "Rota já cadastrada: " + route.getName());
         }
@@ -57,6 +65,12 @@ public class RouteUseCaseImpl implements CreateRouteUseCase, FindRouteUseCase,
         }
         existing.setName(route.getName());
         existing.setDescription(route.getDescription());
+        if (route.getOpenTime() != null) {
+            existing.setOpenTime(route.getOpenTime());
+        }
+        if (route.getCloseTime() != null) {
+            existing.setCloseTime(route.getCloseTime());
+        }
         return routeRepository.save(existing);
     }
 
