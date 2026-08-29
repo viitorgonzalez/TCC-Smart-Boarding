@@ -1,0 +1,15 @@
+# Sem este arquivo o CodeRabbit revisa só PRs cuja base é a branch default, e
+# toda PR empilhada volta "Review skipped: reviews are disabled for this base
+# branch". O trabalho grande chega em PRs encadeadas, então as bases de feature
+# também precisam ser revisáveis.
+language: pt-BR
+
+reviews:
+  base_branches:
+    - main
+    - fix/project-setup
+    - "feature/.*"
+  auto_review:
+    enabled: true
+    drafts: false
+  poem: false
