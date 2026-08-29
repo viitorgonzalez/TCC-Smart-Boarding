@@ -10,4 +10,5 @@ public interface InstitutionRepositoryPort {
     Institution save(Institution institution);
     Optional<Institution> findById(UUID id);
     List<Institution> findAll();
+    void deleteById(UUID id);
 }

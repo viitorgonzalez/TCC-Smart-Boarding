@@ -16,7 +16,11 @@ diff=$(git diff --cached --diff-filter=ACM -U0 -- \
 # sem \b antes do nome — precisa casar JWT_SECRET, DB_PASSWORD etc, não só "secret" isolado.
 pattern='(?i)[a-z0-9_]*(secret|password|senha|token|api[_-]?key|access[_-]?key)[a-z0-9_]*\s*[:=]\s*["'"'"']?[A-Za-z0-9_\-\/+=]{16,}["'"'"']?'
 
-hit=$(echo "$diff" | grep -P '^\+' | grep -viP '\$\{|env\.|getenv|System\.getenv|process\.env|--dart-define' | grep -P "$pattern" || true)
+# Chamada de construtor/função não é literal: sem isto,
+# `final _passwordCtrl = TextEditingController();` é lido como segredo.
+call_assign='[:=]\s*[A-Za-z_][A-Za-z0-9_.<>]*\s*\('
+
+hit=$(echo "$diff" | grep -P '^\+' | grep -viP '\$\{|env\.|getenv|System\.getenv|process\.env|--dart-define' | grep -viP "$call_assign" | grep -P "$pattern" || true)
 
 if [ -n "$hit" ]; then
   echo "pre-commit: possível segredo hardcoded no diff:" >&2

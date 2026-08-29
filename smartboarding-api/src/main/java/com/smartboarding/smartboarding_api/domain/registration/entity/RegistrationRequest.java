@@ -64,6 +64,9 @@ public class RegistrationRequest {
     @Column(name = "birth_date")
     private LocalDate birthDate;
 
+    @Column(name = "rejection_reason", columnDefinition = "TEXT")
+    private String rejectionReason;
+
     @Column(name = "created_at", updatable = false)
     private LocalDateTime createdAt;
 

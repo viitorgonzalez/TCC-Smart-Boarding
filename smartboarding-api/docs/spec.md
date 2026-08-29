@@ -110,11 +110,16 @@ Contextos (`<contexto>`): `user`, `route`, `institution`, `vehicle`, `stop`, `li
 - **Abertura**: às 00:00 (seg-sex), cron único e global — para cada `Route` ativa sem
   `DailyList` do dia, cria uma com `status=OPEN`. Se pelo menos uma lista foi criada, dispara
   broadcast FCM avisando que a lista do dia está disponível.
-- **Fechamento**: por rota, não global — cada rota tem seu próprio `closeTime` (default 16:00,
-  editável pelo admin). O agendamento de fechamento é dinâmico (`TaskScheduler`/`ScheduledFuture`
-  por rota), criado quando a lista do dia abre e recriado sempre que o admin edita o `closeTime`.
-  No restart do servidor, os agendamentos são reconstruídos a partir das `DailyList` `OPEN` do
-  dia (se o horário já passou no momento do restart, o fechamento roda imediatamente).
+- **Fechamento**: por rota, não global — cada rota tem seu próprio `closeTime` (`routes.close_time`,
+  default 16:00, editável pelo admin via `PATCH /api/routes/{id}`).
+  **Implementado como varredura periódica** (`@Scheduled` a cada 5 min) que fecha toda `DailyList`
+  `OPEN` de hoje cujo `closeTime` já passou — não como `TaskScheduler`/`ScheduledFuture` por rota.
+  A varredura dá de graça o requisito de recuperar fechamento atrasado após restart, sem precisar
+  reconstruir agendamentos, ao custo de fechar com atraso de até 5 min.
+- **A inscrição não depende do agendador.** `add`/`remove` validam contra o relógio (data de hoje
+  + `closeTime` da rota), não contra a flag `status`. Sem isso, uma janela em que o agendador não
+  rodou (API fora do ar no horário, restart, deploy) deixaria a lista `OPEN` e aceitando inscrição
+  fora de hora — que foi exatamente o bug observado em 28/08/2026.
 - `openTime` é sempre 00:00, fixo — não é um campo editável (só o fechamento varia entre rotas).
 
 ---
@@ -148,7 +153,23 @@ Contextos (`<contexto>`): `user`, `route`, `institution`, `vehicle`, `stop`, `li
   escolhida no cadastro — o aluno nunca escolhe rota diretamente. Desativar uma rota desvincula
   automaticamente todas as instituições ligadas a ela, que ficam livres pra serem vinculadas a
   outra rota depois.
-- **RN18** — `Route.closeTime` é editável pelo `ADMIN` (ver §3.5).
+- **RN18** — `Route.openTime` e `Route.closeTime` são editáveis pelo `ADMIN`, mas só pelo endpoint
+  próprio `PATCH /api/routes/{id}/schedule`, que **exige motivo** e avisa a rota. Uma varredura a
+  cada minuto abre e fecha a lista do dia de cada rota nesses horários — segunda a sexta — e cada
+  abertura/fechamento automático grava um aviso na caixa da rota. Uma rota tem **no máximo uma
+  lista por data** (`409 LIST_ALREADY_EXISTS`).
+- **RN24** — Abrir ou fechar a lista fora do horário configurado é permitido ao `ADMIN`, mas exige
+  um motivo (`400 REASON_REQUIRED` sem ele). O motivo vira o corpo de uma notificação enviada a
+  todos os alunos da rota — não é opcional: quem depende do transporte precisa saber da mudança.
+  A decisão manual **vence a varredura** no mesmo dia (`daily_lists.manual_override`): sem isso,
+  reabrir depois do `closeTime` durava até o próximo tique. Lista de dia passado fecha mesmo com
+  override — o dia do admin acabou.
+- **RN26** — O `ADMIN` pode incluir um aluno na lista **mesmo fechada**
+  (`POST /api/lists/{id}/entries/admin`), porque às vezes ele realmente vai embarcar. A inclusão
+  pode gerar uma **advertência** ao aluno — colocar o nome no prazo é responsabilidade dele —, mas
+  emitir é **escolha do admin** (`issueWarning`): nem todo atraso é falta do aluno (ônibus
+  adiantado, problema no app, decisão da coordenação). O aluno vê só as próprias
+  (`GET /api/warnings/me`); o admin vê todas e pode remover as aplicadas por engano.
 - **RN19** — Editar qualquer regra de uma rota (horário de fechamento, instituições vinculadas,
   paradas, veículos) dispara uma notificação automática pros usuários vinculados àquela rota —
   texto gerado pelo sistema, não pelo admin.
@@ -174,7 +195,8 @@ Contextos (`<contexto>`): `user`, `route`, `institution`, `vehicle`, `stop`, `li
 - **RN2** — Lista fecha automaticamente no `closeTime` da rota (ver §3.5): `status=CLOSED`,
   `closedAt=now()`, gera relatório (snapshot dos inscritos ativos + veículo proposto) e dispara
   notificação FCM aos inscritos.
-- **RN3** — Entrar/sair de uma lista só é permitido com `status=OPEN` — fora disso, erro
+- **RN3** — Entrar/sair de uma lista só é permitido com `status=OPEN`, **na lista de hoje e antes
+  do `closeTime` da rota** (as três condições são checadas no use case, não só a flag) — fora disso, erro
   `LIST_CLOSED`.
 - **RN4** — Uma inscrição por (usuário, lista) — reentrar numa lista onde o usuário já tem
   inscrição **reativa** o registro existente (idempotente, não gera conflito) e atualiza o
@@ -206,6 +228,11 @@ Contextos (`<contexto>`): `user`, `route`, `institution`, `vehicle`, `stop`, `li
   R2 (client S3-compatible) e guarda a URL pública. O payload do push FCM em si carrega só título
   e corpo — a imagem não vai no push (evitaria depender de processamento nativo específico por
   plataforma no cliente); ela aparece quando o destinatário abre o histórico no app.
+
+- **RN25** — `ScheduledNotification` é um aviso recorrente de uma rota, cadastrado pelo `ADMIN`
+  com frequência (`DAILY`/`WEEKDAYS`/`WEEKLY`), horário de envio e validade opcional em horas. A
+  mesma varredura de 5 min despacha os que estão vencidos, no máximo **um envio por dia** por
+  aviso (`lastSentAt`). Pode ser pausado sem perder o cadastro.
 
 ### 4.7 Trajeto
 
@@ -269,6 +296,14 @@ Contextos (`<contexto>`): `user`, `route`, `institution`, `vehicle`, `stop`, `li
 | POST | `/api/routes` | ADMIN | `{name, description?}` | `RouteResponse` | `409` nome duplicado |
 | GET | `/api/routes` | Público | — | `RouteResponse[]` (só ativas) | — |
 | GET | `/api/routes/{id}` | Público | — | `RouteResponse` | `404` |
+| GET | `/api/routes/{id}/stops` | Autenticado | — | `StopResponse[]` (ordenadas) | — |
+| POST | `/api/routes/{id}/stops` | ADMIN | `{name, latitude?, longitude?, sequence?}` | `StopResponse` | `400` |
+| DELETE | `/api/routes/{id}/stops/{stopId}` | ADMIN | — | `success` | — |
+| GET | `/api/routes/{id}/vehicles` | ADMIN | — | `VehicleResponse[]` | — |
+| POST | `/api/routes/{id}/vehicles` | ADMIN | `{label, capacity}` | `VehicleResponse` | `400` |
+| DELETE | `/api/routes/{id}/vehicles/{vehicleId}` | ADMIN | — | `success` | — |
+| PATCH | `/api/institutions/{id}/route` | ADMIN | `{routeId?}` | `InstitutionResponse` | `404`, `409 INSTITUTION_ALREADY_LINKED` |
+| GET | `/api/admin/stats` | ADMIN | — | `{activeStudents, routesInUse, occupancyPercent}` | — |
 | PATCH | `/api/routes/{id}` | ADMIN | `{name?, description?, closeTime?}` | `RouteResponse` | `404`, `409` nome duplicado |
 | DELETE | `/api/routes/{id}` | ADMIN | — | `{success:true}` (soft-delete) | `404` |
 | CRUD | `/api/institutions` | ADMIN (write) / Autenticado (read) | `{name, address, latitude, longitude, routeId?}` | `Institution[]` / `Institution` | `409 INSTITUTION_ALREADY_LINKED` |
@@ -362,3 +397,36 @@ Contextos (`<contexto>`): `user`, `route`, `institution`, `vehicle`, `stop`, `li
 - Não passar de 300 linhas por arquivo `.java` tocado num PR (§9).
 - Não mergear na `main` uma integração externa só testada localmente/mockada (§8).
 - Não bloquear a notificação de trajeto por status de lista fechada (§4.7).
+
+---
+
+## 8. Estado de implementação (2026-08-28)
+
+Registro do que saiu do papel nesta rodada, pra a spec não descrever intenção como se fosse
+comportamento.
+
+### Implementado
+
+- **RN15 — rota derivada da instituição.** `institutions.route_id` e `users.institution_id`
+  (a coluna de texto `users.institution` foi substituída pela referência). Uma rota atende
+  **várias** instituições: em Formiga, IFMG e UNIFOR-MG dividem o mesmo transporte e a mesma
+  lista. `GET /api/lists/today` filtra pela rota derivada quando o solicitante é `STUDENT`, e
+  `POST /entries` recusa lista de outra rota (`400 ROUTE_NOT_ALLOWED`) — filtrar só na listagem
+  deixaria a API aceitando um POST direto.
+- **RN16 — veículo proposto.** Algoritmo guloso em `VehicleAllocator`, aplicado no fechamento e
+  persistido em `reports.proposed_vehicles` / `reports.capacity_shortfall`. Capacidade **não** é
+  teto de inscrição: é o que decide o transporte depois que o total de confirmados é conhecido.
+- **RN18 — `openTime`/`closeTime` por rota**, editáveis, com varredura periódica de 5 min que
+  abre e fecha a lista do dia.
+- **RN24 — abrir/fechar manual com motivo obrigatório**, que vira notificação pra rota, e que a
+  varredura respeita até o dia virar.
+- **RN26 — inclusão tardia pelo admin** com advertência opcional (`warnings`).
+- **RN25 — avisos recorrentes por rota** (`scheduled_notifications`), despachados pela varredura.
+- Paradas (`stops`) com coordenadas, exibidas em mapa OpenStreetMap no app.
+
+### Ainda não implementado
+
+- Instituição sem rota vinculada deixa o aluno sem nenhuma lista visível. O comportamento é
+  intencional (melhor que ver transporte alheio), mas não há aviso na tela explicando o motivo.
+- Fuso: o servidor usa `app.timezone` (default `America/Sao_Paulo`); o app usa a hora do
+  aparelho. Divergência entre os dois desalinha o countdown da tela com a decisão da API.

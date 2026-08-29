@@ -7,7 +7,8 @@ import java.time.LocalDateTime;
 import java.util.UUID;
 
 public record ReportSummaryResponse(UUID id, UUID dailyListId, LocalDate listDate, String routeName,
-                                    int totalEntries, LocalDateTime generatedAt) {
+                                    int totalEntries, LocalDateTime generatedAt,
+                                    String proposedVehicles, int capacityShortfall) {
     public static ReportSummaryResponse from(Report report) {
         return new ReportSummaryResponse(
                 report.getId(),
@@ -15,7 +16,9 @@ public record ReportSummaryResponse(UUID id, UUID dailyListId, LocalDate listDat
                 report.getDailyList().getDate(),
                 report.getDailyList().getRoute().getName(),
                 report.getTotalEntries(),
-                report.getGeneratedAt()
+                report.getGeneratedAt(),
+                report.getProposedVehicles(),
+                report.getCapacityShortfall()
         );
     }
 }

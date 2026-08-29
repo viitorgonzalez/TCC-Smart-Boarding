@@ -10,5 +10,7 @@ import java.util.UUID;
 
 public interface DailyListJpaRepository extends JpaRepository<DailyList, UUID> {
     List<DailyList> findAllByDateAndStatus(LocalDate date, ListStatus status);
+    List<DailyList> findAllByStatus(ListStatus status);
+    List<DailyList> findAllByDate(LocalDate date);
     boolean existsByRouteIdAndDate(UUID routeId, LocalDate date);
 }

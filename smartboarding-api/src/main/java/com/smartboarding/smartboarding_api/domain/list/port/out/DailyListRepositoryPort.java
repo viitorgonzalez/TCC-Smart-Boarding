@@ -12,5 +12,8 @@ public interface DailyListRepositoryPort {
     DailyList save(DailyList dailyList);
     Optional<DailyList> findById(UUID id);
     List<DailyList> findAllByDateAndStatus(LocalDate date, ListStatus status);
+    List<DailyList> findAllByStatus(ListStatus status);
+    List<DailyList> findAllByDate(LocalDate date);
     boolean existsByRouteIdAndDate(UUID routeId, LocalDate date);
+    void deleteById(UUID id);
 }

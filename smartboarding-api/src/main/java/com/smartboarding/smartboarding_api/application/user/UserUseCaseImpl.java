@@ -19,6 +19,11 @@ public class UserUseCaseImpl implements FindUserUseCase {
     }
 
     @Override
+    public List<User> findByRoute(UUID routeId) {
+        return userRepository.findByRouteId(routeId);
+    }
+
+    @Override
     public List<User> findAll() {
         return userRepository.findAll();
     }

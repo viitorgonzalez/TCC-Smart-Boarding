@@ -102,9 +102,12 @@ flutter build apk --release
 
 Resumo — detalhe e numeração (RN1…) em `docs/spec.md` §3.
 
-1. Listas abrem às **00:00** (seg-sex) e fecham às **16:00** automaticamente via scheduler
-2. Entre **16:01–23:59** não há lista ativa — inscrição bloqueada (`400 LIST_CLOSED`)
-3. Ao fechar (16:00): gerar Report + FCM broadcast para todos os inscritos
+1. Abertura e fechamento são **por rota** (`routes.open_time` default 00:00, `routes.close_time`
+   default 16:00, ambos editáveis) — uma varredura a cada 5 min (seg-sex) abre as listas do dia e
+   fecha as que já passaram do horário
+2. Inscrição só vale na lista **de hoje** e **antes do `closeTime` da rota** — validado contra o
+   relógio no use case, não só pela flag `status` (`400 LIST_CLOSED` / `400 LIST_NOT_TODAY`)
+3. Ao fechar: gerar Report + FCM broadcast para todos os inscritos
 4. Uma inscrição por (usuário, lista) — `UNIQUE(user_id, daily_list_id)`. Reentrar **reativa** o
    registro existente (idempotente, não retorna 409)
 5. Ao sair da lista: soft-delete (`isActive = false`), não deletar o registro

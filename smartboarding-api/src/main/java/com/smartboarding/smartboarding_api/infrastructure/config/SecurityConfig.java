@@ -36,21 +36,53 @@ public class SecurityConfig {
                         .requestMatchers(HttpMethod.GET, "/api/registration/invite/{token}").permitAll()
                         .requestMatchers(HttpMethod.POST, "/api/registration/{token}/submit").permitAll()
                         .requestMatchers(HttpMethod.POST, "/api/registration/verify-code").permitAll()
+                        .requestMatchers(HttpMethod.POST, "/api/registration/resend-code").permitAll()
                         .requestMatchers(HttpMethod.GET, "/register/{token}").permitAll()
                         .requestMatchers(HttpMethod.POST, "/api/auth/register").hasRole("ADMIN")
                         .requestMatchers(HttpMethod.GET, "/api/users/**").hasRole("ADMIN")
                         .requestMatchers(HttpMethod.POST, "/api/routes").hasRole("ADMIN")
+                        // Sub-recursos de rota: sem regra explícita, POST em
+                        // /api/routes/{id}/stops cairia no anyRequest().authenticated()
+                        // e qualquer aluno poderia criar parada.
+                        .requestMatchers(HttpMethod.POST, "/api/routes/*/stops").hasRole("ADMIN")
+                        .requestMatchers(HttpMethod.PATCH, "/api/routes/*/stops/**").hasRole("ADMIN")
+                        .requestMatchers(HttpMethod.GET, "/api/routes/*/vehicles").hasRole("ADMIN")
+                        .requestMatchers(HttpMethod.POST, "/api/routes/*/vehicles").hasRole("ADMIN")
+                        .requestMatchers(HttpMethod.DELETE, "/api/routes/*/stops/**").hasRole("ADMIN")
+                        .requestMatchers(HttpMethod.DELETE, "/api/routes/*/vehicles/**").hasRole("ADMIN")
+                        .requestMatchers("/api/admin/**").hasRole("ADMIN")
                         .requestMatchers(HttpMethod.PATCH, "/api/routes/**").hasRole("ADMIN")
                         .requestMatchers(HttpMethod.DELETE, "/api/routes/**").hasRole("ADMIN")
                         .requestMatchers(HttpMethod.POST, "/api/institutions").hasRole("ADMIN")
+                        .requestMatchers(HttpMethod.PATCH, "/api/institutions/**").hasRole("ADMIN")
+                        .requestMatchers(HttpMethod.DELETE, "/api/institutions/**").hasRole("ADMIN")
                         .requestMatchers(HttpMethod.POST, "/api/registration/invite").hasRole("ADMIN")
                         .requestMatchers(HttpMethod.GET, "/api/registration/pending").hasRole("ADMIN")
                         .requestMatchers(HttpMethod.POST, "/api/registration/{id}/approve").hasRole("ADMIN")
                         .requestMatchers(HttpMethod.POST, "/api/registration/{id}/reject").hasRole("ADMIN")
                         // Ver quem está na lista: qualquer usuário autenticado (aluno inclusive)
                         .requestMatchers(HttpMethod.GET, "/api/lists/{id}/entries").authenticated()
+                        // Gestão de listas é do admin. Padrões exatos: entrar e
+                        // sair da lista são /api/lists/{id}/entries e não podem
+                        // cair nestas regras.
+                        // Inclusão/remoção tardia é do admin: fura o horário de propósito.
+                        .requestMatchers(HttpMethod.POST, "/api/lists/{id}/entries/admin").hasRole("ADMIN")
+                        .requestMatchers(HttpMethod.DELETE, "/api/lists/{id}/entries/{userId}").hasRole("ADMIN")
+                        // O aluno vê só as próprias advertências (/me); o resto é do admin.
+                        .requestMatchers(HttpMethod.GET, "/api/warnings/me").authenticated()
+                        .requestMatchers("/api/warnings/**").hasRole("ADMIN")
+                        .requestMatchers(HttpMethod.GET, "/api/lists").hasRole("ADMIN")
+                        .requestMatchers(HttpMethod.POST, "/api/lists").hasRole("ADMIN")
+                        .requestMatchers(HttpMethod.PATCH, "/api/lists/{id}").hasRole("ADMIN")
+                        .requestMatchers(HttpMethod.DELETE, "/api/lists/{id}").hasRole("ADMIN")
                         .requestMatchers(HttpMethod.GET, "/api/reports/**").hasRole("ADMIN")
                         .requestMatchers(HttpMethod.POST, "/api/notifications/**").hasRole("ADMIN")
+                        // Caixa de entrada do aluno: o filtro por rota/validade
+                        // é feito no use case, por isso basta estar autenticado.
+                        .requestMatchers(HttpMethod.GET, "/api/notifications").authenticated()
+                        .requestMatchers(HttpMethod.DELETE, "/api/notifications").hasRole("ADMIN")
+                        .requestMatchers("/api/notifications/scheduled/**").hasRole("ADMIN")
+                        .requestMatchers("/api/notifications/scheduled").hasRole("ADMIN")
                         .anyRequest().authenticated()
                 ).oauth2ResourceServer(oauth2 -> oauth2
                         .jwt(jwt -> jwt.jwtAuthenticationConverter(jwtAuthenticationConverter()))

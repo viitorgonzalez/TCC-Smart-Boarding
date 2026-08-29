@@ -21,4 +21,5 @@ public class ReportRepositoryAdapter implements ReportRepositoryPort {
     @Override public Report save(Report report) { return jpa.save(report); }
     @Override public Optional<Report> findById(UUID id) { return jpa.findById(id); }
     @Override public Page<Report> findAll(Pageable pageable) { return jpa.findAll(pageable); }
+    @Override public java.util.Optional<Report> findByDailyListId(java.util.UUID dailyListId) { return jpa.findByDailyList_Id(dailyListId); }
 }
