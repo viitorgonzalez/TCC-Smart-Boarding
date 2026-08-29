@@ -83,9 +83,8 @@ public class RegistrationUseCaseImpl implements GenerateInviteUseCase, ValidateT
         // Código em vez de link: App Link exige domínio publicado e verificado,
         // pendência de deploy. Validade curta e limite de tentativas compensam a
         // entropia menor que a do token.
-        sendEmailBestEffort(email, "Código de verificação Smart Boarding",
-                "<p>Seu código de verificação: <strong>" + code + "</strong></p>"
-                        + "<p>Válido por " + CODE_TTL_MINUTES + " minutos.</p>");
+        sendEmailBestEffort(email, RegistrationEmails.VERIFICATION_SUBJECT,
+                RegistrationEmails.verificationCode(code, CODE_TTL_MINUTES));
         log.info("Convite de cadastro gerado pra {}", email);
     }
 
@@ -120,9 +119,8 @@ public class RegistrationUseCaseImpl implements GenerateInviteUseCase, ValidateT
         request.setTokenExpiresAt(LocalDateTime.now().plusDays(TOKEN_TTL_DAYS));
         registrationRepository.save(request);
 
-        sendEmailBestEffort(email, "Código de verificação Smart Boarding",
-                "<p>Seu código de verificação: <strong>" + code + "</strong></p>"
-                        + "<p>Válido por " + CODE_TTL_MINUTES + " minutos.</p>");
+        sendEmailBestEffort(email, RegistrationEmails.VERIFICATION_SUBJECT,
+                RegistrationEmails.verificationCode(code, CODE_TTL_MINUTES));
         log.info("Código de verificação reenviado pra {}", email);
     }
 
@@ -144,14 +142,6 @@ public class RegistrationUseCaseImpl implements GenerateInviteUseCase, ValidateT
         } catch (Exception e) {
             log.error("Falha ao enviar e-mail '{}' — a ação foi mantida: {}", subject, e.getMessage());
         }
-    }
-
-    // O motivo é texto livre do admin indo pra dentro de um corpo HTML.
-    private static String escapeHtml(String raw) {
-        return raw.replace("&", "&amp;")
-                .replace("<", "&lt;")
-                .replace(">", "&gt;")
-                .replace("\"", "&quot;");
     }
 
     private String generateToken() {
@@ -297,11 +287,8 @@ public class RegistrationUseCaseImpl implements GenerateInviteUseCase, ValidateT
         request.setRejectionReason(trimmedReason);
         registrationRepository.save(request);
 
-        sendEmailBestEffort(request.getEmail(), "Cadastro Smart Boarding não aprovado",
-                "<p>Seu cadastro não foi aprovado.</p>"
-                        + "<p>Motivo: <strong>" + escapeHtml(trimmedReason) + "</strong></p>"
-                        + "<p>Você pode corrigir os dados e enviar de novo: peça um novo código "
-                        + "de verificação no app.</p>");
+        sendEmailBestEffort(request.getEmail(), RegistrationEmails.REJECTED_SUBJECT,
+                RegistrationEmails.rejected(trimmedReason));
         log.info("Cadastro negado: {}", request.getEmail());
     }
 }
