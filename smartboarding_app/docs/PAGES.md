@@ -13,7 +13,7 @@
 | Página | Acesso | Propósito | Contrato de API | Spec |
 |---|---|---|---|---|
 | Login | 🌐→🎓🧑‍💼 | Autenticação, com "lembrar de mim" | `POST /api/auth/login` | [`login.md`](./specs/autenticacao/login.md) |
-| Cadastro (convite) | 🌐 | Autocadastro do aluno a partir do link do e-mail | `GET /api/registration/invite/{token}`, `POST /api/registration/{token}/submit` | [`register.md`](./specs/autenticacao/register.md) |
+| Cadastro (convite) | 🌐 | Autocadastro do aluno a partir do código de 6 dígitos do e-mail | `POST /api/registration/verify-code`, `POST /api/registration/resend-code`, `GET /api/registration/invite/{token}`, `POST /api/registration/{token}/submit` | [`register.md`](./specs/autenticacao/register.md) |
 | Recuperar/redefinir senha | 🌐 | Esqueci a senha → e-mail → nova senha | `POST /api/auth/forgot-password`, `POST /api/auth/reset-password` | [`password-reset.md`](./specs/autenticacao/password-reset.md) |
 
 ## Aluno (🎓)
@@ -36,7 +36,8 @@
 |---|---|---|---|---|
 | Painel do admin | 🧑‍💼 | Dashboard com atalhos + contagem de pendências | — | [`admin-home.md`](./specs/administrador/admin-home.md) |
 | Solicitações de cadastro | 🧑‍💼 | Aprovar/negar cadastros pendentes, gerar convite | `GET /api/registration/pending`, `POST .../approve`\|`/reject`, `POST /api/registration/invite` | [`registration-approvals.md`](./specs/administrador/registration-approvals.md) |
-| Gerenciar rotas | 🧑‍💼 | CRUD de rota + instituições, veículos e paradas vinculadas | `CRUD /api/routes`, `/api/institutions`, `/api/routes/{id}/vehicles`, `/api/routes/{id}/stops` | [`route-management.md`](./specs/administrador/route-management.md) |
+| Rotas e listas | 🧑‍💼 | CRUD de rota + lista do dia, avisos automáticos, instituições, veículos e paradas | `CRUD /api/routes`, `/api/institutions`, `/api/routes/{id}/vehicles`, `/api/routes/{id}/stops`, `/api/lists`, `/api/notifications/scheduled` | [`route-management.md`](./specs/administrador/route-management.md) |
 | Relatórios (admin) | 🧑‍💼 | Histórico completo, paginado, com veículo proposto | `GET /api/reports`, `GET /api/reports/{id}` | [`reports.md`](./specs/relatorios/reports.md) |
 | Trajeto | 🧑‍💼 | Iniciar/checkpoint/finalizar o trajeto do dia | `POST /api/trip/{listId}/{start,checkpoint/{stopId},finish}` | [`trip.md`](./specs/administrador/trip.md) |
 | Usuários | 🧑‍💼 | Listagem de contas (sem criação de aluno) | `GET /api/users` | [`users-list.md`](./specs/administrador/users-list.md) |
+| Advertências | 🎓 🧑‍💼 | Advertência por inscrição fora do prazo; admin remove | `GET /api/warnings`, `/me`, `DELETE /api/warnings/{id}` | [`warnings.md`](./specs/notificacoes/warnings.md) |

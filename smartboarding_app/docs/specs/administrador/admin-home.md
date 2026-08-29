@@ -15,7 +15,7 @@ Dashboard com atalhos pras áreas de gestão do admin.
 
 Cards de atalho:
 - Solicitações de Cadastro (badge com contagem de pendentes).
-- Gerenciar Rotas (rotas + instituições + veículos + paradas).
+- Rotas e Listas (rotas + lista do dia + avisos automáticos + instituições + veículos + paradas).
 - Trajeto.
 - Notificações (inbox + enviar).
 - Relatórios.
