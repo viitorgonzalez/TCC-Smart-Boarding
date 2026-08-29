@@ -4,12 +4,41 @@ import '../../../core/widgets/async_builder.dart';
 import '../../../core/widgets/empty_state.dart';
 import '../../../core/widgets/entity_list_tile.dart';
 import '../../../core/widgets/snackbar_utils.dart';
+import '../../../core/widgets/status_pill.dart';
+import '../../lists/models/daily_list_model.dart';
+import '../../lists/services/list_service.dart';
 import '../models/route_model.dart';
 import '../providers/route_provider.dart';
+import 'route_detail_screen.dart';
 import 'route_form_screen.dart';
 
-class RoutesScreen extends StatelessWidget {
+class RoutesScreen extends StatefulWidget {
   const RoutesScreen({super.key});
+
+  @override
+  State<RoutesScreen> createState() => _RoutesScreenState();
+}
+
+class _RoutesScreenState extends State<RoutesScreen> {
+  /// Lista de hoje por rota. O admin precisa ver o estado da lista sem entrar
+  /// em cada rota — é o resumo que a tela separada de listas dava antes.
+  Map<String, DailyList> _todayLists = const {};
+
+  @override
+  void initState() {
+    super.initState();
+    _loadTodayLists();
+  }
+
+  Future<void> _loadTodayLists() async {
+    try {
+      final lists = await ListService().getListsByDate(DateTime.now());
+      if (!mounted) return;
+      setState(() => _todayLists = {for (final l in lists) l.routeId: l});
+    } catch (_) {
+      // O resumo é acessório: falhar aqui não pode esconder as rotas.
+    }
+  }
 
   @override
   Widget build(BuildContext context) {
@@ -30,14 +59,17 @@ class RoutesScreen extends StatelessWidget {
                   subtitle: 'Toque + para criar a primeira rota',
                 )
               : RefreshIndicator(
-                  onRefresh: provider.load,
+                  onRefresh: () async {
+                    await Future.wait([provider.load(), _loadTodayLists()]);
+                  },
                   child: ListView.separated(
                     padding: const EdgeInsets.fromLTRB(16, 16, 16, 80),
                     itemCount: routes.length,
                     separatorBuilder: (_, _) => const SizedBox(height: 10),
                     itemBuilder: (_, i) => _RouteTile(
                       route: routes[i],
-                      onEdit: () => _openForm(context, provider, routes[i]),
+                      todayList: _todayLists[routes[i].id],
+                      onOpen: () => _openForm(context, provider, routes[i]),
                       onDelete: () =>
                           _confirmDelete(context, provider, routes[i]),
                     ),
@@ -58,10 +90,15 @@ class RoutesScreen extends StatelessWidget {
       MaterialPageRoute(
         builder: (_) => ChangeNotifierProvider.value(
           value: provider,
-          child: RouteFormScreen(route: route),
+          // Rota nova usa o formulário mínimo (só precisa de nome); editar abre
+          // a tela completa, com paradas, frota e instituições.
+          child: route == null
+              ? const RouteFormScreen()
+              : RouteDetailScreen(route: route),
         ),
       ),
     );
+    if (mounted) await _loadTodayLists();
   }
 
   Future<void> _confirmDelete(
@@ -104,12 +141,14 @@ class RoutesScreen extends StatelessWidget {
 
 class _RouteTile extends StatelessWidget {
   final RouteModel route;
-  final VoidCallback onEdit;
+  final DailyList? todayList;
+  final VoidCallback onOpen;
   final VoidCallback onDelete;
 
   const _RouteTile({
     required this.route,
-    required this.onEdit,
+    required this.todayList,
+    required this.onOpen,
     required this.onDelete,
   });
 
@@ -121,17 +160,23 @@ class _RouteTile extends StatelessWidget {
         child: Icon(Icons.route, color: Theme.of(context).colorScheme.primary),
       ),
       title: route.name,
-      subtitle: route.description?.isNotEmpty == true
-          ? Text(
-              route.description!,
-              maxLines: 1,
-              overflow: TextOverflow.ellipsis,
-            )
-          : null,
+      subtitle: Text(
+        todayList == null
+            ? 'Sem lista hoje'
+            : '${todayList!.totalEntries} inscrito(s) hoje',
+        maxLines: 1,
+        overflow: TextOverflow.ellipsis,
+      ),
       trailing: Row(
         mainAxisSize: MainAxisSize.min,
         children: [
-          IconButton(icon: const Icon(Icons.edit_outlined), onPressed: onEdit),
+          if (todayList != null)
+            StatusPill(
+              label: todayList!.isOpen ? 'Aberta' : 'Fechada',
+              tone: todayList!.isOpen
+                  ? StatusPillTone.positive
+                  : StatusPillTone.neutral,
+            ),
           IconButton(
             icon: Icon(
               Icons.delete_outline,
@@ -141,6 +186,7 @@ class _RouteTile extends StatelessWidget {
           ),
         ],
       ),
+      onTap: onOpen,
     );
   }
 }

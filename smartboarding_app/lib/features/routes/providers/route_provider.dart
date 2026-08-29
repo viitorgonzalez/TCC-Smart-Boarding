@@ -23,7 +23,6 @@ class RouteProvider extends ChangeNotifier {
     notifyListeners();
   }
 
-  /// Cria rota e recarrega a lista. Lança exceção em caso de erro.
   Future<void> create(String name, String? description) async {
     await _service.createRoute(name, description);
     await load();
