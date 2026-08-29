@@ -4,10 +4,12 @@ import com.smartboarding.smartboarding_api.domain.route.entity.Route;
 import com.smartboarding.smartboarding_api.domain.route.port.in.CreateRouteUseCase;
 import com.smartboarding.smartboarding_api.domain.route.port.in.DeleteRouteUseCase;
 import com.smartboarding.smartboarding_api.domain.route.port.in.FindRouteUseCase;
+import com.smartboarding.smartboarding_api.domain.route.port.in.UpdateRouteScheduleUseCase;
 import com.smartboarding.smartboarding_api.domain.route.port.in.UpdateRouteUseCase;
 import com.smartboarding.smartboarding_api.infrastructure.web.route.dto.CreateRouteRequest;
 import com.smartboarding.smartboarding_api.infrastructure.web.route.dto.RouteResponse;
 import com.smartboarding.smartboarding_api.infrastructure.web.route.dto.UpdateRouteRequest;
+import com.smartboarding.smartboarding_api.infrastructure.web.route.dto.UpdateScheduleRequest;
 import com.smartboarding.smartboarding_api.shared.web.ApiResponse;
 import jakarta.validation.Valid;
 import org.springframework.http.HttpStatus;
@@ -25,20 +27,24 @@ public class RouteController {
     private final FindRouteUseCase findRouteUseCase;
     private final UpdateRouteUseCase updateRouteUseCase;
     private final DeleteRouteUseCase deleteRouteUseCase;
+    private final UpdateRouteScheduleUseCase updateRouteScheduleUseCase;
 
     public RouteController(CreateRouteUseCase createRouteUseCase,
                            FindRouteUseCase findRouteUseCase,
                            UpdateRouteUseCase updateRouteUseCase,
-                           DeleteRouteUseCase deleteRouteUseCase) {
+                           DeleteRouteUseCase deleteRouteUseCase,
+                           UpdateRouteScheduleUseCase updateRouteScheduleUseCase) {
         this.createRouteUseCase = createRouteUseCase;
         this.findRouteUseCase = findRouteUseCase;
         this.updateRouteUseCase = updateRouteUseCase;
         this.deleteRouteUseCase = deleteRouteUseCase;
+        this.updateRouteScheduleUseCase = updateRouteScheduleUseCase;
     }
 
     @PostMapping
     public ResponseEntity<ApiResponse<RouteResponse>> create(@RequestBody @Valid CreateRouteRequest request) {
-        Route route = Route.builder().name(request.name()).description(request.description()).build();
+        Route route = Route.builder().name(request.name()).description(request.description())
+                .openTime(request.openTime()).closeTime(request.closeTime()).build();
         return ResponseEntity.status(HttpStatus.CREATED).body(ApiResponse.data(RouteResponse.from(createRouteUseCase.execute(route))));
     }
 
@@ -58,6 +64,14 @@ public class RouteController {
                                                              @RequestBody @Valid UpdateRouteRequest request) {
         Route route = Route.builder().name(request.name()).description(request.description()).build();
         return ResponseEntity.ok(ApiResponse.data(RouteResponse.from(updateRouteUseCase.execute(id, route))));
+    }
+
+    @PatchMapping("/{id}/schedule")
+    public ResponseEntity<ApiResponse<RouteResponse>> updateSchedule(
+            @PathVariable UUID id, @RequestBody @Valid UpdateScheduleRequest request) {
+        Route saved = updateRouteScheduleUseCase.execute(
+                id, request.openTime(), request.closeTime(), request.reason());
+        return ResponseEntity.ok(ApiResponse.data(RouteResponse.from(saved)));
     }
 
     @DeleteMapping("/{id}")
