@@ -9,6 +9,7 @@ import org.springframework.http.ResponseEntity;
 import org.springframework.web.bind.MethodArgumentNotValidException;
 import org.springframework.web.bind.annotation.ControllerAdvice;
 import org.springframework.web.bind.annotation.ExceptionHandler;
+import org.springframework.web.HttpRequestMethodNotSupportedException;
 
 import java.util.Map;
 
@@ -44,6 +45,16 @@ public class GlobalExceptionHandler {
                 .findFirst()
                 .orElse("Dados inválidos");
         return ResponseEntity.status(400).body(Map.of("code", "VALIDATION_ERROR", "error", msg));
+    }
+
+    // Sem isto o verbo errado cai no handler genérico e o cliente recebe 500,
+    // como se o servidor tivesse quebrado.
+    @ExceptionHandler(HttpRequestMethodNotSupportedException.class)
+    public ResponseEntity<Map<String, String>> handleMethodNotSupported(
+            HttpRequestMethodNotSupportedException ex) {
+        return ResponseEntity.status(405).body(Map.of(
+                "code", "METHOD_NOT_ALLOWED",
+                "error", "Método " + ex.getMethod() + " não é suportado nesse endpoint."));
     }
 
     @ExceptionHandler(Exception.class)
