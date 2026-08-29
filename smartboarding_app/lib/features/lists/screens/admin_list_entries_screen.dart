@@ -15,6 +15,7 @@ import '../../users/services/user_service.dart';
 import '../models/daily_list_model.dart';
 import '../models/list_entry_model.dart';
 import '../services/list_service.dart';
+import '../widgets/enroll_student_sheet.dart';
 
 class AdminListEntriesScreen extends StatelessWidget {
   final DailyList list;
@@ -177,12 +178,12 @@ Future<void> _addStudent(
   final students = await _pickStudent(context, provider.routeId);
   if (students == null || !context.mounted) return;
 
-  final decision = await showModalBottomSheet<_EnrollDecision>(
+  final decision = await showModalBottomSheet<EnrollDecision>(
     context: context,
     isScrollControlled: true,
     showDragHandle: true,
     backgroundColor: AppColors.surface,
-    builder: (_) => _EnrollSheet(student: students),
+    builder: (_) => EnrollSheet(student: students),
   );
   if (decision == null) return;
 
@@ -227,7 +228,7 @@ Future<UserModel?> _pickStudent(BuildContext context, String routeId) async {
     isScrollControlled: true,
     showDragHandle: true,
     backgroundColor: AppColors.surface,
-    builder: (_) => _StudentPicker(students: students),
+    builder: (_) => StudentPicker(students: students),
   );
 }
 
@@ -261,182 +262,6 @@ Future<void> _removeStudent(
     await provider.load();
   } catch (e) {
     if (context.mounted) showErrorSnackBar(context, AppException.fromError(e));
-  }
-}
-
-class _EnrollDecision {
-  final bool issueWarning;
-  final String? reason;
-  const _EnrollDecision({required this.issueWarning, this.reason});
-}
-
-class _StudentPicker extends StatefulWidget {
-  final List<UserModel> students;
-  const _StudentPicker({required this.students});
-
-  @override
-  State<_StudentPicker> createState() => _StudentPickerState();
-}
-
-class _StudentPickerState extends State<_StudentPicker> {
-  String _query = '';
-
-  @override
-  Widget build(BuildContext context) {
-    final filtered = widget.students
-        .where(
-          (s) => s.fullName.toLowerCase().contains(_query.trim().toLowerCase()),
-        )
-        .toList();
-    return Padding(
-      padding: EdgeInsets.only(bottom: MediaQuery.viewInsetsOf(context).bottom),
-      child: SizedBox(
-        height: MediaQuery.sizeOf(context).height * 0.7,
-        child: Column(
-          children: [
-            Padding(
-              padding: const EdgeInsets.fromLTRB(20, 0, 20, 12),
-              child: Column(
-                crossAxisAlignment: CrossAxisAlignment.stretch,
-                children: [
-                  Text(
-                    'Qual aluno?',
-                    style: Theme.of(context).textTheme.titleLarge,
-                  ),
-                  const SizedBox(height: 12),
-                  TextField(
-                    autofocus: true,
-                    decoration: const InputDecoration(
-                      labelText: 'Buscar por nome',
-                      prefixIcon: Icon(Icons.search),
-                    ),
-                    onChanged: (v) => setState(() => _query = v),
-                  ),
-                ],
-              ),
-            ),
-            Expanded(
-              child: filtered.isEmpty
-                  ? const EmptyState(
-                      icon: Icons.person_search,
-                      title: 'Nenhum aluno com esse nome',
-                    )
-                  : ListView.builder(
-                      itemCount: filtered.length,
-                      itemBuilder: (_, i) => ListTile(
-                        leading: InitialsAvatar(
-                          text: filtered[i].fullName.isNotEmpty
-                              ? filtered[i].fullName[0].toUpperCase()
-                              : '?',
-                        ),
-                        title: Text(filtered[i].fullName),
-                        subtitle: Text(
-                          filtered[i].institution ?? filtered[i].email,
-                        ),
-                        onTap: () => Navigator.pop(context, filtered[i]),
-                      ),
-                    ),
-            ),
-          ],
-        ),
-      ),
-    );
-  }
-}
-
-class _EnrollSheet extends StatefulWidget {
-  final UserModel student;
-  const _EnrollSheet({required this.student});
-
-  @override
-  State<_EnrollSheet> createState() => _EnrollSheetState();
-}
-
-class _EnrollSheetState extends State<_EnrollSheet> {
-  bool _issueWarning = true;
-  final _reasonCtrl = TextEditingController();
-
-  @override
-  void dispose() {
-    _reasonCtrl.dispose();
-    super.dispose();
-  }
-
-  @override
-  Widget build(BuildContext context) {
-    return Padding(
-      padding: EdgeInsets.only(bottom: MediaQuery.viewInsetsOf(context).bottom),
-      child: SingleChildScrollView(
-        padding: const EdgeInsets.fromLTRB(20, 0, 20, 24),
-        child: Column(
-          mainAxisSize: MainAxisSize.min,
-          crossAxisAlignment: CrossAxisAlignment.stretch,
-          children: [
-            Text(
-              'Incluir ${widget.student.fullName}',
-              style: Theme.of(context).textTheme.titleLarge,
-            ),
-            const SizedBox(height: 4),
-            Text(
-              'Entra na lista mesmo fora do horário.',
-              style: Theme.of(
-                context,
-              ).textTheme.bodyMedium?.copyWith(color: AppColors.textSecondary),
-            ),
-            const SizedBox(height: 20),
-            SwitchListTile(
-              contentPadding: EdgeInsets.zero,
-              value: _issueWarning,
-              onChanged: (v) => setState(() => _issueWarning = v),
-              title: const Text('Gerar advertência'),
-              subtitle: const Text(
-                'Colocar o nome no prazo é responsabilidade do aluno — mas a '
-                'escolha é sua.',
-              ),
-            ),
-            if (_issueWarning) ...[
-              const SizedBox(height: 12),
-              TextField(
-                controller: _reasonCtrl,
-                maxLines: 2,
-                maxLength: 500,
-                textCapitalization: TextCapitalization.sentences,
-                decoration: const InputDecoration(
-                  labelText: 'Motivo (opcional)',
-                  hintText: 'Em branco usa o motivo padrão.',
-                ),
-              ),
-            ],
-            const SizedBox(height: 16),
-            Row(
-              children: [
-                Expanded(
-                  child: OutlinedButton(
-                    onPressed: () => Navigator.pop(context),
-                    child: const Text('Cancelar'),
-                  ),
-                ),
-                const SizedBox(width: 12),
-                Expanded(
-                  child: FilledButton(
-                    onPressed: () => Navigator.pop(
-                      context,
-                      _EnrollDecision(
-                        issueWarning: _issueWarning,
-                        reason: _reasonCtrl.text.trim().isEmpty
-                            ? null
-                            : _reasonCtrl.text.trim(),
-                      ),
-                    ),
-                    child: const Text('Incluir'),
-                  ),
-                ),
-              ],
-            ),
-          ],
-        ),
-      ),
-    );
   }
 }
 

@@ -5,25 +5,10 @@ import 'package:flutter_map/flutter_map.dart';
 import 'package:latlong2/latlong.dart' hide Path;
 import '../../../core/theme/app_theme.dart';
 import '../services/road_route_service.dart';
+import 'map_button.dart';
+import '../models/map_stop.dart';
+import 'route_map_layers.dart';
 
-/// Desacopla o mapa dos modelos de parada de cada feature.
-class MapStop {
-  final String? id;
-  final String name;
-  final double latitude;
-  final double longitude;
-  final int sequence;
-
-  const MapStop({
-    required this.name,
-    this.id,
-    required this.latitude,
-    required this.longitude,
-    required this.sequence,
-  });
-}
-
-/// Pensado também pra mouse: sem pinça, o zoom depende da roda ou dos botões,
 /// e o clique só cria parada em modo de adição — senão arrastar viraria diálogo.
 class RouteMap extends StatefulWidget {
   final List<MapStop> stops;
@@ -163,57 +148,9 @@ class _RouteMapState extends State<RouteMap> {
                     },
                   ),
                   children: [
-                    TileLayer(
-                      urlTemplate:
-                          'https://tile.openstreetmap.org/{z}/{x}/{y}.png',
-                      userAgentPackageName:
-                          'com.smartboarding.smartboarding_app',
-                    ),
-                    if (located.length > 1)
-                      PolylineLayer(
-                        polylines: [
-                          Polyline(
-                            points:
-                                _roadPath ??
-                                [
-                                  for (final s in located)
-                                    LatLng(s.latitude, s.longitude),
-                                ],
-                            strokeWidth: 5,
-                            color: AppColors.deepTeal,
-                            // Reta pontilhada deixa claro que é ligação direta,
-                            // não o caminho real por ruas.
-                            pattern: _roadPath == null
-                                ? const StrokePattern.dotted()
-                                : const StrokePattern.solid(),
-                          ),
-                        ],
-                      ),
-                    MarkerLayer(
-                      markers: [
-                        for (var i = 0; i < located.length; i++)
-                          Marker(
-                            point: LatLng(
-                              located[i].latitude,
-                              located[i].longitude,
-                            ),
-                            width: 40,
-                            height: 48,
-                            // Ancora a ponta do pino no ponto, não o centro.
-                            alignment: Alignment.topCenter,
-                            child: GestureDetector(
-                              onTap: widget.onTapStop == null
-                                  ? null
-                                  : () => widget.onTapStop!(located[i]),
-                              child: _StopPin(
-                                stop: located[i],
-                                isFirst: i == 0,
-                                isLast: i == located.length - 1,
-                              ),
-                            ),
-                          ),
-                      ],
-                    ),
+                    osmTiles(),
+                    if (located.length > 1) routePolyline(located, _roadPath),
+                    stopMarkers(located, widget.onTapStop),
                   ],
                 ),
                 if (widget.compact && widget.onTap != null)
@@ -229,19 +166,19 @@ class _RouteMapState extends State<RouteMap> {
                     top: 10,
                     child: Column(
                       children: [
-                        _MapButton(
+                        MapButton(
                           icon: Icons.add,
                           tooltip: 'Aproximar',
                           onPressed: () => _zoom(1),
                         ),
                         const SizedBox(height: 6),
-                        _MapButton(
+                        MapButton(
                           icon: Icons.remove,
                           tooltip: 'Afastar',
                           onPressed: () => _zoom(-1),
                         ),
                         const SizedBox(height: 6),
-                        _MapButton(
+                        MapButton(
                           icon: Icons.my_location,
                           tooltip: 'Centralizar no trajeto',
                           onPressed: () {
@@ -338,129 +275,4 @@ class _RouteMapState extends State<RouteMap> {
       ],
     );
   }
-}
-
-class _MapButton extends StatelessWidget {
-  final IconData icon;
-  final String tooltip;
-  final VoidCallback onPressed;
-
-  const _MapButton({
-    required this.icon,
-    required this.tooltip,
-    required this.onPressed,
-  });
-
-  @override
-  Widget build(BuildContext context) {
-    return Material(
-      color: AppColors.surface,
-      borderRadius: BorderRadius.circular(AppRadius.control),
-      elevation: 2,
-      child: InkWell(
-        onTap: onPressed,
-        borderRadius: BorderRadius.circular(AppRadius.control),
-        child: Tooltip(
-          message: tooltip,
-          child: SizedBox(
-            width: 42,
-            height: 42,
-            child: Icon(icon, size: 20, color: AppColors.charcoal),
-          ),
-        ),
-      ),
-    );
-  }
-}
-
-/// Origem e destino ganham cor própria: num trajeto é o que se lê primeiro.
-class _StopPin extends StatelessWidget {
-  final MapStop stop;
-  final bool isFirst;
-  final bool isLast;
-
-  const _StopPin({
-    required this.stop,
-    required this.isFirst,
-    required this.isLast,
-  });
-
-  @override
-  Widget build(BuildContext context) {
-    final (color, icon) = switch ((isFirst, isLast)) {
-      (true, _) => (AppColors.positiveFg, Icons.trip_origin),
-      (_, true) => (AppColors.charcoal, Icons.flag),
-      _ => (AppColors.deepTeal, null),
-    };
-
-    return Tooltip(
-      message: stop.name,
-      child: Column(
-        mainAxisSize: MainAxisSize.min,
-        children: [
-          Container(
-            width: 34,
-            height: 34,
-            decoration: BoxDecoration(
-              color: color,
-              shape: BoxShape.circle,
-              border: Border.all(color: Colors.white, width: 3),
-              boxShadow: const [
-                BoxShadow(
-                  color: Colors.black26,
-                  blurRadius: 4,
-                  offset: Offset(0, 2),
-                ),
-              ],
-            ),
-            alignment: Alignment.center,
-            child: icon != null
-                ? Icon(icon, size: 15, color: Colors.white)
-                : Text(
-                    '${stop.sequence}',
-                    style: const TextStyle(
-                      color: Colors.white,
-                      fontWeight: FontWeight.w700,
-                      fontSize: 14,
-                    ),
-                  ),
-          ),
-          Transform.translate(
-            offset: const Offset(0, -3),
-            child: CustomPaint(
-              size: const Size(12, 10),
-              painter: _PinTip(color: color),
-            ),
-          ),
-        ],
-      ),
-    );
-  }
-}
-
-class _PinTip extends CustomPainter {
-  final Color color;
-  const _PinTip({required this.color});
-
-  @override
-  void paint(Canvas canvas, Size size) {
-    final path = Path()
-      ..moveTo(0, 0)
-      ..lineTo(size.width / 2, size.height)
-      ..lineTo(size.width, 0)
-      ..close();
-    canvas.drawPath(path, Paint()..color = Colors.white);
-    canvas.drawPath(
-      Path()
-        ..moveTo(2, 0)
-        ..lineTo(size.width / 2, size.height - 3)
-        ..lineTo(size.width - 2, 0)
-        ..close(),
-      Paint()..color = color,
-    );
-  }
-
-  @override
-  bool shouldRepaint(covariant _PinTip oldDelegate) =>
-      oldDelegate.color != color;
 }

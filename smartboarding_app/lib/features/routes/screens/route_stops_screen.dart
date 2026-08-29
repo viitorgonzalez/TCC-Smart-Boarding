@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import '../models/map_stop.dart';
 import '../../../core/theme/app_theme.dart';
 import '../../../core/errors/app_exception.dart';
 import '../models/stop_model.dart';

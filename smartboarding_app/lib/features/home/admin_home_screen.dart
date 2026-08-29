@@ -27,6 +27,7 @@ import '../routes/services/route_service.dart';
 import '../users/providers/user_provider.dart';
 import '../users/screens/user_management_screen.dart';
 import '../users/services/user_service.dart';
+import 'widgets/today_summary.dart';
 
 class AdminHomeScreen extends StatelessWidget {
   const AdminHomeScreen({super.key});
@@ -246,7 +247,7 @@ class _AdminDashboard extends StatelessWidget {
                   const SizedBox(height: 24),
                   const SectionTitle('Resumo de Hoje'),
                   const SizedBox(height: 12),
-                  const _TodaySummary(),
+                  const TodaySummary(),
                   const SizedBox(height: 24),
                   Center(
                     child: TextButton(
@@ -270,68 +271,3 @@ class _AdminDashboard extends StatelessWidget {
     );
   }
 }
-
-class _TodaySummary extends StatelessWidget {
-  const _TodaySummary();
-
-  @override
-  Widget build(BuildContext context) {
-    return Consumer<AdminStatsProvider>(
-      builder: (context, provider, _) {
-        final rows = switch (provider.state) {
-          AsyncData(:final value) => [
-            ('Alunos Ativos', '${value.activeStudents}'),
-            ('Rotas em Uso', '${value.routesInUse}'),
-            ('Ocupação', '${value.occupancyPercent}%'),
-          ],
-          AsyncError() => [('Não foi possível carregar', '—')],
-          _ => [
-            ('Alunos Ativos', '…'),
-            ('Rotas em Uso', '…'),
-            ('Ocupação', '…'),
-          ],
-        };
-        return Container(
-          decoration: BoxDecoration(
-            color: AppColors.charcoal,
-            borderRadius: BorderRadius.circular(AppRadius.card),
-          ),
-          padding: const EdgeInsets.symmetric(horizontal: 20, vertical: 6),
-          child: Column(
-            children: [
-              for (var i = 0; i < rows.length; i++) ...[
-                if (i > 0) const Divider(color: Colors.white24, height: 1),
-                Padding(
-                  padding: const EdgeInsets.symmetric(vertical: 16),
-                  child: Row(
-                    children: [
-                      Expanded(
-                        child: Text(
-                          rows[i].$1,
-                          style: const TextStyle(
-                            color: Colors.white70,
-                            fontSize: 15,
-                          ),
-                        ),
-                      ),
-                      Text(
-                        rows[i].$2,
-                        style: const TextStyle(
-                          color: Colors.white,
-                          fontSize: 20,
-                          fontWeight: FontWeight.w800,
-                        ),
-                      ),
-                    ],
-                  ),
-                ),
-              ],
-            ],
-          ),
-        );
-      },
-    );
-  }
-}
-
-// ─── Tab de listas (admin) ────────────────────────────────────────────────────

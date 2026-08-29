@@ -4,6 +4,7 @@ import '../../../core/utils/async_value.dart';
 import '../../../core/widgets/loading_filled_button.dart';
 import '../models/invite_info_model.dart';
 import '../providers/registration_provider.dart';
+import '../widgets/rejection_notice.dart';
 
 class RegisterScreen extends StatefulWidget {
   final String token;
@@ -153,7 +154,7 @@ class _RegisterScreenState extends State<RegisterScreen> {
                     crossAxisAlignment: CrossAxisAlignment.stretch,
                     children: [
                       if (invite.wasRejected) ...[
-                        _RejectionNotice(reason: invite.rejectionReason),
+                        RejectionNotice(reason: invite.rejectionReason),
                         const SizedBox(height: 16),
                       ],
                       TextFormField(
@@ -265,52 +266,3 @@ class _RegisterScreenState extends State<RegisterScreen> {
 
 // Sem o motivo à vista o aluno reenvia às cegas o mesmo cadastro que já foi
 // negado uma vez.
-class _RejectionNotice extends StatelessWidget {
-  final String? reason;
-  const _RejectionNotice({this.reason});
-
-  @override
-  Widget build(BuildContext context) {
-    final scheme = Theme.of(context).colorScheme;
-    return Container(
-      padding: const EdgeInsets.all(12),
-      decoration: BoxDecoration(
-        color: scheme.errorContainer,
-        borderRadius: BorderRadius.circular(12),
-      ),
-      child: Row(
-        crossAxisAlignment: CrossAxisAlignment.start,
-        children: [
-          Icon(Icons.error_outline, color: scheme.onErrorContainer),
-          const SizedBox(width: 12),
-          Expanded(
-            child: Column(
-              crossAxisAlignment: CrossAxisAlignment.start,
-              children: [
-                Text(
-                  'Cadastro não aprovado',
-                  style: Theme.of(context).textTheme.titleSmall?.copyWith(
-                    color: scheme.onErrorContainer,
-                    fontWeight: FontWeight.w600,
-                  ),
-                ),
-                if (reason != null && reason!.isNotEmpty) ...[
-                  const SizedBox(height: 4),
-                  Text(
-                    reason!,
-                    style: TextStyle(color: scheme.onErrorContainer),
-                  ),
-                ],
-                const SizedBox(height: 4),
-                Text(
-                  'Corrija os dados abaixo e envie de novo.',
-                  style: TextStyle(color: scheme.onErrorContainer),
-                ),
-              ],
-            ),
-          ),
-        ],
-      ),
-    );
-  }
-}

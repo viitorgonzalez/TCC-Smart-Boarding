@@ -1,8 +1,10 @@
 import 'package:flutter/material.dart';
 // latlong2 exporta uma classe Path própria, que sombreia a de dart:ui usada
 // no desenho do pino.
-import 'package:latlong2/latlong.dart' hide Path;
 import 'package:provider/provider.dart';
+import '../widgets/route_institutions_card.dart';
+import '../widgets/route_stops_editor.dart';
+import '../widgets/route_vehicles_card.dart';
 import '../../../core/errors/app_exception.dart';
 import '../../../core/theme/app_theme.dart';
 import '../../../core/utils/date_format.dart';
@@ -21,7 +23,6 @@ import '../models/route_model.dart';
 import '../models/stop_model.dart';
 import '../models/vehicle_model.dart';
 import '../providers/route_provider.dart';
-import '../widgets/route_map.dart';
 import '../services/route_service.dart';
 
 class RouteDetailScreen extends StatefulWidget {
@@ -47,10 +48,6 @@ class _RouteDetailScreenState extends State<RouteDetailScreen> {
   List<UserModel> _students = const [];
   bool _loading = true;
   bool _saving = false;
-
-  /// Parada sendo reposicionada, ou depois da qual a próxima será inserida.
-  StopModel? _pendingStop;
-  _StopAction? _pendingAction;
 
   @override
   void initState() {
@@ -164,38 +161,27 @@ class _RouteDetailScreenState extends State<RouteDetailScreen> {
                 const SizedBox(height: 24),
                 const SectionTitle('Trajeto'),
                 const SizedBox(height: 12),
-                RouteMap(
-                  stops: [
-                    for (final s in _stops)
-                      if (s.hasCoordinates)
-                        MapStop(
-                          id: s.id,
-                          name: s.name,
-                          latitude: s.latitude!,
-                          longitude: s.longitude!,
-                          sequence: s.sequence,
-                        ),
-                  ],
-                  onTapPoint: _onMapPoint,
-                  onTapStop: _onTapStop,
-                  modeLabel: _modeLabel,
-                  onCancelMode: _pendingAction == null
-                      ? null
-                      : () => setState(() {
-                          _pendingAction = null;
-                          _pendingStop = null;
-                        }),
+                RouteStopsEditor(
+                  routeId: widget.route.id,
+                  stops: _stops,
+                  run: _run,
                 ),
-                const SizedBox(height: 12),
-                _stopsList(),
                 const SizedBox(height: 24),
                 const SectionTitle('Frota'),
                 const SizedBox(height: 12),
-                _vehiclesCard(),
+                RouteVehiclesCard(
+                  routeId: widget.route.id,
+                  vehicles: _vehicles,
+                  run: _run,
+                ),
                 const SizedBox(height: 24),
                 const SectionTitle('Instituições atendidas'),
                 const SizedBox(height: 12),
-                _institutionsCard(),
+                RouteInstitutionsCard(
+                  routeId: widget.route.id,
+                  institutions: _institutions,
+                  run: _run,
+                ),
                 const SizedBox(height: 24),
                 const SectionTitle('Alunos'),
                 const SizedBox(height: 12),
@@ -226,137 +212,6 @@ class _RouteDetailScreenState extends State<RouteDetailScreen> {
             onPressed: _saving ? null : _saveBasics,
             child: Text(_saving ? 'Salvando...' : 'Salvar dados da rota'),
           ),
-        ],
-      ),
-    );
-  }
-
-  Widget _stopsList() {
-    if (_stops.isEmpty) {
-      return const AppCard(
-        child: Text('Nenhuma parada. Toque no mapa para adicionar.'),
-      );
-    }
-    return AppCard(
-      padding: const EdgeInsets.symmetric(vertical: 6),
-      child: Column(
-        children: [
-          for (final stop in _stops)
-            ListTile(
-              leading: CircleAvatar(
-                radius: 14,
-                backgroundColor: AppColors.ashGrey,
-                child: Text(
-                  '${stop.sequence}',
-                  style: const TextStyle(
-                    fontSize: 12,
-                    fontWeight: FontWeight.w700,
-                    color: AppColors.darkSlate,
-                  ),
-                ),
-              ),
-              title: Text(stop.name),
-              subtitle: stop.hasCoordinates
-                  ? Text(
-                      '${stop.latitude!.toStringAsFixed(4)}, '
-                      '${stop.longitude!.toStringAsFixed(4)}',
-                    )
-                  : const Text('sem coordenada'),
-              trailing: IconButton(
-                icon: const Icon(Icons.delete_outline, color: AppColors.danger),
-                onPressed: () => _run(
-                  () => _service.deleteStop(widget.route.id, stop.id),
-                  'Parada removida',
-                ),
-              ),
-            ),
-        ],
-      ),
-    );
-  }
-
-  Widget _vehiclesCard() {
-    return AppCard(
-      padding: const EdgeInsets.symmetric(vertical: 6),
-      child: Column(
-        children: [
-          for (final vehicle in _vehicles)
-            ListTile(
-              leading: const Icon(
-                Icons.directions_bus_outlined,
-                color: AppColors.deepTeal,
-              ),
-              title: Text(vehicle.label),
-              subtitle: Text('${vehicle.capacity} lugares'),
-              trailing: IconButton(
-                icon: const Icon(Icons.delete_outline, color: AppColors.danger),
-                onPressed: () => _run(
-                  () => _service.deleteVehicle(widget.route.id, vehicle.id),
-                  'Veículo removido',
-                ),
-              ),
-            ),
-          ListTile(
-            leading: const Icon(Icons.add, color: AppColors.deepTeal),
-            title: const Text('Adicionar veículo'),
-            onTap: _promptAddVehicle,
-          ),
-        ],
-      ),
-    );
-  }
-
-  Widget _institutionsCard() {
-    final linked = _institutions
-        .where((i) => i.routeId == widget.route.id)
-        .toList();
-    final others = _institutions
-        .where((i) => i.routeId != widget.route.id)
-        .toList();
-
-    return AppCard(
-      padding: const EdgeInsets.symmetric(vertical: 6),
-      child: Column(
-        children: [
-          if (linked.isEmpty)
-            const ListTile(
-              title: Text('Nenhuma instituição atendida'),
-              subtitle: Text(
-                'Alunos só veem esta rota se a instituição deles apontar pra ela.',
-              ),
-            ),
-          for (final institution in linked)
-            ListTile(
-              leading: const Icon(Icons.school, color: AppColors.deepTeal),
-              title: Text(institution.name),
-              subtitle: institution.address == null
-                  ? null
-                  : Text(
-                      institution.address!,
-                      maxLines: 1,
-                      overflow: TextOverflow.ellipsis,
-                    ),
-              trailing: PopupMenuButton<String>(
-                onSelected: (v) => _institutionAction(v, institution),
-                itemBuilder: (_) => const [
-                  PopupMenuItem(value: 'edit', child: Text('Editar')),
-                  PopupMenuItem(value: 'unlink', child: Text('Desvincular')),
-                  PopupMenuItem(value: 'delete', child: Text('Remover')),
-                ],
-              ),
-            ),
-          const Divider(height: 1),
-          ListTile(
-            leading: const Icon(Icons.add, color: AppColors.deepTeal),
-            title: const Text('Cadastrar instituição nesta rota'),
-            onTap: _promptCreateInstitution,
-          ),
-          if (others.isNotEmpty)
-            ListTile(
-              leading: const Icon(Icons.link, color: AppColors.deepTeal),
-              title: const Text('Vincular uma já cadastrada'),
-              onTap: () => _promptLinkInstitution(others),
-            ),
         ],
       ),
     );
@@ -415,336 +270,7 @@ class _RouteDetailScreenState extends State<RouteDetailScreen> {
     );
   }
 
-  Future<void> _institutionAction(String action, InstitutionModel i) async {
-    switch (action) {
-      case 'edit':
-        final data = await _promptInstitutionForm(
-          title: 'Editar instituição',
-          name: i.name,
-          address: i.address,
-        );
-        if (data == null) return;
-        await _run(
-          () => _institutionService.updateInstitution(
-            i.id,
-            name: data.$1,
-            address: data.$2,
-          ),
-          'Instituição atualizada',
-        );
-      case 'unlink':
-        await _run(
-          () => _institutionService.linkRoute(i.id, null),
-          'Instituição desvinculada',
-        );
-      case 'delete':
-        // O backend recusa se houver aluno vinculado — a rota dele sai daqui.
-        await _run(
-          () => _institutionService.deleteInstitution(i.id),
-          'Instituição removida',
-        );
-    }
-  }
-
   /// Já nasce vinculada: instituição sem rota deixa os alunos dela sem lista.
-  Future<void> _promptCreateInstitution() async {
-    final data = await _promptInstitutionForm(title: 'Nova instituição');
-    if (data == null) return;
-    await _run(
-      () => _institutionService.createInstitution(
-        data.$1,
-        address: data.$2,
-        routeId: widget.route.id,
-      ),
-      'Instituição cadastrada nesta rota',
-    );
-  }
-
-  Future<(String, String)?> _promptInstitutionForm({
-    required String title,
-    String? name,
-    String? address,
-  }) async {
-    final nameCtrl = TextEditingController(text: name ?? '');
-    final addressCtrl = TextEditingController(text: address ?? '');
-    final ok = await showDialog<bool>(
-      context: context,
-      builder: (context) => AlertDialog(
-        title: Text(title),
-        content: Column(
-          mainAxisSize: MainAxisSize.min,
-          children: [
-            TextField(
-              controller: nameCtrl,
-              autofocus: true,
-              decoration: const InputDecoration(labelText: 'Nome'),
-            ),
-            const SizedBox(height: 12),
-            TextField(
-              controller: addressCtrl,
-              decoration: const InputDecoration(labelText: 'Endereço'),
-            ),
-          ],
-        ),
-        actions: [
-          TextButton(
-            onPressed: () => Navigator.pop(context, false),
-            child: const Text('Cancelar'),
-          ),
-          TextButton(
-            onPressed: () => Navigator.pop(context, true),
-            child: const Text('Salvar'),
-          ),
-        ],
-      ),
-    );
-    if (ok != true || nameCtrl.text.trim().isEmpty) return null;
-    return (nameCtrl.text.trim(), addressCtrl.text.trim());
-  }
-
   /// Só mover e inserir esperam um toque no mapa.
-  String? get _modeLabel => switch (_pendingAction) {
-    _StopAction.move => 'Toque no novo local de "${_pendingStop!.name}"',
-    _StopAction.insertAfter =>
-      'Toque onde entra a parada depois de "${_pendingStop!.name}"',
-    _ => null,
-  };
-
   /// O toque no mapa muda de significado conforme o modo ativo.
-  Future<void> _onMapPoint(LatLng point) async {
-    final action = _pendingAction;
-    final target = _pendingStop;
-    if (action == null) {
-      await _promptAddStop(point);
-      return;
-    }
-    setState(() {
-      _pendingAction = null;
-      _pendingStop = null;
-    });
-
-    if (action == _StopAction.move) {
-      await _run(
-        () => _service.updateStop(
-          widget.route.id,
-          target!.id,
-          latitude: point.latitude,
-          longitude: point.longitude,
-        ),
-        'Parada movida',
-      );
-      return;
-    }
-
-    final name = await _promptText(
-      title: 'Parada depois de "${target!.name}"',
-      hint: 'Ex.: Posto de saúde',
-      helper:
-          '${point.latitude.toStringAsFixed(4)}, ${point.longitude.toStringAsFixed(4)}',
-    );
-    if (name == null) return;
-    await _run(
-      () => _service.addStop(
-        widget.route.id,
-        name,
-        latitude: point.latitude,
-        longitude: point.longitude,
-        sequence: target.sequence + 1,
-      ),
-      'Parada inserida',
-    );
-  }
-
-  Future<void> _onTapStop(MapStop tapped) async {
-    final stop = _stops.firstWhere((s) => s.id == tapped.id);
-    final action = await showModalBottomSheet<_StopAction>(
-      context: context,
-      builder: (context) => SafeArea(
-        child: Column(
-          mainAxisSize: MainAxisSize.min,
-          children: [
-            ListTile(
-              title: Text(
-                stop.name,
-                style: Theme.of(context).textTheme.titleMedium,
-              ),
-              subtitle: Text('Parada ${stop.sequence}'),
-            ),
-            const Divider(height: 1),
-            ListTile(
-              leading: const Icon(Icons.open_with, color: AppColors.deepTeal),
-              title: const Text('Mover para outro local'),
-              onTap: () => Navigator.pop(context, _StopAction.move),
-            ),
-            ListTile(
-              leading: const Icon(
-                Icons.add_location_alt_outlined,
-                color: AppColors.deepTeal,
-              ),
-              title: const Text('Inserir parada depois desta'),
-              onTap: () => Navigator.pop(context, _StopAction.insertAfter),
-            ),
-            ListTile(
-              leading: const Icon(
-                Icons.edit_outlined,
-                color: AppColors.deepTeal,
-              ),
-              title: const Text('Renomear'),
-              onTap: () => Navigator.pop(context, _StopAction.rename),
-            ),
-            ListTile(
-              leading: const Icon(
-                Icons.delete_outline,
-                color: AppColors.danger,
-              ),
-              title: const Text('Remover'),
-              onTap: () => Navigator.pop(context, _StopAction.remove),
-            ),
-          ],
-        ),
-      ),
-    );
-    if (action == null || !mounted) return;
-
-    switch (action) {
-      case _StopAction.move:
-      case _StopAction.insertAfter:
-        setState(() {
-          _pendingAction = action;
-          _pendingStop = stop;
-        });
-      case _StopAction.rename:
-        final name = await _promptText(
-          title: 'Renomear parada',
-          hint: stop.name,
-        );
-        if (name == null) return;
-        await _run(
-          () => _service.updateStop(widget.route.id, stop.id, name: name),
-          'Parada renomeada',
-        );
-      case _StopAction.remove:
-        await _run(
-          () => _service.deleteStop(widget.route.id, stop.id),
-          'Parada removida',
-        );
-    }
-  }
-
-  Future<void> _promptAddStop(LatLng point) async {
-    final name = await _promptText(
-      title: 'Nova parada',
-      hint: 'Ex.: Rodoviária',
-      helper:
-          '${point.latitude.toStringAsFixed(4)}, ${point.longitude.toStringAsFixed(4)}',
-    );
-    if (name == null) return;
-    await _run(
-      () => _service.addStop(
-        widget.route.id,
-        name,
-        latitude: point.latitude,
-        longitude: point.longitude,
-      ),
-      'Parada adicionada',
-    );
-  }
-
-  Future<void> _promptAddVehicle() async {
-    final labelCtrl = TextEditingController();
-    final capacityCtrl = TextEditingController();
-    final ok = await showDialog<bool>(
-      context: context,
-      builder: (context) => AlertDialog(
-        title: const Text('Novo veículo'),
-        content: Column(
-          mainAxisSize: MainAxisSize.min,
-          children: [
-            TextField(
-              controller: labelCtrl,
-              autofocus: true,
-              decoration: const InputDecoration(labelText: 'Identificação'),
-            ),
-            const SizedBox(height: 12),
-            TextField(
-              controller: capacityCtrl,
-              keyboardType: TextInputType.number,
-              decoration: const InputDecoration(labelText: 'Capacidade'),
-            ),
-          ],
-        ),
-        actions: [
-          TextButton(
-            onPressed: () => Navigator.pop(context, false),
-            child: const Text('Cancelar'),
-          ),
-          TextButton(
-            onPressed: () => Navigator.pop(context, true),
-            child: const Text('Adicionar'),
-          ),
-        ],
-      ),
-    );
-    final capacity = int.tryParse(capacityCtrl.text.trim());
-    if (ok != true || labelCtrl.text.trim().isEmpty || capacity == null) return;
-    await _run(
-      () =>
-          _service.addVehicle(widget.route.id, labelCtrl.text.trim(), capacity),
-      'Veículo adicionado',
-    );
-  }
-
-  Future<void> _promptLinkInstitution(List<InstitutionModel> options) async {
-    final chosen = await showDialog<InstitutionModel>(
-      context: context,
-      builder: (context) => SimpleDialog(
-        title: const Text('Vincular instituição'),
-        children: [
-          for (final institution in options)
-            SimpleDialogOption(
-              onPressed: () => Navigator.pop(context, institution),
-              child: Text(institution.name),
-            ),
-        ],
-      ),
-    );
-    if (chosen == null) return;
-    await _run(
-      () => _institutionService.linkRoute(chosen.id, widget.route.id),
-      'Instituição vinculada',
-    );
-  }
-
-  Future<String?> _promptText({
-    required String title,
-    required String hint,
-    String? helper,
-  }) async {
-    final controller = TextEditingController();
-    final ok = await showDialog<bool>(
-      context: context,
-      builder: (context) => AlertDialog(
-        title: Text(title),
-        content: TextField(
-          controller: controller,
-          autofocus: true,
-          decoration: InputDecoration(hintText: hint, helperText: helper),
-        ),
-        actions: [
-          TextButton(
-            onPressed: () => Navigator.pop(context, false),
-            child: const Text('Cancelar'),
-          ),
-          TextButton(
-            onPressed: () => Navigator.pop(context, true),
-            child: const Text('Adicionar'),
-          ),
-        ],
-      ),
-    );
-    final text = controller.text.trim();
-    return (ok == true && text.isNotEmpty) ? text : null;
-  }
 }
-
-enum _StopAction { move, insertAfter, rename, remove }

@@ -3,14 +3,18 @@ import '../../../core/errors/app_exception.dart';
 import '../../../core/theme/app_theme.dart';
 import '../../../core/utils/date_format.dart';
 import '../../../core/widgets/app_card.dart';
+import '../../../core/widgets/confirm_dialog.dart';
+import '../../../core/widgets/loading_card.dart';
 import '../../../core/widgets/institution_breakdown.dart';
 import '../../../core/widgets/reason_dialog.dart';
 import '../../../core/widgets/snackbar_utils.dart';
 import '../../../core/widgets/status_pill.dart';
 import '../../routes/services/route_service.dart';
+import 'daily_list_schedule_card.dart';
 import '../models/daily_list_model.dart';
 import '../screens/admin_list_entries_screen.dart';
 import '../services/list_service.dart';
+import 'schedule_picker_dialog.dart';
 
 /// Lista de hoje da rota, embutida na tela da rota: uma rota tem no máximo uma
 /// lista por dia, então não faz sentido gerenciá-las numa tela separada.
@@ -97,7 +101,7 @@ class _DailyListSectionState extends State<DailyListSection> {
   Future<void> _editSchedule() async {
     final picked = await showDialog<({TimeOfDay open, TimeOfDay close})>(
       context: context,
-      builder: (_) => _SchedulePickerDialog(
+      builder: (_) => SchedulePickerDialog(
         openTime:
             _asTimeOfDay(widget.openTime) ??
             const TimeOfDay(hour: 0, minute: 0),
@@ -133,28 +137,15 @@ class _DailyListSectionState extends State<DailyListSection> {
   }
 
   Future<void> _delete(DailyList list) async {
-    final confirmed = await showDialog<bool>(
-      context: context,
-      builder: (context) => AlertDialog(
-        title: const Text('Apagar a lista de hoje?'),
-        content: const Text(
+    final confirmed = await confirmDestructive(
+      context,
+      title: 'Apagar a lista de hoje?',
+      message:
           'As inscrições vão junto. Só funciona enquanto a lista não tiver '
           'relatório gerado.',
-        ),
-        actions: [
-          TextButton(
-            onPressed: () => Navigator.pop(context, false),
-            child: const Text('Cancelar'),
-          ),
-          TextButton(
-            onPressed: () => Navigator.pop(context, true),
-            style: TextButton.styleFrom(foregroundColor: AppColors.danger),
-            child: const Text('Apagar'),
-          ),
-        ],
-      ),
+      confirmLabel: 'Apagar',
     );
-    if (confirmed != true) return;
+    if (!confirmed) return;
     await _run(() => _service.deleteList(list.id), 'Lista apagada');
   }
 
@@ -174,41 +165,14 @@ class _DailyListSectionState extends State<DailyListSection> {
     return Column(
       crossAxisAlignment: CrossAxisAlignment.stretch,
       children: [
-        _scheduleCard(),
+        DailyListScheduleCard(
+          openTime: widget.openTime,
+          closeTime: widget.closeTime,
+          onEdit: _editSchedule,
+        ),
         const SizedBox(height: 12),
-        if (_loading) const _LoadingCard() else _listCard(),
+        if (_loading) const LoadingCard() else _listCard(),
       ],
-    );
-  }
-
-  Widget _scheduleCard() {
-    return AppCard(
-      child: Row(
-        children: [
-          const Icon(Icons.schedule, color: AppColors.deepTeal),
-          const SizedBox(width: 14),
-          Expanded(
-            child: Column(
-              crossAxisAlignment: CrossAxisAlignment.start,
-              children: [
-                Text(
-                  'Abre ${formatCloseTime(widget.openTime)} · '
-                  'fecha ${formatCloseTime(widget.closeTime)}',
-                  style: Theme.of(context).textTheme.titleMedium,
-                ),
-                const SizedBox(height: 2),
-                Text(
-                  'Mudar o horário avisa a rota',
-                  style: Theme.of(context).textTheme.bodySmall?.copyWith(
-                    color: AppColors.textSecondary,
-                  ),
-                ),
-              ],
-            ),
-          ),
-          TextButton(onPressed: _editSchedule, child: const Text('Alterar')),
-        ],
-      ),
     );
   }
 
@@ -321,134 +285,6 @@ class _DailyListSectionState extends State<DailyListSection> {
             ],
           ),
         ],
-      ),
-    );
-  }
-}
-
-class _LoadingCard extends StatelessWidget {
-  const _LoadingCard();
-
-  @override
-  Widget build(BuildContext context) => const AppCard(
-    child: Center(
-      child: Padding(
-        padding: EdgeInsets.all(12),
-        child: CircularProgressIndicator(),
-      ),
-    ),
-  );
-}
-
-class _SchedulePickerDialog extends StatefulWidget {
-  final TimeOfDay openTime;
-  final TimeOfDay closeTime;
-
-  const _SchedulePickerDialog({
-    required this.openTime,
-    required this.closeTime,
-  });
-
-  @override
-  State<_SchedulePickerDialog> createState() => _SchedulePickerDialogState();
-}
-
-class _SchedulePickerDialogState extends State<_SchedulePickerDialog> {
-  late TimeOfDay _open = widget.openTime;
-  late TimeOfDay _close = widget.closeTime;
-
-  bool get _valid =>
-      _open.hour * 60 + _open.minute < _close.hour * 60 + _close.minute;
-
-  @override
-  Widget build(BuildContext context) {
-    return AlertDialog(
-      title: const Text('Horário da lista'),
-      content: Column(
-        mainAxisSize: MainAxisSize.min,
-        crossAxisAlignment: CrossAxisAlignment.stretch,
-        children: [
-          _TimeRow(
-            label: 'Abre às',
-            icon: Icons.lock_open_outlined,
-            value: _open,
-            onPicked: (v) => setState(() => _open = v),
-          ),
-          const SizedBox(height: 8),
-          _TimeRow(
-            label: 'Fecha às',
-            icon: Icons.lock_outline,
-            value: _close,
-            onPicked: (v) => setState(() => _close = v),
-          ),
-          if (!_valid) ...[
-            const SizedBox(height: 12),
-            Text(
-              'A lista precisa abrir antes de fechar.',
-              style: Theme.of(
-                context,
-              ).textTheme.bodySmall?.copyWith(color: AppColors.danger),
-            ),
-          ],
-        ],
-      ),
-      actions: [
-        TextButton(
-          onPressed: () => Navigator.pop(context),
-          child: const Text('Cancelar'),
-        ),
-        FilledButton(
-          onPressed: _valid
-              ? () => Navigator.pop(context, (open: _open, close: _close))
-              : null,
-          child: const Text('Continuar'),
-        ),
-      ],
-    );
-  }
-}
-
-class _TimeRow extends StatelessWidget {
-  final String label;
-  final IconData icon;
-  final TimeOfDay value;
-  final ValueChanged<TimeOfDay> onPicked;
-
-  const _TimeRow({
-    required this.label,
-    required this.icon,
-    required this.value,
-    required this.onPicked,
-  });
-
-  @override
-  Widget build(BuildContext context) {
-    return InkWell(
-      onTap: () async {
-        final picked = await showTimePicker(
-          context: context,
-          initialTime: value,
-        );
-        if (picked != null) onPicked(picked);
-      },
-      borderRadius: BorderRadius.circular(AppRadius.control),
-      child: Container(
-        padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 12),
-        decoration: BoxDecoration(
-          border: Border.all(color: AppColors.stroke),
-          borderRadius: BorderRadius.circular(AppRadius.control),
-        ),
-        child: Row(
-          children: [
-            Icon(icon, size: 20, color: AppColors.deepTeal),
-            const SizedBox(width: 12),
-            Expanded(child: Text(label)),
-            Text(
-              value.format(context),
-              style: const TextStyle(fontWeight: FontWeight.w700),
-            ),
-          ],
-        ),
       ),
     );
   }
