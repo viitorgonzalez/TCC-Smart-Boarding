@@ -75,6 +75,8 @@ public class SecurityConfig {
                         // O aluno vê só as próprias advertências (/me); o resto é do admin.
                         .requestMatchers(HttpMethod.GET, "/api/warnings/me").authenticated()
                         .requestMatchers("/api/warnings/**").hasRole("ADMIN")
+                        // RN23: conduzir trajeto e acao de admin, nao de aluno.
+                        .requestMatchers("/api/trip/**").hasRole("ADMIN")
                         .requestMatchers(HttpMethod.GET, "/api/lists").hasRole("ADMIN")
                         .requestMatchers(HttpMethod.POST, "/api/lists").hasRole("ADMIN")
                         .requestMatchers(HttpMethod.PATCH, "/api/lists/{id}").hasRole("ADMIN")
