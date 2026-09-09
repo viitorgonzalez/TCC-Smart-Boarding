@@ -58,7 +58,7 @@ public class RouteUseCaseImpl implements CreateRouteUseCase, FindRouteUseCase,
 
     @Override
     @Transactional
-    public Route execute(UUID id, Route route) {
+    public Route execute(UUID id, Route route, Boolean isActive) {
         Route existing = findById(id);
         if (routeRepository.existsByNameAndIdNot(route.getName(), id)) {
             throw new ConflictException("ROUTE_NAME_CONFLICT", "Nome de rota já utilizado: " + route.getName());
@@ -70,6 +70,11 @@ public class RouteUseCaseImpl implements CreateRouteUseCase, FindRouteUseCase,
         }
         if (route.getCloseTime() != null) {
             existing.setCloseTime(route.getCloseTime());
+        }
+        // Nulo mantem o estado atual: sem isto, rota desativada pelo DELETE nao
+        // teria caminho de volta.
+        if (isActive != null) {
+            existing.setActive(isActive);
         }
         return routeRepository.save(existing);
     }

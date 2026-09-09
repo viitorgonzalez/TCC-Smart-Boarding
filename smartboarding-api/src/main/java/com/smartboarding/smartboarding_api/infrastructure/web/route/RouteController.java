@@ -63,7 +63,7 @@ public class RouteController {
     public ResponseEntity<ApiResponse<RouteResponse>> update(@PathVariable UUID id,
                                                              @RequestBody @Valid UpdateRouteRequest request) {
         Route route = Route.builder().name(request.name()).description(request.description()).build();
-        return ResponseEntity.ok(ApiResponse.data(RouteResponse.from(updateRouteUseCase.execute(id, route))));
+        return ResponseEntity.ok(ApiResponse.data(RouteResponse.from(updateRouteUseCase.execute(id, route, request.isActive()))));
     }
 
     @PatchMapping("/{id}/schedule")
