@@ -1,0 +1,303 @@
+package com.smartboarding.smartboarding_api.infrastructure.web.list;
+
+import com.fasterxml.jackson.databind.ObjectMapper;
+import com.smartboarding.smartboarding_api.domain.institution.entity.Institution;
+import com.smartboarding.smartboarding_api.domain.institution.port.out.InstitutionRepositoryPort;
+import com.smartboarding.smartboarding_api.domain.list.entity.DailyList;
+import com.smartboarding.smartboarding_api.domain.list.entity.ListEntry;
+import com.smartboarding.smartboarding_api.domain.list.entity.ListStatus;
+import com.smartboarding.smartboarding_api.domain.list.entity.TripType;
+import com.smartboarding.smartboarding_api.domain.list.port.in.AddEntryUseCase;
+import com.smartboarding.smartboarding_api.domain.warning.port.in.EnrollByAdminUseCase;
+import com.smartboarding.smartboarding_api.domain.list.port.in.FindListUseCase;
+import com.smartboarding.smartboarding_api.domain.list.port.in.ManageDailyListUseCase;
+import com.smartboarding.smartboarding_api.domain.list.port.in.RemoveEntryUseCase;
+import com.smartboarding.smartboarding_api.domain.list.port.out.ListEntryRepositoryPort;
+import com.smartboarding.smartboarding_api.domain.report.port.out.ReportRepositoryPort;
+import com.smartboarding.smartboarding_api.domain.route.entity.Route;
+import com.smartboarding.smartboarding_api.domain.stop.port.in.ManageStopsUseCase;
+import com.smartboarding.smartboarding_api.domain.user.entity.User;
+import com.smartboarding.smartboarding_api.domain.user.port.out.UserRepositoryPort;
+import com.smartboarding.smartboarding_api.domain.vehicle.port.out.VehicleRepositoryPort;
+import com.smartboarding.smartboarding_api.infrastructure.web.WebMvcTestSupport;
+import com.smartboarding.smartboarding_api.shared.exception.ConflictException;
+import com.smartboarding.smartboarding_api.shared.exception.NotFoundException;
+import org.junit.jupiter.api.BeforeEach;
+import org.junit.jupiter.api.Test;
+import org.springframework.beans.factory.annotation.Autowired;
+import org.springframework.boot.webmvc.test.autoconfigure.WebMvcTest;
+import org.springframework.http.MediaType;
+import org.springframework.test.context.bean.override.mockito.MockitoBean;
+import org.springframework.test.web.servlet.MockMvc;
+
+import java.time.LocalDate;
+import java.util.List;
+import java.util.Optional;
+import java.util.UUID;
+
+import static org.mockito.ArgumentMatchers.any;
+import static org.mockito.ArgumentMatchers.eq;
+import static org.mockito.Mockito.never;
+import static org.mockito.Mockito.verify;
+import static org.mockito.Mockito.when;
+import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.delete;
+import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.get;
+import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.patch;
+import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.post;
+import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.jsonPath;
+import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.status;
+
+@WebMvcTest(ListController.class)
+class ListControllerTest extends WebMvcTestSupport {
+
+    private static final UUID LIST_ID = UUID.fromString("aaaaaaaa-0000-0000-0000-000000000001");
+    private static final UUID ROUTE_ID = UUID.fromString("bbbbbbbb-0000-0000-0000-000000000001");
+    private static final UUID INSTITUTION_ID = UUID.fromString("cccccccc-0000-0000-0000-000000000001");
+
+    @Autowired MockMvc mvc;
+
+    @MockitoBean FindListUseCase findListUseCase;
+    @MockitoBean AddEntryUseCase addEntryUseCase;
+    @MockitoBean RemoveEntryUseCase removeEntryUseCase;
+    @MockitoBean ListEntryRepositoryPort listEntryRepository;
+    @MockitoBean UserRepositoryPort userRepository;
+    @MockitoBean VehicleRepositoryPort vehicleRepository;
+    @MockitoBean InstitutionRepositoryPort institutionRepository;
+    @MockitoBean ReportRepositoryPort reportRepository;
+    @MockitoBean ObjectMapper objectMapper;
+    @MockitoBean ManageStopsUseCase manageStopsUseCase;
+    @MockitoBean ManageDailyListUseCase manageDailyListUseCase;
+    @MockitoBean EnrollByAdminUseCase enrollByAdminUseCase;
+
+    private User aluno;
+
+    @BeforeEach
+    void setUp() {
+        aluno = User.builder().id(STUDENT_ID).email("fernanda@edu.unifor.br")
+                .fullName("Fernanda Lima").institutionId(INSTITUTION_ID).build();
+        when(userRepository.findByEmail("fernanda@edu.unifor.br")).thenReturn(Optional.of(aluno));
+        when(userRepository.findByEmail("naiara@admin.com")).thenReturn(Optional.of(
+                User.builder().id(ADMIN_ID).email("naiara@admin.com").fullName("Naiara").build()));
+        when(institutionRepository.findAll()).thenReturn(List.of(
+                Institution.builder().id(INSTITUTION_ID).name("Unifor").routeId(ROUTE_ID).build()));
+        when(vehicleRepository.findAllByRouteId(any())).thenReturn(List.of());
+        when(manageStopsUseCase.listByRoute(any())).thenReturn(List.of());
+        when(listEntryRepository.findAllByDailyListIdAndIsActiveTrue(any())).thenReturn(List.of());
+        when(listEntryRepository.findByUserIdAndDailyListId(any(), any())).thenReturn(Optional.empty());
+        when(reportRepository.findByDailyListId(any())).thenReturn(Optional.empty());
+    }
+
+    private DailyList lista() {
+        return DailyList.builder().id(LIST_ID).date(LocalDate.of(2026, 9, 9))
+                .status(ListStatus.OPEN)
+                .route(Route.builder().id(ROUTE_ID).name("Rota Universitária").build())
+                .build();
+    }
+
+    private ListEntry inscricao() {
+        return ListEntry.builder().id(UUID.randomUUID()).user(aluno)
+                .dailyList(lista()).tripType(TripType.ROUND_TRIP).isActive(true).build();
+    }
+
+    @Test
+    void semAutenticacaoDevolve401() throws Exception {
+        mvc.perform(get("/api/lists/today")).andExpect(status().isUnauthorized());
+
+        verify(findListUseCase, never()).findTodayLists(any());
+    }
+
+    /// O id vem do token, não do request: aceitar userId do cliente deixaria um
+    /// aluno consultar e alterar a lista de outro.
+    @Test
+    void listaDeHojeUsaOUsuarioDoToken() throws Exception {
+        when(findListUseCase.findTodayLists(STUDENT_ID)).thenReturn(List.of(lista()));
+
+        mvc.perform(get("/api/lists/today").with(student()))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.data[0].id").value(LIST_ID.toString()));
+
+        verify(findListUseCase).findTodayLists(STUDENT_ID);
+    }
+
+    @Test
+    void tokenDeUsuarioApagadoDevolve401() throws Exception {
+        when(userRepository.findByEmail("fernanda@edu.unifor.br")).thenReturn(Optional.empty());
+
+        mvc.perform(get("/api/lists/today").with(student()))
+                .andExpect(status().isUnauthorized());
+    }
+
+    /// Consultar lista de qualquer data é do admin — o aluno tem /today e o
+    /// próprio histórico, não a agenda inteira da rota.
+    @Test
+    void byDateEDoAdminERepassaADataDoQueryParam() throws Exception {
+        when(manageDailyListUseCase.findByDate(any())).thenReturn(List.of(lista()));
+
+        mvc.perform(get("/api/lists").param("date", "2026-09-09").with(student()))
+                .andExpect(status().isForbidden());
+
+        mvc.perform(get("/api/lists").param("date", "2026-09-09").with(admin()))
+                .andExpect(status().isOk());
+
+        verify(manageDailyListUseCase).findByDate(LocalDate.of(2026, 9, 9));
+    }
+
+    @Test
+    void entrarNaListaSemCorpoAssumeIdaEVolta() throws Exception {
+        when(addEntryUseCase.add(STUDENT_ID, LIST_ID, TripType.ROUND_TRIP)).thenReturn(inscricao());
+
+        mvc.perform(post("/api/lists/{id}/entries", LIST_ID).with(student()))
+                .andExpect(status().isCreated());
+
+        verify(addEntryUseCase).add(STUDENT_ID, LIST_ID, TripType.ROUND_TRIP);
+    }
+
+    @Test
+    void entrarNaListaComDirecaoExplicita() throws Exception {
+        when(addEntryUseCase.add(STUDENT_ID, LIST_ID, TripType.TO_CAMPUS)).thenReturn(inscricao());
+
+        mvc.perform(post("/api/lists/{id}/entries", LIST_ID).with(student())
+                        .contentType(MediaType.APPLICATION_JSON)
+                        .content("""
+                                {"tripType":"TO_CAMPUS"}"""))
+                .andExpect(status().isCreated());
+
+        verify(addEntryUseCase).add(STUDENT_ID, LIST_ID, TripType.TO_CAMPUS);
+    }
+
+    @Test
+    void listaFechadaDevolve409() throws Exception {
+        when(addEntryUseCase.add(any(), any(), any()))
+                .thenThrow(new ConflictException("LIST_CLOSED", "A lista já foi fechada."));
+
+        mvc.perform(post("/api/lists/{id}/entries", LIST_ID).with(student()))
+                .andExpect(status().isConflict())
+                .andExpect(jsonPath("$.code").value("LIST_CLOSED"));
+    }
+
+    @Test
+    void listaInexistenteDevolve404() throws Exception {
+        when(findListUseCase.findById(any()))
+                .thenThrow(new NotFoundException("Lista não encontrada"));
+
+        mvc.perform(get("/api/lists/{id}", LIST_ID).with(student()))
+                .andExpect(status().isNotFound());
+    }
+
+    @Test
+    void sairDaListaRemoveOProprioUsuario() throws Exception {
+        mvc.perform(delete("/api/lists/{id}/entries", LIST_ID).with(student()))
+                .andExpect(status().isOk());
+
+        verify(removeEntryUseCase).remove(STUDENT_ID, LIST_ID);
+    }
+
+    /// Inclusão tardia é do admin: aluno chamando o endpoint de admin não pode
+    /// escolher em nome de terceiro nem escapar da advertência.
+    @Test
+    void alunoNaoPodeInscreverOutroPeloEndpointDeAdmin() throws Exception {
+        mvc.perform(post("/api/lists/{id}/entries/admin", LIST_ID).with(student())
+                        .contentType(MediaType.APPLICATION_JSON)
+                        .content("""
+                                {"userId":"11111111-1111-1111-1111-111111111111","issueWarning":false}"""))
+                .andExpect(status().isForbidden());
+
+        verify(enrollByAdminUseCase, never())
+                .enroll(any(), any(), any(), anyBooleanOrNull(), any(), any());
+    }
+
+    private static boolean anyBooleanOrNull() {
+        return org.mockito.ArgumentMatchers.anyBoolean();
+    }
+
+    @Test
+    void adminInscreveAlunoDecidindoSeAdverte() throws Exception {
+        when(enrollByAdminUseCase.enroll(eq(LIST_ID), eq(STUDENT_ID), eq(TripType.ROUND_TRIP),
+                eq(true), eq("Entrou fora do horário"), eq(ADMIN_ID))).thenReturn(inscricao());
+
+        mvc.perform(post("/api/lists/{id}/entries/admin", LIST_ID).with(admin())
+                        .contentType(MediaType.APPLICATION_JSON)
+                        .content("""
+                                {"userId":"11111111-1111-1111-1111-111111111111",\
+                                "issueWarning":true,"warningReason":"Entrou fora do horário"}"""))
+                .andExpect(status().isCreated());
+
+        verify(enrollByAdminUseCase).enroll(LIST_ID, STUDENT_ID, TripType.ROUND_TRIP,
+                true, "Entrou fora do horário", ADMIN_ID);
+    }
+
+    @Test
+    void adminRemoveInscritoPeloId() throws Exception {
+        mvc.perform(delete("/api/lists/{id}/entries/{userId}", LIST_ID, STUDENT_ID).with(admin()))
+                .andExpect(status().isOk());
+
+        verify(removeEntryUseCase).remove(STUDENT_ID, LIST_ID);
+    }
+
+    @Test
+    void criarListaEDoAdmin() throws Exception {
+        mvc.perform(post("/api/lists").with(student())
+                        .contentType(MediaType.APPLICATION_JSON)
+                        .content("""
+                                {"routeId":"bbbbbbbb-0000-0000-0000-000000000001","date":"2026-09-10"}"""))
+                .andExpect(status().isForbidden());
+
+        verify(manageDailyListUseCase, never()).create(any(), any());
+    }
+
+    @Test
+    void mudarStatusExigeMotivo() throws Exception {
+        mvc.perform(patch("/api/lists/{id}", LIST_ID).with(admin())
+                        .contentType(MediaType.APPLICATION_JSON)
+                        .content("""
+                                {"status":"CLOSED"}"""))
+                .andExpect(status().isBadRequest());
+
+        verify(manageDailyListUseCase, never()).setStatus(any(), any(), any());
+    }
+
+    @Test
+    void mudarStatusComMotivoChegaNoUseCase() throws Exception {
+        when(manageDailyListUseCase.setStatus(eq(LIST_ID), eq(ListStatus.CLOSED), any()))
+                .thenReturn(lista());
+
+        mvc.perform(patch("/api/lists/{id}", LIST_ID).with(admin())
+                        .contentType(MediaType.APPLICATION_JSON)
+                        .content("""
+                                {"status":"CLOSED","reason":"Ônibus quebrou"}"""))
+                .andExpect(status().isOk());
+
+        verify(manageDailyListUseCase).setStatus(LIST_ID, ListStatus.CLOSED, "Ônibus quebrou");
+    }
+
+    @Test
+    void apagarListaEDoAdmin() throws Exception {
+        mvc.perform(delete("/api/lists/{id}", LIST_ID).with(student()))
+                .andExpect(status().isForbidden());
+
+        mvc.perform(delete("/api/lists/{id}", LIST_ID).with(admin()))
+                .andExpect(status().isOk());
+
+        verify(manageDailyListUseCase).delete(LIST_ID);
+    }
+
+    @Test
+    void historicoDePresencaUsaOUsuarioDoToken() throws Exception {
+        when(findListUseCase.findMyAttendance(eq(STUDENT_ID), org.mockito.ArgumentMatchers.anyInt()))
+                .thenReturn(List.of());
+
+        mvc.perform(get("/api/lists/my-attendance").with(student()))
+                .andExpect(status().isOk());
+
+        verify(findListUseCase).findMyAttendance(eq(STUDENT_ID), org.mockito.ArgumentMatchers.anyInt());
+    }
+
+    @Test
+    void inscritosDaListaSaemComONomeDaInstituicao() throws Exception {
+        when(findListUseCase.findEntriesByList(LIST_ID)).thenReturn(List.of(inscricao()));
+
+        mvc.perform(get("/api/lists/{id}/entries", LIST_ID).with(admin()))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.data[0].institutionName").value("Unifor"));
+    }
+}
