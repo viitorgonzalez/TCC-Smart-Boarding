@@ -1,4 +1,5 @@
 import '../../../core/services/dio_client.dart';
+import '../models/student_profile_model.dart';
 import '../models/user_model.dart';
 
 class UserService {
@@ -32,6 +33,23 @@ class UserService {
         'password': password,
         'role': role,
       },
+    );
+  }
+
+  Future<StudentProfile> getProfile(String userId) async {
+    final response = await _dio.get('/api/users/$userId/profile');
+    return StudentProfile.fromJson(
+      response.data['data'] as Map<String, dynamic>,
+    );
+  }
+
+  Future<StudentProfile> setActive(String userId, bool active) async {
+    final response = await _dio.patch(
+      '/api/users/$userId/status',
+      data: {'active': active},
+    );
+    return StudentProfile.fromJson(
+      response.data['data'] as Map<String, dynamic>,
     );
   }
 }

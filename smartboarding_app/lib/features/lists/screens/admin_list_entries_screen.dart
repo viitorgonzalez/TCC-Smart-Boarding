@@ -9,6 +9,7 @@ import '../../../core/widgets/empty_state.dart';
 import '../../../core/widgets/initials_avatar.dart';
 import '../../../core/theme/app_theme.dart';
 import '../../../core/widgets/snackbar_utils.dart';
+import '../../../core/widgets/student_sheet.dart';
 import '../../../core/widgets/trip_type_chip.dart';
 import '../../users/models/user_model.dart';
 import '../../users/services/user_service.dart';
@@ -130,6 +131,8 @@ class _EntriesView extends StatelessWidget {
                               ? entries[i].fullName[0].toUpperCase()
                               : '?',
                         ),
+                        onTap: () =>
+                            showStudentProfile(context, entries[i].userId),
                         title: Text(entries[i].fullName),
                         isThreeLine: true,
                         subtitle: Column(
