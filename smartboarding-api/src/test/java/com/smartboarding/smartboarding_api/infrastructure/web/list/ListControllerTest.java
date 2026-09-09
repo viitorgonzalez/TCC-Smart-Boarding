@@ -300,4 +300,119 @@ class ListControllerTest extends WebMvcTestSupport {
                 .andExpect(status().isOk())
                 .andExpect(jsonPath("$.data[0].institutionName").value("Unifor"));
     }
+
+    private ListEntry inscricaoDe(String nome, UUID institutionId) {
+        return ListEntry.builder().id(UUID.randomUUID())
+                .user(User.builder().id(UUID.randomUUID()).fullName(nome)
+                        .email(nome.toLowerCase() + "@edu.unifor.br")
+                        .institutionId(institutionId).build())
+                .dailyList(lista()).tripType(TripType.ROUND_TRIP).isActive(true).build();
+    }
+
+    /// A contagem por instituição é o que o admin usa pra saber quantos descem em
+    /// cada campus. Aluno sem instituição não pode sumir da conta.
+    @Test
+    void contagemAgrupaPorInstituicaoEAcusaOsSemVinculo() throws Exception {
+        UUID outra = UUID.fromString("cccccccc-0000-0000-0000-000000000002");
+        when(institutionRepository.findAll()).thenReturn(List.of(
+                Institution.builder().id(INSTITUTION_ID).name("Unifor").routeId(ROUTE_ID).build(),
+                Institution.builder().id(outra).name("UECE").routeId(ROUTE_ID).build()));
+        when(findListUseCase.findById(LIST_ID)).thenReturn(lista());
+        when(listEntryRepository.findAllByDailyListIdAndIsActiveTrue(LIST_ID)).thenReturn(List.of(
+                inscricaoDe("Fernanda", INSTITUTION_ID),
+                inscricaoDe("Bruno", INSTITUTION_ID),
+                inscricaoDe("Carla", outra),
+                inscricaoDe("Sem vinculo", null)));
+
+        mvc.perform(get("/api/lists/{id}", LIST_ID).with(admin()))
+                .andExpect(status().isOk())
+                // TreeMap: ordem alfabetica estavel, nao a ordem de chegada.
+                .andExpect(jsonPath("$.data.entriesByInstitution[0].name").value("Sem instituição"))
+                .andExpect(jsonPath("$.data.entriesByInstitution[0].count").value(1))
+                .andExpect(jsonPath("$.data.entriesByInstitution[1].name").value("UECE"))
+                .andExpect(jsonPath("$.data.entriesByInstitution[2].name").value("Unifor"))
+                .andExpect(jsonPath("$.data.entriesByInstitution[2].count").value(2));
+    }
+
+    /// RN16: a proposta de veículo sai do relatório do fechamento. Lista aberta
+    /// não propõe nada — o total de confirmados ainda muda.
+    @Test
+    void listaAbertaNaoTrazVeiculoProposto() throws Exception {
+        when(findListUseCase.findById(LIST_ID)).thenReturn(lista());
+
+        mvc.perform(get("/api/lists/{id}", LIST_ID).with(student()))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.data.proposedVehicles").isEmpty())
+                .andExpect(jsonPath("$.data.capacityShortfall").value(0));
+
+        verify(reportRepository, never()).findByDailyListId(any());
+    }
+
+    @Test
+    void listaFechadaTrazOVeiculoPropostoDoRelatorio() throws Exception {
+        var fechada = DailyList.builder().id(LIST_ID).date(LocalDate.of(2026, 9, 9))
+                .status(ListStatus.CLOSED)
+                .route(Route.builder().id(ROUTE_ID).name("Rota Universitária").build()).build();
+        when(findListUseCase.findById(LIST_ID)).thenReturn(fechada);
+        when(reportRepository.findByDailyListId(LIST_ID)).thenReturn(Optional.of(
+                com.smartboarding.smartboarding_api.domain.report.entity.Report.builder()
+                        .proposedVehicles("[{\"label\":\"Van 01\",\"capacity\":\"15\"}]")
+                        .capacityShortfall(3).build()));
+        when(objectMapper.readValue(org.mockito.ArgumentMatchers.anyString(),
+                org.mockito.ArgumentMatchers.<com.fasterxml.jackson.core.type.TypeReference<Object>>any()))
+                .thenReturn(List.of(java.util.Map.of("label", "Van 01", "capacity", "15")));
+
+        mvc.perform(get("/api/lists/{id}", LIST_ID).with(admin()))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.data.proposedVehicles[0].label").value("Van 01"))
+                .andExpect(jsonPath("$.data.proposedVehicles[0].capacity").value(15))
+                .andExpect(jsonPath("$.data.capacityShortfall").value(3));
+    }
+
+    /// JSON corrompido no relatório não pode derrubar a tela da lista: perde-se a
+    /// proposta, mas o déficit gravado continua valendo.
+    @Test
+    void relatorioComJsonQuebradoNaoDerrubaATela() throws Exception {
+        var fechada = DailyList.builder().id(LIST_ID).date(LocalDate.of(2026, 9, 9))
+                .status(ListStatus.CLOSED)
+                .route(Route.builder().id(ROUTE_ID).name("Rota Universitária").build()).build();
+        when(findListUseCase.findById(LIST_ID)).thenReturn(fechada);
+        when(reportRepository.findByDailyListId(LIST_ID)).thenReturn(Optional.of(
+                com.smartboarding.smartboarding_api.domain.report.entity.Report.builder()
+                        .proposedVehicles("{ nao e json valido").capacityShortfall(5).build()));
+        when(objectMapper.readValue(org.mockito.ArgumentMatchers.anyString(),
+                org.mockito.ArgumentMatchers.<com.fasterxml.jackson.core.type.TypeReference<Object>>any()))
+                .thenThrow(new RuntimeException("json invalido"));
+
+        mvc.perform(get("/api/lists/{id}", LIST_ID).with(admin()))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.data.proposedVehicles").isEmpty())
+                .andExpect(jsonPath("$.data.capacityShortfall").value(5));
+    }
+
+    @Test
+    void adminCriaListaERecebeAListaCriada() throws Exception {
+        when(manageDailyListUseCase.create(eq(ROUTE_ID), any())).thenReturn(lista());
+
+        mvc.perform(post("/api/lists").with(admin())
+                        .contentType(MediaType.APPLICATION_JSON)
+                        .content("""
+                                {"routeId":"bbbbbbbb-0000-0000-0000-000000000001","date":"2026-09-10"}"""))
+                .andExpect(status().isCreated());
+
+        verify(manageDailyListUseCase).create(ROUTE_ID, LocalDate.of(2026, 9, 10));
+    }
+
+    @Test
+    void listaExistenteNoMesmoDiaDevolve409() throws Exception {
+        when(manageDailyListUseCase.create(any(), any()))
+                .thenThrow(new ConflictException("LIST_ALREADY_EXISTS", "Já existe lista dessa rota."));
+
+        mvc.perform(post("/api/lists").with(admin())
+                        .contentType(MediaType.APPLICATION_JSON)
+                        .content("""
+                                {"routeId":"bbbbbbbb-0000-0000-0000-000000000001","date":"2026-09-10"}"""))
+                .andExpect(status().isConflict())
+                .andExpect(jsonPath("$.code").value("LIST_ALREADY_EXISTS"));
+    }
 }
