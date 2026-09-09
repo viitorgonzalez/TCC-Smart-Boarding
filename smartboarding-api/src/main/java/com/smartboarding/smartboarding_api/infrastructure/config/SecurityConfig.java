@@ -77,6 +77,8 @@ public class SecurityConfig {
                         .requestMatchers("/api/warnings/**").hasRole("ADMIN")
                         // RN23: conduzir trajeto e acao de admin, nao de aluno.
                         .requestMatchers("/api/trip/**").hasRole("ADMIN")
+                        .requestMatchers(HttpMethod.GET, "/api/users/{id}/profile").hasRole("ADMIN")
+                        .requestMatchers(HttpMethod.PATCH, "/api/users/{id}/status").hasRole("ADMIN")
                         .requestMatchers(HttpMethod.GET, "/api/lists").hasRole("ADMIN")
                         .requestMatchers(HttpMethod.POST, "/api/lists").hasRole("ADMIN")
                         .requestMatchers(HttpMethod.PATCH, "/api/lists/{id}").hasRole("ADMIN")
