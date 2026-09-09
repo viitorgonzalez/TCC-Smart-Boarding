@@ -1,10 +1,12 @@
 name: e2e
 
+# Só manual. O agendamento noturno foi removido: o job nunca ficou verde (12/12
+# falhas desde 29/08, sempre no passo do emulador) e o vermelho diário virava
+# ruído que escondia falha de verdade. O teste continua aqui porque é válido --
+# o que não presta é o emulador no runner. Rode com:
+#   gh workflow run e2e.yml
 on:
   workflow_dispatch:
-  schedule:
-    # 06:00 UTC = 03:00 em Fortaleza — fora do horário de uso.
-    - cron: '0 6 * * *'
 
 jobs:
   app-e2e:

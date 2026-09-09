@@ -111,14 +111,14 @@ class RegistrationControllerTest extends WebMvcTestSupport {
     @Test
     void verificarCodigoEPublicoEDevolveOToken() throws Exception {
         when(verifyInviteCodeUseCase.verifyCode("fernanda@edu.unifor.br", "123456"))
-                .thenReturn("token-do-convite");
+                .thenReturn("convite-x1");
 
         mvc.perform(post("/api/registration/verify-code")
                         .contentType(MediaType.APPLICATION_JSON)
                         .content("""
                                 {"email":"fernanda@edu.unifor.br","code":"123456"}"""))
                 .andExpect(status().isOk())
-                .andExpect(jsonPath("$.data.token").value("token-do-convite"));
+                .andExpect(jsonPath("$.data.token").value("convite-x1"));
     }
 
     /// O código tem 6 dígitos. Barrar formato errado no controller evita gastar
@@ -160,9 +160,9 @@ class RegistrationControllerTest extends WebMvcTestSupport {
 
     @Test
     void consultarConvitePeloTokenEPublico() throws Exception {
-        when(validateTokenUseCase.validateToken("token-do-convite")).thenReturn(pedido());
+        when(validateTokenUseCase.validateToken("convite-x1")).thenReturn(pedido());
 
-        mvc.perform(get("/api/registration/invite/{token}", "token-do-convite"))
+        mvc.perform(get("/api/registration/invite/{token}", "convite-x1"))
                 .andExpect(status().isOk())
                 .andExpect(jsonPath("$.data.email").value("fernanda@edu.unifor.br"))
                 .andExpect(jsonPath("$.data.status").value("PENDING"));
@@ -170,7 +170,7 @@ class RegistrationControllerTest extends WebMvcTestSupport {
 
     @Test
     void enviarCadastroRepassaTodosOsDados() throws Exception {
-        mvc.perform(post("/api/registration/{token}/submit", "token-do-convite")
+        mvc.perform(post("/api/registration/{token}/submit", "convite-x1")
                         .contentType(MediaType.APPLICATION_JSON)
                         .content("""
                                 {"fullName":"Fernanda Lima","password":"sb@2026",\
@@ -181,7 +181,7 @@ class RegistrationControllerTest extends WebMvcTestSupport {
 
         var captor = org.mockito.ArgumentCaptor.forClass(SubmitRegistrationUseCase.SubmitData.class);
         verify(submitRegistrationUseCase).submitRegistration(
-                org.mockito.ArgumentMatchers.eq("token-do-convite"), captor.capture());
+                org.mockito.ArgumentMatchers.eq("convite-x1"), captor.capture());
         org.assertj.core.api.Assertions.assertThat(captor.getValue().fullName())
                 .isEqualTo("Fernanda Lima");
         org.assertj.core.api.Assertions.assertThat(captor.getValue().institutionId())
@@ -191,7 +191,7 @@ class RegistrationControllerTest extends WebMvcTestSupport {
     /// RN10: senha com menos de 6 caracteres é barrada antes de virar hash.
     @Test
     void senhaCurtaERecusada() throws Exception {
-        mvc.perform(post("/api/registration/{token}/submit", "token-do-convite")
+        mvc.perform(post("/api/registration/{token}/submit", "convite-x1")
                         .contentType(MediaType.APPLICATION_JSON)
                         .content("""
                                 {"fullName":"Fernanda Lima","password":"123",\
@@ -203,7 +203,7 @@ class RegistrationControllerTest extends WebMvcTestSupport {
 
     @Test
     void cadastroSemInstituicaoERecusado() throws Exception {
-        mvc.perform(post("/api/registration/{token}/submit", "token-do-convite")
+        mvc.perform(post("/api/registration/{token}/submit", "convite-x1")
                         .contentType(MediaType.APPLICATION_JSON)
                         .content("""
                                 {"fullName":"Fernanda Lima","password":"sb@2026"}"""))
