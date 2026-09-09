@@ -248,9 +248,13 @@ Contextos (`<contexto>`): `user`, `route`, `institution`, `vehicle`, `stop`, `li
 - **RN10** — E-mail de usuário é único. Senha mínima de 6 caracteres.
 - **RN21** — Sessão longa: ver mecanismo em §3.3. Refresh token só é emitido quando o login pede
   `rememberMe: true`.
-- **RN22** — Recuperação de senha: `POST /api/auth/forgot-password` sempre responde
-  `{success:true}`, mesmo se o e-mail não existir (não revela quais e-mails são cadastrados).
-  `POST /api/auth/reset-password` troca a senha e invalida o token usado.
+- **RN22** — Recuperação de senha por **código de 6 dígitos** enviado por e-mail (não link: App
+  Link exige domínio publicado e verificado, pendência de deploy — mesmo motivo do convite).
+  `POST /api/auth/forgot-password` sempre responde `{success:true}`, mesmo se o e-mail não existir
+  (não revela quais e-mails são cadastrados). `POST /api/auth/reset-password {email, code,
+  newPassword}` troca a senha e queima o código. O código é hasheado no banco, vale por
+  `app.password-reset.code-ttl-minutes`, é de uso único, tem limite de tentativas e emitir um novo
+  invalida os anteriores.
 
 ---
 
@@ -285,7 +289,7 @@ Contextos (`<contexto>`): `user`, `route`, `institution`, `vehicle`, `stop`, `li
 | POST | `/api/auth/refresh` | Público (com refresh token) | `{refreshToken}` | `{token}` | `401` token inválido/expirado |
 | POST | `/api/auth/register` | ADMIN | `{email, password≥6, fullName}` | `UserResponse` (role sempre ADMIN) | `409 EMAIL_ALREADY_EXISTS`, `400 VALIDATION_ERROR` |
 | POST | `/api/auth/forgot-password` | Público | `{email}` | `{success:true}` (sempre) | — |
-| POST | `/api/auth/reset-password` | Público | `{token, newPassword}` | `{success:true}` | `400` token inválido/expirado |
+| POST | `/api/auth/reset-password` | Público | `{email, code, newPassword}` | `{success:true}` | `400` `INVALID_CODE` / `CODE_EXPIRED` / `TOO_MANY_ATTEMPTS` |
 | POST | `/api/registration/invite` | ADMIN | `{email}` | `{id, token, expiresAt}` | — |
 | GET | `/api/registration/invite/{token}` | Público | — | dados do convite | `404` |
 | POST | `/api/registration/{token}/submit` | Público | `{fullName, password, institutionId, course?, phone?, address?, birthDate?}` | `{status: "SUBMITTED"}` | `400`, `404` |
