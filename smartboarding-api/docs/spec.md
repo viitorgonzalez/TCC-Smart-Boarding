@@ -237,7 +237,12 @@ Contextos (`<contexto>`): `user`, `route`, `institution`, `vehicle`, `stop`, `li
 ### 4.7 Trajeto
 
 - **RN23** — Ações de trajeto (iniciar, checkpoint num ponto principal, finalizar) são
-  exclusivas do `ADMIN` — não existe um papel de motorista separado. Checkpoint só é aceito em
+  exclusivas do `ADMIN` — não existe um papel de motorista separado. Um trajeto por lista do dia:
+  o estado mora em `daily_lists.trip_started_at`/`trip_finished_at` e cada chegada vira uma linha
+  em `trip_checkpoints`, com `UNIQUE (lista, parada)` — o checkpoint é **idempotente**, tocar duas
+  vezes não gera segunda chegada nem segundo aviso. Ponto principal é `stops.is_main_point`. Cada
+  ação **persiste** o aviso além de disparar o push: push não deixa registro, e sem isso o aluno
+  não veria nada. Checkpoint só é aceito em
   pontos marcados como principais (rodoviária + instituições da rota) — paradas comuns não geram
   checkpoint, só aparecem no mapa. Cada ação de trajeto dispara notificação FCM aos inscritos
   ativos da lista do dia, independente do `status` da lista (funciona mesmo com a lista já

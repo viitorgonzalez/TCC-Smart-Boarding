@@ -10,7 +10,8 @@ os inscritos ativos por push.
 
 ## Dados & contrato
 
-- Seleciona a lista/rota do dia.
+- Entrada pela tela da rota, na seção "Lista de hoje" (botão *Conduzir trajeto*).
+- `GET /api/trip/{listId}` — estado atual, com os pontos principais e quais já foram marcados.
 - `POST /api/trip/{listId}/start` — iniciar.
 - `POST /api/trip/{listId}/checkpoint/{stopId}` — checkpoint (só aceito em pontos com
   `isMainPoint=true`).
@@ -18,7 +19,7 @@ os inscritos ativos por push.
 
 ## Layout / seções
 
-- Seletor de lista/rota do dia.
+- Cartão com a rota do trajeto selecionado.
 - Botão "Iniciar trajeto".
 - Um botão de checkpoint por ponto principal da rota (rodoviária + instituições) — paradas
   comuns não aparecem aqui, só no mapa.
