@@ -30,6 +30,10 @@ public class SecurityConfig {
                 .sessionManagement(session -> session.sessionCreationPolicy(SessionCreationPolicy.STATELESS))
                 .authorizeHttpRequests(auth -> auth
                         .requestMatchers(HttpMethod.POST, "/api/auth/login").permitAll()
+                        // RN22: quem esqueceu a senha nao esta autenticado -- por
+                        // definicao, estes dois precisam ser publicos.
+                        .requestMatchers(HttpMethod.POST, "/api/auth/forgot-password").permitAll()
+                        .requestMatchers(HttpMethod.POST, "/api/auth/reset-password").permitAll()
                         .requestMatchers(HttpMethod.GET, "/api/routes").permitAll()
                         .requestMatchers(HttpMethod.GET, "/api/routes/{id}").permitAll()
                         .requestMatchers(HttpMethod.GET, "/api/institutions").permitAll()
