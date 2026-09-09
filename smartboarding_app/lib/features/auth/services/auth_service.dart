@@ -22,6 +22,23 @@ class AuthService {
     return token;
   }
 
+  /// Responde igual havendo conta ou não — a tela nunca deve afirmar que o
+  /// e-mail existe (RN22).
+  Future<void> forgotPassword(String email) async {
+    await _dio.post('/api/auth/forgot-password', data: {'email': email});
+  }
+
+  Future<void> resetPassword({
+    required String email,
+    required String code,
+    required String newPassword,
+  }) async {
+    await _dio.post(
+      '/api/auth/reset-password',
+      data: {'email': email, 'code': code, 'newPassword': newPassword},
+    );
+  }
+
   Future<void> logout() async {
     await _storage.clearAuth();
   }

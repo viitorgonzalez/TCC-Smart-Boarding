@@ -6,6 +6,7 @@ import '../../../core/widgets/app_text_field.dart';
 import '../../../core/widgets/loading_filled_button.dart';
 import '../../../core/widgets/snackbar_utils.dart';
 import '../../registration/screens/verify_invite_code_screen.dart';
+import 'forgot_password_screen.dart';
 
 class LoginScreen extends StatefulWidget {
   const LoginScreen({super.key});
@@ -136,6 +137,18 @@ class _LoginScreenState extends State<LoginScreen> {
                       color: AppColors.deepTeal,
                       fontWeight: FontWeight.w700,
                     ),
+                  ),
+                ),
+                TextButton(
+                  key: const Key('login_forgot_password'),
+                  onPressed: () => Navigator.of(context).push(
+                    MaterialPageRoute(
+                      builder: (_) => const ForgotPasswordScreen(),
+                    ),
+                  ),
+                  child: const Text(
+                    'Esqueci minha senha',
+                    style: TextStyle(color: AppColors.textSecondary),
                   ),
                 ),
               ],
