@@ -1,1 +1,7 @@
 .worktrees/
+
+# Credenciais do Firebase — nunca versionadas. O google-services.json ja e
+# ignorado pelo .gitignore do app; o service account da API e a chave mais
+# sensivel das duas e faltava regra.
+**/firebase-service-account*.json
+**/GoogleService-Info.plist
