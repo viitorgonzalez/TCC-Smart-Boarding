@@ -1,0 +1,24 @@
+# .aiignore — paths que não são código revisável de verdade.
+#
+# Usado pelo gate de tamanho de arquivo (../personal-harness/docs/CONVENTIONS.md §7).
+# Template de origem: ../personal-harness/templates/.aiignore
+
+# Lockfiles
+smartboarding_app/pubspec.lock
+
+# Build output
+smartboarding-api/target/
+smartboarding_app/build/
+smartboarding_app/android/.gradle/
+smartboarding_app/ios/Pods/
+
+# Código gerado
+*.g.dart
+*.freezed.dart
+
+# Seed de banco — grande por natureza, não é lógica de produto
+smartboarding-api/src/main/resources/db/migration/V2__seed_data.sql
+
+# Editor/IDE
+.idea/
+.vscode/
