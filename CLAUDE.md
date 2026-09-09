@@ -2,7 +2,8 @@
 
 Sistema de gestão de embarque no ônibus universitário da Unifor: o aluno se cadastra por convite e entra/sai da lista diária da própria rota pelo app, o admin gerencia rotas/instituições/veículos e dispara push, e conduz o trajeto do ônibus (não há papel de motorista separado). Projeto de TCC (entrega oficial: início de novembro/2026).
 
-> ⚠️ **A `main` está desatualizada.** O app Flutter e boa parte da API vivem em **`fix/project-setup`** (22 commits à frente da `main`, 0 atrás). Confirme a branch antes de assumir que um arquivo existe — na `main` o app nem existe.
+> ℹ️ **A `main` é a fonte da verdade.** Alinhada em 08/09/2026 (PR #9) — o app Flutter e a API
+> completa estão nela. Branches de feature saem da `main` e voltam pra ela.
 
 ## Duas aplicações, um repo
 
