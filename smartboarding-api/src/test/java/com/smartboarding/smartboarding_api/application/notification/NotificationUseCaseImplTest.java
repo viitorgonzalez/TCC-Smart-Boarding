@@ -114,4 +114,85 @@ class NotificationUseCaseImplTest {
         assertThat(useCase().listFor(adminId)).hasSize(2);
         verify(notificationRepository, never()).findVisible(any(), any());
     }
+
+    @Test
+    void pushDirigidoUsaSoOsTokensDaquelesUsuario() {
+        UUID userId = UUID.randomUUID();
+        when(deviceTokenRepository.findByUserId(userId)).thenReturn(List.of(
+                com.smartboarding.smartboarding_api.domain.notification.entity.DeviceToken.builder()
+                        .token("tok-a").build(),
+                com.smartboarding.smartboarding_api.domain.notification.entity.DeviceToken.builder()
+                        .token("tok-b").build()));
+
+        useCase().execute(userId, "Advertência", "Você entrou fora do horário");
+
+        verify(fcmPort).sendToTokens(List.of("tok-a", "tok-b"),
+                "Advertência", "Você entrou fora do horário");
+    }
+
+    @Test
+    void usuarioSemDispositivoNaoChamaOFcm() {
+        UUID userId = UUID.randomUUID();
+        when(deviceTokenRepository.findByUserId(userId)).thenReturn(List.of());
+
+        useCase().execute(userId, "Advertência", "corpo");
+
+        verify(fcmPort, never()).sendToTokens(anyList(), anyString(), anyString());
+    }
+
+    @Test
+    void deleteAllVazioNaoChamaORepositorio() {
+        useCase().deleteAll(List.of());
+
+        verify(notificationRepository, never()).deleteAllById(any());
+    }
+
+    @Test
+    void deleteAllRepassaOsIds() {
+        var ids = List.of(UUID.randomUUID(), UUID.randomUUID());
+
+        useCase().deleteAll(ids);
+
+        verify(notificationRepository).deleteAllById(ids);
+    }
+
+    /// Admin vê tudo; aluno vê só o que vale pra rota dele e ainda não expirou.
+    @Test
+    void adminVeTodosOsAvisos() {
+        UUID adminId = UUID.randomUUID();
+        when(userRepository.findById(adminId)).thenReturn(Optional.of(
+                User.builder().id(adminId).role(Role.ADMIN).build()));
+        var todos = List.of(Notification.builder().build());
+        when(notificationRepository.findAll()).thenReturn(todos);
+
+        assertThat(useCase().listFor(adminId)).isEqualTo(todos);
+        verify(notificationRepository, never()).findVisible(any(), any());
+    }
+
+    @Test
+    void alunoSemInstituicaoRecebeSoOsAvisosGerais() {
+        UUID studentId = UUID.randomUUID();
+        when(userRepository.findById(studentId)).thenReturn(Optional.of(
+                User.builder().id(studentId).role(Role.STUDENT).build()));
+
+        useCase().listFor(studentId);
+
+        verify(notificationRepository).findVisible(null, NOW);
+    }
+
+    @Test
+    void alunoRecebeOsAvisosDaRotaDaSuaInstituicao() {
+        UUID studentId = UUID.randomUUID();
+        UUID institutionId = UUID.randomUUID();
+        UUID routeId = UUID.randomUUID();
+        when(userRepository.findById(studentId)).thenReturn(Optional.of(
+                User.builder().id(studentId).role(Role.STUDENT)
+                        .institutionId(institutionId).build()));
+        when(institutionRepository.findById(institutionId)).thenReturn(Optional.of(
+                Institution.builder().id(institutionId).routeId(routeId).build()));
+
+        useCase().listFor(studentId);
+
+        verify(notificationRepository).findVisible(routeId, NOW);
+    }
 }
