@@ -42,4 +42,10 @@ public class DailyList {
     @Builder.Default
     @Column(name = "manual_override", nullable = false)
     private boolean manualOverride = false;
+
+    @Column(name = "trip_started_at")
+    private LocalDateTime tripStartedAt;
+
+    @Column(name = "trip_finished_at")
+    private LocalDateTime tripFinishedAt;
 }
