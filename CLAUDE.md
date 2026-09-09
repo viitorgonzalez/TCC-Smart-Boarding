@@ -33,7 +33,7 @@ docker compose up -d    # Postgres :5433 + pgAdmin :5050
 flutter pub get
 flutter run --dart-define=API_BASE_URL=http://<ip-da-lan>:8080
 flutter build apk --release
-flutter test --coverage                                                  # unit + cobertura
+flutter test --coverage && ./scripts/coverage-gate.sh                    # unit + gate de 70%
 flutter test integration_test/ --dart-define=API_BASE_URL=http://10.0.2.2:8080  # e2e (API+Postgres locais, emulador rodando)
 ```
 

@@ -38,10 +38,12 @@ cp .env.example .env
 
 # 4. Rodar testes
 ./mvnw test      # unit — rápido, sem Docker
-./mvnw verify     # unit + integration — sobe Postgres via Testcontainers, precisa de Docker
+./mvnw verify     # unit + integration + GATE de cobertura — sobe Postgres via Testcontainers, precisa de Docker
 
 # 5. Cobertura (unit)
 ./mvnw test && open target/site/jacoco/index.html   # (ou xdg-open no Linux)
+# O `verify` REPROVA abaixo de 90% em application.* e 70% no resto.
+# Entidade, DTO e config ficam fora do gate (record/Lombok sem ramo).
 ```
 
 A API sobe em `http://localhost:8080`. Flyway aplica as migrations automaticamente.
