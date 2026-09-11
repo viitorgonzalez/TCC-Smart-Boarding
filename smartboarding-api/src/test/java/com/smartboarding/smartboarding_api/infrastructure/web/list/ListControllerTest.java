@@ -301,6 +301,41 @@ class ListControllerTest extends WebMvcTestSupport {
                 .andExpect(jsonPath("$.data[0].institutionName").value("Unifor"));
     }
 
+    /// A lista e compartilhada e o aluno ve quem embarca junto -- de proposito.
+    /// O e-mail, nao: o endpoint e authenticated(), entao manda-lo transformava a
+    /// lista num diretorio de contatos da turma, bastando chamar a API direto.
+    @Test
+    void alunoVeQuemEmbarcaMasNaoOEmailDeNinguem() throws Exception {
+        when(findListUseCase.findEntriesByList(LIST_ID)).thenReturn(List.of(inscricao()));
+
+        mvc.perform(get("/api/lists/{id}/entries", LIST_ID).with(student()))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.data[0].fullName").value("Fernanda Lima"))
+                .andExpect(jsonPath("$.data[0].institutionName").value("Unifor"))
+                .andExpect(jsonPath("$.data[0].email").doesNotExist());
+    }
+
+    @Test
+    void adminContinuaRecebendoOEmailDosInscritos() throws Exception {
+        when(findListUseCase.findEntriesByList(LIST_ID)).thenReturn(List.of(inscricao()));
+
+        mvc.perform(get("/api/lists/{id}/entries", LIST_ID).with(admin()))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.data[0].email").value("fernanda@edu.unifor.br"));
+    }
+
+    /// Nenhum e-mail de terceiro pode escapar no corpo inteiro, nao so no campo
+    /// que o teste acima olha.
+    @Test
+    void corpoDaListaNaoCarregaEmailNenhumParaAluno() throws Exception {
+        when(findListUseCase.findEntriesByList(LIST_ID)).thenReturn(List.of(inscricao()));
+
+        var body = mvc.perform(get("/api/lists/{id}/entries", LIST_ID).with(student()))
+                .andReturn().getResponse().getContentAsString();
+
+        org.assertj.core.api.Assertions.assertThat(body).doesNotContain("@");
+    }
+
     private ListEntry inscricaoDe(String nome, UUID institutionId) {
         return ListEntry.builder().id(UUID.randomUUID())
                 .user(User.builder().id(UUID.randomUUID()).fullName(nome)

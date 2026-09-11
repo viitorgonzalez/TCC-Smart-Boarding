@@ -138,7 +138,7 @@ class _EntriesView extends StatelessWidget {
                         subtitle: Column(
                           crossAxisAlignment: CrossAxisAlignment.start,
                           children: [
-                            Text(entries[i].email),
+                            Text(entries[i].email ?? '—'),
                             Text(
                               'Entrou às ${formatTime(entries[i].createdAt)}',
                             ),
