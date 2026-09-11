@@ -188,7 +188,10 @@ Future<void> _addStudent(
     backgroundColor: AppColors.surface,
     builder: (_) => EnrollSheet(student: students),
   );
-  if (decision == null) return;
+  if (decision == null || !context.mounted) return;
+
+  if (!await confirmEnroll(context, students, decision)) return;
+  if (!context.mounted) return;
 
   try {
     await ListService().addEntryAsAdmin(

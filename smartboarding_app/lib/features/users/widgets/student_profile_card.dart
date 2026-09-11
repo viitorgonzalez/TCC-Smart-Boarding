@@ -8,9 +8,10 @@ import '../../../core/widgets/snackbar_utils.dart';
 import '../../../core/widgets/status_pill.dart';
 import '../models/student_profile_model.dart';
 import '../services/user_service.dart';
+import 'profile_info_rows.dart';
 
-/// Perfil breve do aluno, aberto ao tocar nele. Mostra só o que o admin precisa
-/// pra conferir e decidir — a API nem manda e-mail ou endereço.
+/// Ficha do aluno, aberta ao tocar nele. Só o admin alcança: o endpoint por trás
+/// é hasRole("ADMIN") justamente porque aqui trafega dado de contato.
 class StudentProfileSheet extends StatefulWidget {
   final String userId;
 
@@ -128,6 +129,7 @@ class StudentProfileBody extends StatelessWidget {
           ],
         ),
         const SizedBox(height: 16),
+        ProfileInfoRows(profile: profile),
         SwitchListTile(
           contentPadding: EdgeInsets.zero,
           value: profile.isActive,

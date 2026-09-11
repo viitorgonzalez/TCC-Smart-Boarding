@@ -1,8 +1,12 @@
-/// Perfil breve do aluno para o card do admin. Espelha o DTO da API — que não
-/// manda e-mail, telefone, endereço nem data de nascimento.
+/// Ficha do aluno para o card do admin. Espelha o DTO da API, que manda contato
+/// e nascimento — a senha nunca vem, nem existe campo pra ela aqui.
 class StudentProfile {
   final String id;
   final String fullName;
+  final String? email;
+  final String? phone;
+  final String? address;
+  final String? birthDate;
   final String? course;
   final String? institution;
   final bool isActive;
@@ -13,6 +17,10 @@ class StudentProfile {
     required this.id,
     required this.fullName,
     required this.isActive,
+    this.email,
+    this.phone,
+    this.address,
+    this.birthDate,
     this.course,
     this.institution,
     this.recentAttendance = const [],
@@ -22,6 +30,10 @@ class StudentProfile {
   factory StudentProfile.fromJson(Map<String, dynamic> json) => StudentProfile(
     id: json['id'] as String,
     fullName: json['fullName'] as String,
+    email: json['email'] as String?,
+    phone: json['phone'] as String?,
+    address: json['address'] as String?,
+    birthDate: json['birthDate'] as String?,
     course: json['course'] as String?,
     institution: json['institution'] as String?,
     isActive: json['isActive'] as bool? ?? true,

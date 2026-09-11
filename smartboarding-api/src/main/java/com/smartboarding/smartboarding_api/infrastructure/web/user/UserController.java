@@ -117,9 +117,10 @@ public class UserController {
                 .toList();
 
         return new StudentProfileResponse(
-                user.getId(), user.getFullName(), user.getCourse(),
-                institutionNames().get(user.getInstitutionId()), user.isActive(),
-                attendance, changes);
+                user.getId(), user.getFullName(), user.getEmail(),
+                user.getPhone(), user.getAddress(), user.getBirthDate(),
+                user.getCourse(), institutionNames().get(user.getInstitutionId()),
+                user.isActive(), attendance, changes);
     }
 
     private UUID adminId(Authentication auth) {

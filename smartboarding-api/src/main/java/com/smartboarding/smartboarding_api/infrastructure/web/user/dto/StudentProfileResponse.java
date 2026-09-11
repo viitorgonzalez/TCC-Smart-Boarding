@@ -5,12 +5,18 @@ import java.time.LocalDateTime;
 import java.util.List;
 import java.util.UUID;
 
-/// Perfil breve pro card do admin. Não carrega e-mail, endereço, telefone nem
-/// data de nascimento: o card é pra conferência rápida, e o que não trafega não
-/// vaza.
+/// Ficha completa do aluno pro admin. Carrega contato e nascimento porque o
+/// admin precisa falar com o aluno e conferir a matrícula.
+///
+/// A senha (hash incluso) nunca entra aqui: ela não tem uso de leitura nenhum,
+/// e o endpoint é hasRole("ADMIN") justamente porque o resto é dado pessoal.
 public record StudentProfileResponse(
         UUID id,
         String fullName,
+        String email,
+        String phone,
+        String address,
+        LocalDate birthDate,
         String course,
         String institution,
         boolean isActive,

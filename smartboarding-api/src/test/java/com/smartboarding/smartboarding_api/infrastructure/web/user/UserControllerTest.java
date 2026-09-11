@@ -52,6 +52,9 @@ class UserControllerTest extends WebMvcTestSupport {
     void setUp() {
         aluno = User.builder().id(STUDENT_ID).email("fernanda@edu.unifor.br")
                 .fullName("Fernanda Lima").course("Engenharia").role(Role.STUDENT)
+                .phone("37999990000").address("Rua X, 123")
+                .birthDate(java.time.LocalDate.of(2004, 5, 10))
+                .password("$2a$10$hashQueNaoPodeVazar")
                 .institutionId(INSTITUTION_ID).isActive(true).build();
         when(userRepository.findByEmail("naiara@admin.com")).thenReturn(Optional.of(
                 User.builder().id(ADMIN_ID).email("naiara@admin.com").fullName("Naiara").build()));
@@ -106,19 +109,47 @@ class UserControllerTest extends WebMvcTestSupport {
                 .andExpect(status().isNotFound());
     }
 
-    /// O card do admin é pra conferência rápida: o que não trafega não vaza.
+    /// O admin precisa do contato pra falar com o aluno e do nascimento pra
+    /// conferir a matrícula -- a ficha e completa de proposito.
     @Test
-    void perfilNaoCarregaDadoCredencialDoAluno() throws Exception {
+    void perfilCarregaAFichaCompletaDoAluno() throws Exception {
         when(findUserUseCase.findById(STUDENT_ID)).thenReturn(aluno);
 
         mvc.perform(get("/api/users/{id}/profile", STUDENT_ID).with(admin()))
                 .andExpect(status().isOk())
                 .andExpect(jsonPath("$.data.fullName").value("Fernanda Lima"))
-                .andExpect(jsonPath("$.data.email").doesNotExist())
+                .andExpect(jsonPath("$.data.email").value("fernanda@edu.unifor.br"))
+                .andExpect(jsonPath("$.data.phone").value("37999990000"))
+                .andExpect(jsonPath("$.data.address").value("Rua X, 123"))
+                .andExpect(jsonPath("$.data.birthDate").value("2004-05-10"))
+                .andExpect(jsonPath("$.data.course").value("Engenharia"))
+                .andExpect(jsonPath("$.data.institution").value("Unifor"));
+    }
+
+    /// A senha (hash incluso) nao tem uso de leitura nenhum. Ela nunca pode
+    /// aparecer na resposta, por mais completa que a ficha seja.
+    @Test
+    void perfilNuncaCarregaSenha() throws Exception {
+        when(findUserUseCase.findById(STUDENT_ID)).thenReturn(aluno);
+
+        var body = mvc.perform(get("/api/users/{id}/profile", STUDENT_ID).with(admin()))
+                .andExpect(status().isOk())
                 .andExpect(jsonPath("$.data.password").doesNotExist())
-                .andExpect(jsonPath("$.data.phone").doesNotExist())
-                .andExpect(jsonPath("$.data.address").doesNotExist())
-                .andExpect(jsonPath("$.data.birthDate").doesNotExist());
+                .andExpect(jsonPath("$.data.passwordHash").doesNotExist())
+                .andReturn().getResponse().getContentAsString();
+
+        org.assertj.core.api.Assertions.assertThat(body)
+                .doesNotContain("$2a$").doesNotContain("password");
+    }
+
+    /// A ficha e do admin. Aluno logado nao pode ler o contato de colega.
+    @Test
+    void alunoNaoLeAFichaDeNinguem() throws Exception {
+        mvc.perform(get("/api/users/{id}/profile", STUDENT_ID).with(student()))
+                .andExpect(status().isForbidden());
+
+        mvc.perform(get("/api/users/{id}/profile", STUDENT_ID))
+                .andExpect(status().isUnauthorized());
     }
 
     /// Desativar aluno registra qual admin fez — o id sai do token, não do corpo.
