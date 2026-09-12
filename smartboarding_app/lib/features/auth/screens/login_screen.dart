@@ -58,28 +58,16 @@ class _LoginScreenState extends State<LoginScreen> {
             child: Column(
               crossAxisAlignment: CrossAxisAlignment.stretch,
               children: [
+                // A logo ja carrega o wordmark: repetir "Smart Boarding" em
+                // texto logo abaixo duplicaria o nome na mesma dobra.
                 Center(
-                  child: Container(
-                    width: 120,
-                    height: 120,
-                    decoration: const BoxDecoration(
-                      color: AppColors.deepTeal,
-                      shape: BoxShape.circle,
-                    ),
-                    child: const Icon(
-                      Icons.directions_bus_rounded,
-                      size: 56,
-                      color: Colors.white,
-                    ),
+                  child: Image.asset(
+                    'assets/images/logo.png',
+                    width: 240,
+                    semanticLabel: 'Smart Boarding',
                   ),
                 ),
-                const SizedBox(height: 20),
-                Text(
-                  'Smart Boarding',
-                  textAlign: TextAlign.center,
-                  style: Theme.of(context).textTheme.displaySmall,
-                ),
-                const SizedBox(height: 10),
+                const SizedBox(height: 12),
                 Text(
                   'Bem-vindo de volta! Entre para conferir seu transporte.',
                   textAlign: TextAlign.center,
