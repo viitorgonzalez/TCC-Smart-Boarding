@@ -14,6 +14,9 @@ public interface UserJpaRepository extends JpaRepository<User, UUID> {
     @Query("SELECT COUNT(u) FROM User u WHERE u.role = com.smartboarding.smartboarding_api.domain.user.entity.Role.STUDENT AND u.isActive = true")
     long countActiveStudents();
 
+    @Query("SELECT COUNT(u) FROM User u WHERE u.role = 'ADMIN'")
+    long countAdmins();
+
     long countByInstitutionId(UUID institutionId);
 
     @Query("""

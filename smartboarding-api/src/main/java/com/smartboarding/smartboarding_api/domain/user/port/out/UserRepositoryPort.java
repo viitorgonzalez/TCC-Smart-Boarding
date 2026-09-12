@@ -13,6 +13,7 @@ public interface UserRepositoryPort {
     User save(User user);
     boolean existsByEmail(String email);
     long countActiveStudents();
+    long countAdmins();
     long countByInstitutionId(UUID institutionId);
     List<User> findByRouteId(UUID routeId);
 
