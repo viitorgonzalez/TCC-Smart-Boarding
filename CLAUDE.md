@@ -31,9 +31,10 @@ docker compose up -d    # Postgres :5433 + pgAdmin :5050
 
 ```bash
 flutter pub get
-flutter run --dart-define=API_BASE_URL=http://<ip-da-lan>:8080
-flutter build apk --release
-flutter test --coverage && ./scripts/coverage-gate.sh                    # unit + gate de 70%
+flutter run --dart-define=API_BASE_URL=http://<ip-da-lan>:8080 \
+            --dart-define=GOOGLE_WEB_CLIENT_ID=<id>.apps.googleusercontent.com
+flutter build apk --release --dart-define=API_BASE_URL=... --dart-define=GOOGLE_WEB_CLIENT_ID=...
+flutter test --coverage && ./scripts/coverage-gate.sh                    # unit + gate (catraca)
 flutter test integration_test/ --dart-define=API_BASE_URL=http://10.0.2.2:8080  # e2e (API+Postgres locais, emulador rodando)
 ```
 

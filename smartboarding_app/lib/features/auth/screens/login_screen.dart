@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
 import '../../../core/errors/app_exception.dart';
 import '../../../core/providers/auth_provider.dart';
+import '../../../core/constants/auth_constants.dart';
 import '../../../core/theme/app_theme.dart';
 import '../../../core/widgets/app_text_field.dart';
 import '../../../core/widgets/loading_filled_button.dart';
@@ -142,35 +143,40 @@ class _LoginScreenState extends State<LoginScreen> {
                     ),
                   ),
                 ),
-                const SizedBox(height: 20),
-                Row(
-                  children: [
-                    const Expanded(child: Divider()),
-                    Padding(
-                      padding: const EdgeInsets.symmetric(horizontal: 12),
-                      child: Text(
-                        'ou',
-                        style: TextStyle(color: AppColors.textSecondary),
+                // Build sem GOOGLE_WEB_CLIENT_ID nao tem como completar o
+                // login: esconder o botao e melhor que oferecer um caminho que
+                // morre depois de o usuario ja ter escolhido a conta.
+                if (googleSignInEnabled) ...[
+                  const SizedBox(height: 20),
+                  Row(
+                    children: [
+                      const Expanded(child: Divider()),
+                      Padding(
+                        padding: const EdgeInsets.symmetric(horizontal: 12),
+                        child: Text(
+                          'ou',
+                          style: TextStyle(color: AppColors.textSecondary),
+                        ),
+                      ),
+                      const Expanded(child: Divider()),
+                    ],
+                  ),
+                  const SizedBox(height: 20),
+                  SizedBox(
+                    height: 52,
+                    child: OutlinedButton.icon(
+                      key: const Key('login_google_button'),
+                      onPressed: _loading ? null : _entrarComGoogle,
+                      icon: const Icon(Icons.g_mobiledata, size: 28),
+                      label: const Text('Entrar com Google'),
+                      style: OutlinedButton.styleFrom(
+                        foregroundColor: AppColors.charcoal,
+                        side: const BorderSide(color: AppColors.stroke),
+                        backgroundColor: Colors.white,
                       ),
                     ),
-                    const Expanded(child: Divider()),
-                  ],
-                ),
-                const SizedBox(height: 20),
-                SizedBox(
-                  height: 52,
-                  child: OutlinedButton.icon(
-                    key: const Key('login_google_button'),
-                    onPressed: _loading ? null : _entrarComGoogle,
-                    icon: const Icon(Icons.g_mobiledata, size: 28),
-                    label: const Text('Entrar com Google'),
-                    style: OutlinedButton.styleFrom(
-                      foregroundColor: AppColors.charcoal,
-                      side: const BorderSide(color: AppColors.stroke),
-                      backgroundColor: Colors.white,
-                    ),
                   ),
-                ),
+                ],
                 const SizedBox(height: 12),
                 TextButton(
                   key: const Key('login_forgot_password'),

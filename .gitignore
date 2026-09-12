@@ -12,3 +12,7 @@
 .env.bak*
 *.env.bak*
 .env.*.bak
+
+# Config de build local do app: guarda o client ID do Google da maquina/projeto.
+# Nao e segredo, mas varia por ambiente e por isso nao entra no repo.
+smartboarding_app/dart_defines.local.json

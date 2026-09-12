@@ -59,7 +59,8 @@ flutter pub get
 # Rodar no emulador/dispositivo
 # ⚠️ a base URL vem de --dart-define; em device físico use o IP da LAN,
 #    localhost não resolve pro seu host.
-flutter run --dart-define=API_BASE_URL=http://<ip-da-lan>:8080
+flutter run --dart-define=API_BASE_URL=http://<ip-da-lan>:8080 \
+            --dart-define=GOOGLE_WEB_CLIENT_ID=<id>.apps.googleusercontent.com
 
 # Build APK
 flutter build apk --release
