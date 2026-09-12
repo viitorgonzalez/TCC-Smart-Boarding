@@ -63,7 +63,9 @@ class _LoginScreenState extends State<LoginScreen> {
                 Center(
                   child: Image.asset(
                     'assets/images/logo.png',
-                    width: 240,
+                    // Limitado pela largura da tela, nao por um numero fixo:
+                    // em aparelho estreito um valor cravado estoura a margem.
+                    width: MediaQuery.sizeOf(context).width * 0.72,
                     semanticLabel: 'Smart Boarding',
                   ),
                 ),

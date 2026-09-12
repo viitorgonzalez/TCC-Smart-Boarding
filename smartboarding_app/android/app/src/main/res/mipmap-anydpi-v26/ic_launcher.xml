@@ -1,0 +1,10 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!-- Icone adaptativo. Sem ele o Android 8+ aplica a mascara sobre o PNG legado
+     e recorta os cantos da logo. O foreground ja vem com a arte dentro da zona
+     segura, entao a mascara (circulo, squircle, o que o launcher usar) corta so
+     o vazio em volta. -->
+<adaptive-icon xmlns:android="http://schemas.android.com/apk/res/android">
+    <background android:drawable="@color/ic_launcher_background" />
+    <foreground android:drawable="@mipmap/ic_launcher_foreground" />
+    <monochrome android:drawable="@mipmap/ic_launcher_foreground" />
+</adaptive-icon>

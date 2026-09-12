@@ -1,0 +1,6 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources>
+    <!-- Branco: a logo foi desenhada sobre branco, e o contorno escuro do onibus
+         sumiria sobre o deepTeal da marca. -->
+    <color name="ic_launcher_background">#FFFFFF</color>
+</resources>
