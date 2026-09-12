@@ -66,7 +66,7 @@
 - [ ] Migration nova em vez de editar `V*.sql` já aplicada
 - [ ] Spec (`smartboarding_app/docs/spec.md`) atualizada quando a regra de negócio mudou
 - [ ] Base do PR é `main`
-- [ ] Passei pelo [`REVIEW-CHECKLIST.md`](../../personal-harness/docs/REVIEW-CHECKLIST.md) do harness (race condition, IDOR, transação, N+1, resource leak...)
+- [ ] Passei pelo [`REVIEW-CHECKLIST.md`](../../docs/REVIEW-CHECKLIST.md) do harness (race condition, IDOR, transação, N+1, resource leak...)
 - [ ] Nenhum arquivo tocado passa de 300 linhas (ou está no `.aiignore`/justificado acima)
 
 ## Issues relacionadas
