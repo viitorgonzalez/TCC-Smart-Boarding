@@ -22,6 +22,32 @@ class AuthService {
     return token;
   }
 
+  /// Troca o ID token do Google pela sessão da nossa API.
+  ///
+  /// Quem valida o token é o backend, contra o próprio Google — o app só
+  /// transporta. Confiar no app pra dizer quem entrou deixaria qualquer um
+  /// forjar uma sessão.
+  Future<AuthToken> signInWithGoogle(String idToken) async {
+    final response = await _dio.post(
+      '/api/auth/google',
+      data: {'idToken': idToken},
+    );
+    final data = response.data['data'] as Map<String, dynamic>;
+    final token = AuthToken.fromLogin(data, data['email'] as String? ?? '');
+    await _storage.saveAuth(
+      token: token.token,
+      fullName: token.fullName,
+      role: token.role,
+      email: token.email,
+    );
+    return token;
+  }
+
+  /// Define a senha local de quem entrou pelo Google.
+  Future<void> setLocalPassword(String password) async {
+    await _dio.post('/api/me/password', data: {'password': password});
+  }
+
   /// Cadastro próprio. A API já devolve a sessão pronta, então o aluno cai
   /// logado — não faz sentido pedir de novo o que ele acabou de digitar.
   ///
