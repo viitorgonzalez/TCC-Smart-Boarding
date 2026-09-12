@@ -35,6 +35,9 @@ public class UserController {
     private final ManageUserStatusUseCase manageUserStatusUseCase;
     private final UserRepositoryPort userRepository;
     private final ListEntryRepositoryPort listEntryRepository;
+    /// Mesmo relógio do resto do sistema: com LocalDate.now() solto, o recorte
+    /// de 6 meses seguia o fuso da JVM e num container UTC virava o dia antes.
+    private final java.time.Clock clock;
 
     /// Presenças do card cobrem os últimos 6 meses, o mesmo recorte do histórico
     /// que o aluno vê.
@@ -44,12 +47,14 @@ public class UserController {
                           InstitutionRepositoryPort institutionRepository,
                           ManageUserStatusUseCase manageUserStatusUseCase,
                           UserRepositoryPort userRepository,
-                          ListEntryRepositoryPort listEntryRepository) {
+                          ListEntryRepositoryPort listEntryRepository,
+                          java.time.Clock clock) {
         this.findUserUseCase = findUserUseCase;
         this.institutionRepository = institutionRepository;
         this.manageUserStatusUseCase = manageUserStatusUseCase;
         this.userRepository = userRepository;
         this.listEntryRepository = listEntryRepository;
+        this.clock = clock;
     }
 
     /// [routeId] nulo devolve todos — o app usa o filtro por rota por padrão,
@@ -92,7 +97,7 @@ public class UserController {
 
     private StudentProfileResponse profileOf(User user) {
         List<LocalDate> attendance = listEntryRepository
-                .findAttendanceSince(user.getId(), LocalDate.now().minusMonths(ATTENDANCE_MONTHS))
+                .findAttendanceSince(user.getId(), LocalDate.now(clock).minusMonths(ATTENDANCE_MONTHS))
                 .stream()
                 .map(entry -> entry.getDailyList().getDate())
                 .distinct()

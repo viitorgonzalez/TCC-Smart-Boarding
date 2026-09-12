@@ -33,7 +33,21 @@ import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.status;
 
 @WebMvcTest(UserController.class)
+@org.springframework.context.annotation.Import(UserControllerTest.FixedClock.class)
 class UserControllerTest extends WebMvcTestSupport {
+
+    /// O recorte de 6 meses do historico usa o relogio do sistema; fixo aqui
+    /// pra o teste nao depender da data em que roda.
+    @org.springframework.boot.test.context.TestConfiguration
+    static class FixedClock {
+        @org.springframework.context.annotation.Bean
+        java.time.Clock clock() {
+            return java.time.Clock.fixed(
+                    java.time.LocalDateTime.of(2026, 9, 12, 10, 0)
+                            .toInstant(java.time.ZoneOffset.UTC),
+                    java.time.ZoneOffset.UTC);
+        }
+    }
 
     private static final UUID ROUTE_ID = UUID.fromString("bbbbbbbb-0000-0000-0000-000000000001");
     private static final UUID INSTITUTION_ID = UUID.fromString("cccccccc-0000-0000-0000-000000000001");
