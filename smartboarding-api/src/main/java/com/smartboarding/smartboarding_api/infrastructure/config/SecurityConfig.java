@@ -50,6 +50,14 @@ public class SecurityConfig {
                         // e qualquer aluno poderia criar parada.
                         .requestMatchers(HttpMethod.POST, "/api/routes/*/stops").hasRole("ADMIN")
                         .requestMatchers(HttpMethod.PATCH, "/api/routes/*/stops/**").hasRole("ADMIN")
+                        // Gerar, listar e revogar codigo e do admin. Sem estas
+                        // linhas o caminho cairia no anyRequest().authenticated()
+                        // e um aluno emitiria codigo pra propria rota.
+                        .requestMatchers("/api/routes/*/invite-codes/**").hasRole("ADMIN")
+                        .requestMatchers("/api/routes/*/invite-codes").hasRole("ADMIN")
+                        // Usar o codigo e do aluno logado, sobre as rotas DELE.
+                        .requestMatchers("/api/me/routes/**").authenticated()
+                        .requestMatchers("/api/me/routes").authenticated()
                         .requestMatchers(HttpMethod.GET, "/api/routes/*/vehicles").hasRole("ADMIN")
                         .requestMatchers(HttpMethod.POST, "/api/routes/*/vehicles").hasRole("ADMIN")
                         .requestMatchers(HttpMethod.DELETE, "/api/routes/*/stops/**").hasRole("ADMIN")
