@@ -1,7 +1,7 @@
 # Spec — Login
 
 > Tela: `LoginScreen` · Acesso: 🌐 → 🎓🧑‍💼 · Provider: `AuthProvider`
-> Base: [`../PAGES.md`](../PAGES.md), [`../spec.md`](../spec.md) §3.7.
+> Base: [`../PAGES.md`](../../PAGES.md), [`../spec.md`](../../spec.md) §3.7.
 
 ## Objetivo
 
@@ -10,9 +10,13 @@ aluno).
 
 ## Dados & contrato
 
-- `POST /api/auth/login` `{email, password, rememberMe?}` → `{token, fullName, role,
-  refreshToken?}`.
-- `rememberMe` marcado grava o `refreshToken` no `StorageService`; sem ele, sessão de 1h só.
+- `POST /api/auth/login` `{email, password}` → `{token, fullName, role, email}`.
+- `POST /api/auth/google` `{idToken}` → mesma sessão. O botão só aparece em build com
+  `--dart-define=GOOGLE_WEB_CLIENT_ID`.
+- Sessão de 1h, sem refresh token. O `email` vem do servidor porque quem entra pelo
+  Google nunca o digita — sem ele o app não sabe de quem é a sessão.
+- Conta desativada pelo admin recebe mensagem própria, diferente de credencial inválida:
+  quem foi desativado precisa saber que o problema não é a senha.
 
 ## Layout / campos
 

@@ -1,6 +1,6 @@
 # CLAUDE.md — `TCC-Smart-Boarding`
 
-Sistema de gestão de embarque no ônibus universitário da Unifor: o aluno se cadastra por convite e entra/sai da lista diária da própria rota pelo app, o admin gerencia rotas/instituições/veículos e dispara push, e conduz o trajeto do ônibus (não há papel de motorista separado). Projeto de TCC (entrega oficial: início de novembro/2026).
+Sistema de gestão de embarque no ônibus universitário da Unifor: o aluno cria a própria conta, entra numa rota com o código que o admin distribui e entra/sai da lista diária pelo app, o admin gerencia rotas/instituições/veículos e dispara push, e conduz o trajeto do ônibus (não há papel de motorista separado). Projeto de TCC (entrega oficial: início de novembro/2026).
 
 > ℹ️ **A `main` é a fonte da verdade.** Alinhada em 08/09/2026 (PR #9) — o app Flutter e a API
 > completa estão nela. Branches de feature saem da `main` e voltam pra ela.
@@ -49,7 +49,8 @@ flutter test integration_test/ --dart-define=API_BASE_URL=http://10.0.2.2:8080  
 | `smartboarding-api/CONTEXT.md` | Contexto de domínio do backend (problema, entidades, papéis) |
 | `smartboarding-api/CLAUDE.md` | Convenções detalhadas de backend e Flutter |
 | `smartboarding_app/docs/firebase-setup.md` | Ativação do FCM (passo manual, feito pelo usuário) |
-| `smartboarding_app/docs/superpowers/plans/` | Planos de implementação do front |
+| `docs/README.md` | **Índice da documentação** — o que está em qual pasta e o que vale como fonte da verdade. |
+| `docs/superpowers/plans/` | Planos de implementação (app e backend), um por frente, com data. Histórico — a spec vence em caso de divergência. |
 
 Spec nova vai **neste repo**, não no harness — contrato em `../personal-harness/docs/README.md`, template em `../personal-harness/templates/spec.md`.
 
