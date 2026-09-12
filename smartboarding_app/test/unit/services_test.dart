@@ -142,6 +142,21 @@ void main() {
       expect(await UserService().getUsers(), isEmpty);
     });
 
+    /// A ficha do usuário só precisa do número. Baixar /api/users pra contar
+    /// levaria e-mail, telefone, endereço e nascimento de toda a base no fio.
+    test('getAdminCount pede só a contagem', () async {
+      http.on(
+        'GET',
+        '/api/users/admins/count',
+        body: {
+          'data': {'count': 3},
+        },
+      );
+
+      expect(await UserService().getAdminCount(), 3);
+      expect(http.requests.single.path, '/api/users/admins/count');
+    });
+
     test('getProfile parseia o perfil breve', () async {
       http.always(
         body: {

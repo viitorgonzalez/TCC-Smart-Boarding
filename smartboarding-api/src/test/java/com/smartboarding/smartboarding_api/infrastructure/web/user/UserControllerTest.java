@@ -311,6 +311,28 @@ class UserControllerTest extends WebMvcTestSupport {
                 .setRole(any(), any(), any());
     }
 
+    /// A folha do usuário chama isto pra saber se está olhando o último admin.
+    /// Antes ela baixava /api/users inteiro e contava no cliente — o contato de
+    /// toda a base no fio pra chegar num número.
+    @Test
+    void contagemDeAdminsDevolveSoONumero() throws Exception {
+        when(findUserUseCase.countAdmins()).thenReturn(2L);
+
+        mvc.perform(get("/api/users/admins/count").with(admin()))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.data.count").value(2));
+
+        verify(findUserUseCase, never()).findAll();
+    }
+
+    @Test
+    void alunoNaoLeAContagemDeAdmins() throws Exception {
+        mvc.perform(get("/api/users/admins/count").with(student()))
+                .andExpect(status().isForbidden());
+
+        verify(findUserUseCase, never()).countAdmins();
+    }
+
     // ─── Revogação imediata: a autoridade vem do banco, não da claim ─────────
     //
     // A claim "scope" é carimbada no login e vale 1h. Enquanto ela mandava, o

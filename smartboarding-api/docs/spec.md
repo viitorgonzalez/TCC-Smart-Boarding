@@ -334,6 +334,7 @@ Contextos (`<contexto>`): `user`, `route`, `institution`, `vehicle`, `stop`, `li
 | GET | `/api/me` | Autenticado | — | `{id, fullName, email, role, hasPassword, hasGoogle}` | — |
 | POST | `/api/me/password` | Autenticado | `{password}` | `{success:true}` | `400`, `409` |
 | GET | `/api/users` / `/api/users/{id}` | ADMIN | — | `UserResponse[]` / `UserResponse` | `404` |
+| GET | `/api/users/admins/count` | ADMIN | — | `{count}` | — |
 | PATCH | `/api/users/{id}/role` | ADMIN | `{role: "ADMIN"\|"STUDENT"}` | `StudentProfileResponse` | `400 CANNOT_DEMOTE_SELF`, `400 LAST_ADMIN`, `400 INACTIVE_ACCOUNT`, `404` |
 | POST | `/api/routes` | ADMIN | `{name, description?}` | `RouteResponse` | `409` nome duplicado |
 | GET | `/api/routes` | Público | — | `RouteResponse[]` (só ativas) | — |

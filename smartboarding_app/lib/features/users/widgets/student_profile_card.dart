@@ -55,14 +55,12 @@ class StudentProfileSheetState extends State<StudentProfileSheet> {
     }
   }
 
-  /// Conta os admins pelo mesmo endpoint que a tela de usuarios ja usa --
-  /// sem endpoint novo. Fica em silencio no erro: essa contagem so serve pra
-  /// UI evitar um toque que o backend ia recusar de qualquer forma, entao uma
-  /// falha aqui nao pode virar outro alerta pro admin.
+  /// Fica em silencio no erro: essa contagem so serve pra UI evitar um toque
+  /// que o backend ia recusar de qualquer forma, entao uma falha aqui nao pode
+  /// virar outro alerta pro admin.
   Future<void> _loadAdminCount() async {
     try {
-      final users = await _service.getUsers();
-      final count = users.where((u) => u.role == 'ADMIN').length;
+      final count = await _service.getAdminCount();
       if (mounted) setState(() => _adminCount = count);
     } catch (_) {
       // _adminCount continua null de proposito.

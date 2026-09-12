@@ -8,6 +8,7 @@ import com.smartboarding.smartboarding_api.domain.user.entity.UserStatusLog;
 import com.smartboarding.smartboarding_api.domain.user.port.in.FindUserUseCase;
 import com.smartboarding.smartboarding_api.domain.user.port.in.ManageUserStatusUseCase;
 import com.smartboarding.smartboarding_api.domain.user.port.out.UserRepositoryPort;
+import com.smartboarding.smartboarding_api.infrastructure.web.user.dto.AdminCountResponse;
 import com.smartboarding.smartboarding_api.infrastructure.web.user.dto.StudentProfileResponse;
 import com.smartboarding.smartboarding_api.infrastructure.web.user.dto.UpdateUserRoleRequest;
 import com.smartboarding.smartboarding_api.infrastructure.web.user.dto.UpdateUserStatusRequest;
@@ -73,6 +74,14 @@ public class UserController {
                 .map(user -> UserResponse.from(user, names.get(user.getInstitutionId())))
                 .toList();
         return ResponseEntity.ok(ApiResponse.data(users));
+    }
+
+    /// Caminho de duas partes de propósito: um só segmento colidiria com
+    /// /api/users/{id}, que espera um UUID.
+    @GetMapping("/admins/count")
+    public ResponseEntity<ApiResponse<AdminCountResponse>> countAdmins() {
+        return ResponseEntity.ok(ApiResponse.data(
+                new AdminCountResponse(findUserUseCase.countAdmins())));
     }
 
     @GetMapping("/{id}")

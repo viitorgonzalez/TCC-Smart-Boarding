@@ -14,6 +14,10 @@ acesso, não cadastrar gente.
 
 - `GET /api/users` — listagem, com filtro opcional por rota.
 - `GET /api/users/{id}/profile` — ficha completa, ao tocar num usuário.
+- `GET /api/users/admins/count` `{count}` — quantos admins existem. A ficha precisa disso pra
+  saber se está olhando a última conta admin; contar no cliente exigiria baixar a listagem
+  inteira — e-mail, telefone, endereço e nascimento de toda a base — a cada vez que a folha
+  abre, de três telas diferentes.
 - `PATCH /api/users/{id}/status` `{active}` — ativar/desativar.
 - `PATCH /api/users/{id}/role` `{role: "ADMIN"|"STUDENT"}` — conceder/retirar acesso
   administrativo.

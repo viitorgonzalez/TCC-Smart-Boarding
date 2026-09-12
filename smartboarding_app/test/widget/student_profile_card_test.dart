@@ -297,11 +297,11 @@ void main() {
   // precisa estar sob teste aqui, com a camada HTTP falsa.
 
   /// Monta a ficha de verdade (não o Body) com GET /api/users/{id}/profile e
-  /// GET /api/users stubados. [usuarios] é o corpo de /api/users; [status]
-  /// deixa simular a rota falhando (ex.: 500) pro cenário de fail-open.
+  /// GET /api/users/admins/count stubados. [admins] é a contagem devolvida;
+  /// [status] deixa simular a rota falhando (ex.: 500) pro cenário de fail-open.
   Future<FakeHttpAdapter> abrirFicha(
     WidgetTester tester, {
-    required List<Map<String, dynamic>> usuarios,
+    required int admins,
     int status = 200,
   }) async {
     final http = await installFakeHttp(token: 'jwt-de-teste');
@@ -320,7 +320,12 @@ void main() {
         },
       },
     );
-    http.on('GET', '/api/users', status: status, body: {'data': usuarios});
+    http.on(
+      'GET',
+      '/api/users/admins/count',
+      status: status,
+      body: {'data': {'count': admins}},
+    );
 
     await tester.pumpWidget(
       ChangeNotifierProvider(
@@ -365,15 +370,8 @@ void main() {
     return http;
   }
 
-  Map<String, dynamic> admin(String id) => {
-    'id': id,
-    'fullName': 'Admin $id',
-    'email': '$id@edu.unifor.br',
-    'role': 'ADMIN',
-  };
-
   testWidgets('um admin so: rebaixar fica desabilitado', (tester) async {
-    await abrirFicha(tester, usuarios: [admin('admin-1')]);
+    await abrirFicha(tester, admins: 1);
 
     final tile = tester.widget<ListTile>(
       find.byKey(const Key('profile_role_action')),
@@ -382,7 +380,7 @@ void main() {
   });
 
   testWidgets('dois admins: rebaixar fica habilitado', (tester) async {
-    await abrirFicha(tester, usuarios: [admin('admin-1'), admin('admin-2')]);
+    await abrirFicha(tester, admins: 2);
 
     final tile = tester.widget<ListTile>(
       find.byKey(const Key('profile_role_action')),
@@ -392,14 +390,33 @@ void main() {
 
   /// Fail-open: se a contagem nem chega, a tela não pode travar por engano --
   /// quem recusa de verdade é o backend, no toque.
-  testWidgets('GET /api/users falha: rebaixar continua habilitado', (
+  testWidgets('a contagem de admins falha: rebaixar continua habilitado', (
     tester,
   ) async {
-    await abrirFicha(tester, usuarios: [], status: 500);
+    await abrirFicha(tester, admins: 0, status: 500);
 
     final tile = tester.widget<ListTile>(
       find.byKey(const Key('profile_role_action')),
     );
     expect(tile.enabled, isTrue);
   });
+
+  /// A folha abre de três telas e busca de novo a cada promoção. Baixar
+  /// `/api/users` pra contar levaria e-mail, telefone, endereço e nascimento da
+  /// base inteira no fio — payload sem teto pra chegar num número.
+  testWidgets('a ficha nunca baixa a tabela de usuários pra contar admins', (
+    tester,
+  ) async {
+    final http = await abrirFicha(tester, admins: 2);
+
+    expect(
+      http.requests.map((r) => r.path),
+      isNot(contains('/api/users')),
+    );
+    expect(
+      http.requests.map((r) => r.path),
+      contains('/api/users/admins/count'),
+    );
+  });
+
 }
