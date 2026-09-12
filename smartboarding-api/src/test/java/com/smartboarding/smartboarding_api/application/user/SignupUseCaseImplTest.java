@@ -34,10 +34,18 @@ class SignupUseCaseImplTest {
 
     @BeforeEach
     void setUp() {
-        useCase = new SignupUseCaseImpl(userRepository, passwordEncoder, "");
+        useCase = comBootstrap("");
         when(userRepository.save(any())).thenAnswer(inv -> inv.getArgument(0));
         when(userRepository.existsByEmail(any())).thenReturn(false);
         when(passwordEncoder.encode(anyString())).thenReturn("$2a$10$hash");
+    }
+
+    /// Política de verdade, não mock: o que estes testes precisam provar é o
+    /// papel com que a conta nasce, e um mock da política só provaria que o caso
+    /// de uso repassa a chamada.
+    private SignupUseCaseImpl comBootstrap(String bootstrapAdminEmail) {
+        return new SignupUseCaseImpl(userRepository, passwordEncoder,
+                new BootstrapAdminPolicy(userRepository, bootstrapAdminEmail));
     }
 
     private User novo() {
@@ -109,11 +117,10 @@ class SignupUseCaseImplTest {
     /// nao cria conta: a pessoa ainda se cadastra sozinha.
     @Test
     void oPrimeiroCadastroComOEmailDeBootstrapNasceAdmin() {
-        SignupUseCaseImpl comBootstrap = new SignupUseCaseImpl(
-                userRepository, passwordEncoder, "chefe@prefeitura.gov.br");
+        SignupUseCaseImpl useCaseComBootstrap = comBootstrap("chefe@prefeitura.gov.br");
         when(userRepository.countAdmins()).thenReturn(0L);
 
-        User criado = comBootstrap.signup(
+        User criado = useCaseComBootstrap.signup(
                 User.builder().email("chefe@prefeitura.gov.br").fullName("Chefe").build(),
                 "segredo123");
 
@@ -124,11 +131,10 @@ class SignupUseCaseImplTest {
     /// verdadeira, mesmo com a variavel configurada pra sempre.
     @Test
     void comAdminExistenteOBootstrapNaoVale() {
-        SignupUseCaseImpl comBootstrap = new SignupUseCaseImpl(
-                userRepository, passwordEncoder, "chefe@prefeitura.gov.br");
+        SignupUseCaseImpl useCaseComBootstrap = comBootstrap("chefe@prefeitura.gov.br");
         when(userRepository.countAdmins()).thenReturn(1L);
 
-        User criado = comBootstrap.signup(
+        User criado = useCaseComBootstrap.signup(
                 User.builder().email("chefe@prefeitura.gov.br").fullName("Chefe").build(),
                 "segredo123");
 
@@ -137,10 +143,9 @@ class SignupUseCaseImplTest {
 
     @Test
     void outroEmailNaoVirapAdminNemComZeroAdmins() {
-        SignupUseCaseImpl comBootstrap = new SignupUseCaseImpl(
-                userRepository, passwordEncoder, "chefe@prefeitura.gov.br");
+        SignupUseCaseImpl useCaseComBootstrap = comBootstrap("chefe@prefeitura.gov.br");
 
-        User criado = comBootstrap.signup(
+        User criado = useCaseComBootstrap.signup(
                 User.builder().email("outra@pessoa.com").fullName("Outra").build(),
                 "segredo123");
 
@@ -151,8 +156,7 @@ class SignupUseCaseImplTest {
     /// e nem se consulta o banco por admin.
     @Test
     void semVariavelConfiguradaNinguemNasceAdmin() {
-        SignupUseCaseImpl semBootstrap = new SignupUseCaseImpl(
-                userRepository, passwordEncoder, "");
+        SignupUseCaseImpl semBootstrap = comBootstrap("");
 
         User criado = semBootstrap.signup(
                 User.builder().email("qualquer@pessoa.com").fullName("Qualquer").build(),
@@ -160,5 +164,22 @@ class SignupUseCaseImplTest {
 
         assertThat(criado.getRole()).isEqualTo(Role.STUDENT);
         verify(userRepository, org.mockito.Mockito.never()).countAdmins();
+    }
+
+    /// A unicidade de `email` no Postgres é case-sensitive e nada normaliza o
+    /// valor antes de gravar. Com comparação sem caixa, CHEFE@... e chefe@...
+    /// seriam contas DISTINTAS e ambas satisfariam a mesma janela: o atacante
+    /// levaria uma grafia, o cadastro legítimo sucederia como STUDENT sem
+    /// conflito nenhum, e nada sinalizaria que a janela foi consumida.
+    @Test
+    void grafiaComOutraCaixaNaoCasaComOEmailDeBootstrap() {
+        SignupUseCaseImpl useCaseComBootstrap = comBootstrap("chefe@prefeitura.gov.br");
+        when(userRepository.countAdmins()).thenReturn(0L);
+
+        User criado = useCaseComBootstrap.signup(
+                User.builder().email("CHEFE@prefeitura.gov.br").fullName("Impostor").build(),
+                "segredo123");
+
+        assertThat(criado.getRole()).isEqualTo(Role.STUDENT);
     }
 }

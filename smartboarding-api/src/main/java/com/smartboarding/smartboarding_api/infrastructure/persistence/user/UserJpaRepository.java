@@ -14,7 +14,11 @@ public interface UserJpaRepository extends JpaRepository<User, UUID> {
     @Query("SELECT COUNT(u) FROM User u WHERE u.role = com.smartboarding.smartboarding_api.domain.user.entity.Role.STUDENT AND u.isActive = true")
     long countActiveStudents();
 
-    @Query("SELECT COUNT(u) FROM User u WHERE u.role = 'ADMIN'")
+    /// Enum, nao o literal 'ADMIN': esta contagem alimenta a trava do ultimo
+    /// admin E o portao do bootstrap. Num rename do enum o literal ficaria pra
+    /// tras, a query voltaria 0 e todo cadastro com o e-mail de bootstrap
+    /// viraria admin pra sempre.
+    @Query("SELECT COUNT(u) FROM User u WHERE u.role = com.smartboarding.smartboarding_api.domain.user.entity.Role.ADMIN")
     long countAdmins();
 
     long countByInstitutionId(UUID institutionId);

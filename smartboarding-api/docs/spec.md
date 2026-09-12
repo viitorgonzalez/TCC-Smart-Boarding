@@ -147,6 +147,13 @@ Contextos (`<contexto>`): `user`, `route`, `institution`, `vehicle`, `stop`, `li
 - **RN28** — Primeiro admin de um ambiente novo: quem se cadastrar com o e-mail de
   `BOOTSTRAP_ADMIN_EMAIL` nasce `ADMIN`, **e só enquanto o sistema tiver zero admins**. A
   variável concede o papel a uma conta que a pessoa criou; não cria conta.
+  - Vale para os **dois** caminhos que criam conta: `POST /api/auth/signup` e o primeiro
+    `POST /api/auth/google`. Valendo só num deles, o operador que escolhesse o outro nasceria
+    `STUDENT` e queimaria a janela em silêncio — o caminho restante recusaria por
+    `EMAIL_ALREADY_EXISTS` e não sobraria admin pra promovê-lo.
+  - A comparação é **exata**, não *case-insensitive*: a unicidade de `email` no Postgres é
+    case-sensitive e nada normaliza o valor, então casar sem diferenciar caixa deixaria
+    `CHEFE@x` e `chefe@x` serem contas distintas satisfazendo a **mesma** janela.
   - **Risco operacional aceito:** o cadastro não verifica posse de e-mail em lugar nenhum do
     sistema, então `BOOTSTRAP_ADMIN_EMAIL` é, na prática, uma corrida — quem souber a string e
     se cadastrar primeiro vira admin. A unicidade de e-mail garante que só *um* vence, mas não
