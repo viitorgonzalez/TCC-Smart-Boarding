@@ -20,3 +20,7 @@ secret:
     # roda o compose. Arquivo unico de proposito -- migration e exatamente
     # onde alguem poderia colar credencial de producao sem querer.
     - "smartboarding-api/src/main/resources/db/migration/V2__seed_data.sql"
+    # Lockfile: os sha256 sao digest publico de pacote do pub.dev, nao segredo.
+    # Sem excluir, todo `flutter pub upgrade` acusa um punhado de "segredos"
+    # novos -- e o check volta a ser ruido a cada atualizacao de dependencia.
+    - "smartboarding_app/pubspec.lock"
