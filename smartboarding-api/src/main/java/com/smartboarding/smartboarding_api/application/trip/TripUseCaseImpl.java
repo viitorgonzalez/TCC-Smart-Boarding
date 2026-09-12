@@ -186,7 +186,7 @@ public class TripUseCaseImpl implements ConductTripUseCase {
     // com FCM desligado ele não deixa rastro nenhum pro aluno.
     private void announce(DailyList list, String title, String body) {
         try {
-            publishNotificationUseCase.publish(title, body, list.getRoute().getId(),
+            publishNotificationUseCase.publishIndependente(title, body, list.getRoute().getId(),
                     NOTICE_DURATION_HOURS, null);
         } catch (Exception e) {
             log.error("Ação de trajeto registrada, mas o aviso falhou: {}", e.getMessage());

@@ -14,6 +14,7 @@ import com.smartboarding.smartboarding_api.domain.user.entity.Role;
 import com.smartboarding.smartboarding_api.domain.user.entity.User;
 import com.smartboarding.smartboarding_api.domain.user.port.out.UserRepositoryPort;
 import com.smartboarding.smartboarding_api.shared.exception.NotFoundException;
+import org.springframework.transaction.annotation.Propagation;
 import org.springframework.transaction.annotation.Transactional;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.stereotype.Service;
@@ -47,6 +48,13 @@ public class NotificationUseCaseImpl implements SendBroadcastUseCase, SendToUser
         this.userRepository = userRepository;
         this.routeMemberRepository = routeMemberRepository;
         this.clock = clock;
+    }
+
+    @Override
+    @Transactional(propagation = Propagation.REQUIRES_NEW)
+    public Notification publishIndependente(String title, String body, UUID routeId,
+                                            Integer durationHours, UUID authorId) {
+        return publish(title, body, routeId, durationHours, authorId);
     }
 
     @Override

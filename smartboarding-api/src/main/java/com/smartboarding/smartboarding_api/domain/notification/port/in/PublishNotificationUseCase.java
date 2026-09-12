@@ -9,5 +9,12 @@ public interface PublishNotificationUseCase {
     /// recebe é quem pega aquela rota. `durationHours` nulo = sem prazo.
     Notification publish(String title, String body, UUID routeId, Integer durationHours, UUID authorId);
 
+    /// Igual ao publish, mas em transação própria. É o que torna "melhor
+    /// esforço" verdadeiro: no publish comum, uma falha marca a transação do
+    /// CHAMADOR como rollback-only, e engolir a exceção não desfaz isso -- a
+    /// operação principal se perderia por causa do aviso.
+    Notification publishIndependente(String title, String body, UUID routeId,
+                                     Integer durationHours, UUID authorId);
+
     void deleteAll(java.util.List<UUID> ids);
 }

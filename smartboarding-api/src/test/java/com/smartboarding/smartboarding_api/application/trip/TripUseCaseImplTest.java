@@ -75,7 +75,7 @@ class TripUseCaseImplTest {
         DailyList saved = useCase.start(LIST_ID);
 
         assertThat(saved.getTripStartedAt()).isEqualTo(NOW);
-        verify(publishNotificationUseCase).publish(anyString(), anyString(), eq(ROUTE_ID), anyInt(), isNull());
+        verify(publishNotificationUseCase).publishIndependente(anyString(), anyString(), eq(ROUTE_ID), anyInt(), isNull());
     }
 
     @Test
@@ -114,7 +114,7 @@ class TripUseCaseImplTest {
         useCase.checkpoint(LIST_ID, MAIN_STOP);
 
         verify(checkpointRepository).save(any(TripCheckpoint.class));
-        verify(publishNotificationUseCase).publish(anyString(), contains("Rodoviária de Pimenta"),
+        verify(publishNotificationUseCase).publishIndependente(anyString(), contains("Rodoviária de Pimenta"),
                 eq(ROUTE_ID), anyInt(), isNull());
     }
 
@@ -127,7 +127,7 @@ class TripUseCaseImplTest {
         useCase.checkpoint(LIST_ID, MAIN_STOP);
 
         verify(checkpointRepository, never()).save(any());
-        verify(publishNotificationUseCase, never()).publish(any(), any(), any(), any(), any());
+        verify(publishNotificationUseCase, never()).publishIndependente(any(), any(), any(), any(), any());
     }
 
     @Test
@@ -144,7 +144,7 @@ class TripUseCaseImplTest {
         DailyList saved = useCase.finish(LIST_ID);
 
         assertThat(saved.getTripFinishedAt()).isEqualTo(NOW);
-        verify(publishNotificationUseCase).publish(anyString(), anyString(), eq(ROUTE_ID), anyInt(), isNull());
+        verify(publishNotificationUseCase).publishIndependente(anyString(), anyString(), eq(ROUTE_ID), anyInt(), isNull());
     }
 
     @Test
@@ -263,7 +263,7 @@ class TripUseCaseImplTest {
 
         useCase.checkpoint(LIST_ID, MAIN_STOP);
 
-        verify(publishNotificationUseCase).publish(
+        verify(publishNotificationUseCase).publishIndependente(
                 org.mockito.ArgumentMatchers.contains("(volta)"),
                 org.mockito.ArgumentMatchers.contains("(volta)"),
                 eq(ROUTE_ID), anyInt(), isNull());
@@ -307,5 +307,20 @@ class TripUseCaseImplTest {
         DailyList result = useCase.checkpoint(LIST_ID, MAIN_STOP);
 
         assertThat(result.getOutboundFinishedAt()).isNull();
+    }
+
+    /// O aviso e melhor esforco DE VERDADE agora: publish comum e @Transactional
+    /// REQUIRED, entao uma falha marcaria a transacao do trajeto como
+    /// rollback-only e o checkpoint se perderia junto -- engolir a excecao nao
+    /// desfaz isso. Por isso o trajeto usa a variante em transacao propria.
+    @Test
+    void falhaNoAvisoNaoDerrubaOCheckpoint() {
+        org.mockito.Mockito.doThrow(new RuntimeException("banco fora"))
+                .when(publishNotificationUseCase)
+                .publishIndependente(any(), any(), any(), any(), any());
+
+        org.assertj.core.api.Assertions
+                .assertThatCode(() -> useCase.start(LIST_ID))
+                .doesNotThrowAnyException();
     }
 }
