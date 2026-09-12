@@ -152,6 +152,17 @@ class _TodayStatus extends StatelessWidget {
             value.first.list.routeName,
             AppColors.positiveFg,
           ),
+          // Lista fechada e sem inscricao: nao ha o que o aluno fazer, entao
+          // "ainda nao entrou" so sugere uma acao que nao existe mais. O caso
+          // vem ANTES do generico porque o generico casa com tudo.
+          AsyncData(:final value)
+              when value.every((i) => !i.list.acceptsChanges) =>
+            (
+              Icons.lock_clock,
+              'Lista fechada',
+              value.first.list.routeName,
+              AppColors.textSecondary,
+            ),
           AsyncData(:final value) => (
             Icons.info_outline,
             'Você ainda não entrou',
