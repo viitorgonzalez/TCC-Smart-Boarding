@@ -114,7 +114,9 @@ fechada, porque o embarque físico acontece depois do fechamento.
   mim" e renovação automática foram desenhados e **nunca implementados** — se voltarem
   à mesa, entram como trabalho novo, não como algo a consertar.
 - Conta desativada pelo admin não entra, nem por senha nem pelo Google. O token já
-  emitido continua válido até expirar.
+  emitido também para de valer na requisição seguinte: o backend lê o papel e o estado da
+  conta no banco a cada chamada, não da claim do token — senão rebaixar ou desativar só
+  faria efeito até uma hora depois.
 
 ### 3.8 Trajeto
 

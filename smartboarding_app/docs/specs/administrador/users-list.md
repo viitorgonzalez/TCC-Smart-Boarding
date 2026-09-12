@@ -29,8 +29,9 @@ acesso, não cadastrar gente.
 Abre como folha sobre a lista, com os dados cadastrais, as idas recentes e o histórico de
 mudanças de status. Duas ações:
 
-- **Conta ativa** (switch) — desativar impede a pessoa de entrar, por senha ou pelo Google. O
-  token já emitido vale até expirar (1h).
+- **Conta ativa** (switch) — desativar impede a pessoa de entrar, por senha ou pelo Google, e
+  o acesso cai na requisição seguinte: a autoridade de cada chamada é lida do banco, não da
+  claim do token.
 - **Acesso de administrador** — promove ou rebaixa a conta.
 
 Cada mudança fica registrada com o nome de quem fez e a hora.

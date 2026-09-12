@@ -4,6 +4,7 @@ import com.smartboarding.smartboarding_api.infrastructure.config.SecurityConfig;
 import com.smartboarding.smartboarding_api.infrastructure.web.common.GlobalExceptionHandler;
 import org.springframework.context.annotation.Import;
 import org.springframework.security.core.authority.SimpleGrantedAuthority;
+import org.springframework.security.core.userdetails.UserDetailsService;
 import org.springframework.security.oauth2.jwt.JwtDecoder;
 import org.springframework.test.context.bean.override.mockito.MockitoBean;
 import org.springframework.test.web.servlet.request.RequestPostProcessor;
@@ -20,14 +21,23 @@ import static org.springframework.security.test.web.servlet.request.SecurityMock
 public abstract class WebMvcTestSupport {
 
     /// O decoder de verdade lê a chave da config; nos testes a autenticação vem
-    /// pronta pelos post-processors, então ele nunca é chamado.
+    /// pronta pelos post-processors, então ele nunca é chamado — exceto nos
+    /// testes que mandam um Bearer de verdade pra exercitar o converter.
     @MockitoBean protected JwtDecoder jwtDecoder;
+
+    /// O SecurityConfig resolve as authorities consultando o usuário a cada
+    /// requisição; o bean real é da camada de aplicação e não entra na fatia
+    /// @WebMvcTest. Os post-processors abaixo não passam pelo converter, então
+    /// só os testes que mandam Bearer de verdade precisam stubar este mock.
+    @MockitoBean protected UserDetailsService userDetailsService;
 
     protected static final UUID STUDENT_ID = UUID.fromString("11111111-1111-1111-1111-111111111111");
     protected static final UUID ADMIN_ID = UUID.fromString("22222222-2222-2222-2222-222222222222");
 
-    /// Espelha o token de produção: papel no claim "scope", prefixo ROLE_ posto
-    /// pelo JwtGrantedAuthoritiesConverter.
+    /// Autenticação pronta, posta direto no contexto: o post-processor não passa
+    /// pelo filtro de resource server, então as authorities vêm daqui e não do
+    /// converter. Pra testar o converter (papel vindo do banco), mande um
+    /// header Authorization de verdade e stube jwtDecoder + userDetailsService.
     private static RequestPostProcessor as(UUID id, String email, String role) {
         return jwt()
                 .jwt(builder -> builder.subject(email).claim("scope", role).claim("uid", id.toString()))

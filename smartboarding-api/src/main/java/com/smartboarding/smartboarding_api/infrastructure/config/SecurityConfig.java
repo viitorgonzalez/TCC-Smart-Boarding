@@ -11,11 +11,17 @@ import org.springframework.security.config.annotation.web.builders.HttpSecurity;
 import org.springframework.security.config.annotation.web.configuration.EnableWebSecurity;
 import org.springframework.security.config.annotation.web.configurers.AbstractHttpConfigurer;
 import org.springframework.security.config.http.SessionCreationPolicy;
+import org.springframework.security.core.GrantedAuthority;
+import org.springframework.security.core.userdetails.UserDetails;
+import org.springframework.security.core.userdetails.UserDetailsService;
+import org.springframework.security.core.userdetails.UsernameNotFoundException;
 import org.springframework.security.crypto.bcrypt.BCryptPasswordEncoder;
 import org.springframework.security.crypto.password.PasswordEncoder;
 import org.springframework.security.oauth2.server.resource.authentication.JwtAuthenticationConverter;
-import org.springframework.security.oauth2.server.resource.authentication.JwtGrantedAuthoritiesConverter;
 import org.springframework.security.web.SecurityFilterChain;
+
+import java.util.Collection;
+import java.util.List;
 
 @Configuration
 @EnableWebSecurity
@@ -23,7 +29,8 @@ import org.springframework.security.web.SecurityFilterChain;
 public class SecurityConfig {
 
     @Bean
-    public SecurityFilterChain securityFilterChain(HttpSecurity http) throws Exception {
+    public SecurityFilterChain securityFilterChain(
+            HttpSecurity http, JwtAuthenticationConverter jwtAuthenticationConverter) throws Exception {
         http
                 .csrf(AbstractHttpConfigurer::disable)
                 .cors(Customizer.withDefaults())
@@ -106,20 +113,34 @@ public class SecurityConfig {
                         .requestMatchers("/api/notifications/scheduled").hasRole("ADMIN")
                         .anyRequest().authenticated()
                 ).oauth2ResourceServer(oauth2 -> oauth2
-                        .jwt(jwt -> jwt.jwtAuthenticationConverter(jwtAuthenticationConverter()))
+                        .jwt(jwt -> jwt.jwtAuthenticationConverter(jwtAuthenticationConverter))
                 );
         return http.build();
     }
 
+    /// O papel vem do banco a cada requisicao, nao da claim "scope" do token. A
+    /// claim e carimbada no login e vale 1h: tirada a autoridade da claim, um
+    /// admin rebaixado seguiria admin ate o token expirar -- e nesse intervalo
+    /// ele chamaria PATCH /api/users/{ele}/role e se promoveria de volta. O
+    /// token continua carregando "scope", mas so como informacao.
     @Bean
-    public JwtAuthenticationConverter jwtAuthenticationConverter() {
-        JwtGrantedAuthoritiesConverter grantedAuthoritiesConverter = new JwtGrantedAuthoritiesConverter();
-        grantedAuthoritiesConverter.setAuthorityPrefix("ROLE_");
-        grantedAuthoritiesConverter.setAuthoritiesClaimName("scope");
+    public JwtAuthenticationConverter jwtAuthenticationConverter(UserDetailsService userDetailsService) {
+        JwtAuthenticationConverter converter = new JwtAuthenticationConverter();
+        converter.setJwtGrantedAuthoritiesConverter(
+                jwt -> currentAuthorities(userDetailsService, jwt.getSubject()));
+        return converter;
+    }
 
-        JwtAuthenticationConverter jwtAuthenticationConverter = new JwtAuthenticationConverter();
-        jwtAuthenticationConverter.setJwtGrantedAuthoritiesConverter(grantedAuthoritiesConverter);
-        return jwtAuthenticationConverter;
+    /// Conta apagada ou desativada nao recebe autoridade nenhuma: o mesmo
+    /// motivo fecha a janela entre desativar e o token expirar.
+    private static Collection<GrantedAuthority> currentAuthorities(
+            UserDetailsService userDetailsService, String email) {
+        try {
+            UserDetails user = userDetailsService.loadUserByUsername(email);
+            return user.isEnabled() ? List.copyOf(user.getAuthorities()) : List.of();
+        } catch (UsernameNotFoundException e) {
+            return List.of();
+        }
     }
 
     @Bean

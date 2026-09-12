@@ -140,6 +140,10 @@ Contextos (`<contexto>`): `user`, `route`, `institution`, `vehicle`, `stop`, `li
   promove conta desativada, e declarar o papel que já vale é no-op (não é erro). Toda mudança
   entra no `user_status_log` com quem concedeu. Remover um admin são duas ações deliberadas:
   rebaixar e depois desativar.
+  - **A mudança vale na requisição seguinte.** A autoridade de cada requisição é resolvida
+    lendo o papel no banco, não a claim `scope` do JWT — ela é carimbada no login e vive 1h.
+    Enquanto a claim mandava, o rebaixado seguia admin até o token expirar, e nesse intervalo
+    se promovia de volta. Conta desativada ou apagada também perde acesso na hora.
 - **RN28** — Primeiro admin de um ambiente novo: quem se cadastrar com o e-mail de
   `BOOTSTRAP_ADMIN_EMAIL` nasce `ADMIN`, **e só enquanto o sistema tiver zero admins**. A
   variável concede o papel a uma conta que a pessoa criou; não cria conta.

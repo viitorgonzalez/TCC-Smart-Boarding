@@ -14,10 +14,13 @@ import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.boot.webmvc.test.autoconfigure.WebMvcTest;
+import org.springframework.http.HttpHeaders;
 import org.springframework.http.MediaType;
 import org.springframework.test.context.bean.override.mockito.MockitoBean;
+import org.springframework.security.oauth2.jwt.Jwt;
 import org.springframework.test.web.servlet.MockMvc;
 
+import java.time.Instant;
 import java.util.List;
 import java.util.Optional;
 import java.util.UUID;
@@ -306,5 +309,92 @@ class UserControllerTest extends WebMvcTestSupport {
 
         verify(manageUserStatusUseCase, org.mockito.Mockito.never())
                 .setRole(any(), any(), any());
+    }
+
+    // ─── Revogação imediata: a autoridade vem do banco, não da claim ─────────
+    //
+    // A claim "scope" é carimbada no login e vale 1h. Enquanto ela mandava, o
+    // admin rebaixado continuava admin até o token expirar — e nesse intervalo
+    // chamava PATCH /api/users/{ele}/role e se promovia de volta. Os testes
+    // abaixo mandam Bearer de verdade de propósito: é o único caminho que passa
+    // pelo converter do SecurityConfig (os post-processors põem authority
+    // direto no contexto e nunca o exercitam).
+
+    private static final String BEARER_ANTIGO = "carimbado-antes-do-rebaixamento";
+
+    private static Jwt tokenDizendoAdmin(String email) {
+        Instant agora = Instant.now();
+        return Jwt.withTokenValue(BEARER_ANTIGO)
+                .header("alg", "HS256")
+                .subject(email)
+                .claim("scope", "ADMIN")
+                .issuedAt(agora)
+                .expiresAt(agora.plusSeconds(3600))
+                .build();
+    }
+
+    private org.springframework.test.web.servlet.request.MockHttpServletRequestBuilder comTokenAntigo(
+            org.springframework.test.web.servlet.request.MockHttpServletRequestBuilder request) {
+        return request.header(HttpHeaders.AUTHORIZATION, "Bearer " + BEARER_ANTIGO);
+    }
+
+    @Test
+    void rebaixadoNoBancoNaoSePromoveDeVoltaComOTokenAntigo() throws Exception {
+        when(jwtDecoder.decode(BEARER_ANTIGO))
+                .thenReturn(tokenDizendoAdmin("naiara@admin.com"));
+        when(userDetailsService.loadUserByUsername("naiara@admin.com")).thenReturn(
+                User.builder().id(ADMIN_ID).email("naiara@admin.com").fullName("Naiara")
+                        .role(Role.STUDENT).isActive(true).build());
+
+        mvc.perform(comTokenAntigo(patch("/api/users/{id}/role", ADMIN_ID))
+                        .contentType(MediaType.APPLICATION_JSON)
+                        .content("""
+                                {"role":"ADMIN"}"""))
+                .andExpect(status().isForbidden());
+
+        verify(manageUserStatusUseCase, never()).setRole(any(), any(), any());
+    }
+
+    /// Desativar admin é recusado hoje, mas o mesmo mecanismo vale pra qualquer
+    /// conta: desativada, o token que sobrou para de abrir rota de admin.
+    @Test
+    void contaDesativadaPerdeOAcessoAntesDoTokenExpirar() throws Exception {
+        when(jwtDecoder.decode(BEARER_ANTIGO))
+                .thenReturn(tokenDizendoAdmin("naiara@admin.com"));
+        when(userDetailsService.loadUserByUsername("naiara@admin.com")).thenReturn(
+                User.builder().id(ADMIN_ID).email("naiara@admin.com").fullName("Naiara")
+                        .role(Role.ADMIN).isActive(false).build());
+
+        mvc.perform(comTokenAntigo(get("/api/users"))).andExpect(status().isForbidden());
+
+        verify(findUserUseCase, never()).findAll();
+    }
+
+    @Test
+    void contaApagadaNaoCarregaAutoridadeNenhuma() throws Exception {
+        when(jwtDecoder.decode(BEARER_ANTIGO))
+                .thenReturn(tokenDizendoAdmin("fantasma@admin.com"));
+        when(userDetailsService.loadUserByUsername("fantasma@admin.com")).thenThrow(
+                new org.springframework.security.core.userdetails.UsernameNotFoundException(
+                        "Usuário não encontrado: fantasma@admin.com"));
+
+        mvc.perform(comTokenAntigo(get("/api/users"))).andExpect(status().isForbidden());
+
+        verify(findUserUseCase, never()).findAll();
+    }
+
+    /// O contraponto dos três acima: o mesmo caminho de Bearer real, com o papel
+    /// do banco batendo, continua passando. Sem ele, um converter que negasse
+    /// tudo deixaria a suíte verde.
+    @Test
+    void adminDeVerdadeNoBancoSegueEntrandoPeloTokenReal() throws Exception {
+        when(jwtDecoder.decode(BEARER_ANTIGO))
+                .thenReturn(tokenDizendoAdmin("naiara@admin.com"));
+        when(userDetailsService.loadUserByUsername("naiara@admin.com")).thenReturn(
+                User.builder().id(ADMIN_ID).email("naiara@admin.com").fullName("Naiara")
+                        .role(Role.ADMIN).isActive(true).build());
+        when(findUserUseCase.findAll()).thenReturn(List.of(aluno));
+
+        mvc.perform(comTokenAntigo(get("/api/users"))).andExpect(status().isOk());
     }
 }
