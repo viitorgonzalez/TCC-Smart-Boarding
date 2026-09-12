@@ -39,7 +39,9 @@ aviso automático de saída do ônibus. Sujeito a erro e não escala.
 | `ADMIN` | Gestão do transporte (inclui quem dirige) | Gerar e revogar código de rota, aprovar/negar pedidos de alteração de perfil, gerenciar rotas/instituições/veículos/paradas, ver relatórios completos, enviar notificação (com imagem), ações de trajeto |
 
 Conta de `STUDENT` nasce pelo autocadastro (§3.1) — o admin não cadastra aluno
-manualmente. `ADMIN` pode criar outro `ADMIN` diretamente.
+manualmente. Ninguém cria conta de `ADMIN`: acesso administrativo é concedido sobre uma
+conta existente, na ficha do usuário (promover/rebaixar papel) — ver
+`smartboarding-api/docs/spec.md` RN27.
 
 ---
 
