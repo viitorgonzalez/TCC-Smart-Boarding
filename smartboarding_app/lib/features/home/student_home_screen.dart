@@ -7,6 +7,9 @@ import '../../core/widgets/app_card.dart';
 import '../../core/widgets/app_header.dart';
 import '../../core/widgets/feature_card.dart';
 import '../lists/providers/student_list_provider.dart';
+import '../membership/providers/membership_provider.dart';
+import '../membership/widgets/no_route_card.dart';
+import '../membership/widgets/route_selector.dart';
 import '../notifications/screens/notifications_inbox_screen.dart';
 import '../reports/screens/my_attendance_screen.dart';
 import '../warnings/screens/warnings_screen.dart';
@@ -70,8 +73,16 @@ class StudentHomeScreen extends StatelessWidget {
               child: ListView(
                 padding: const EdgeInsets.all(20),
                 children: [
-                  const _TodayStatus(),
-                  const SizedBox(height: 24),
+                  // Sem rota nenhuma nao ha lista, aviso nem trajeto: mostrar o
+                  // status do dia aqui seria anunciar vazio sem dizer por que.
+                  if (context.watch<MembershipProvider>().hasNoRoute) ...[
+                    const NoRouteCard(),
+                    const SizedBox(height: 24),
+                  ] else ...[
+                    const RouteSelector(),
+                    const _TodayStatus(),
+                    const SizedBox(height: 24),
+                  ],
                   const SectionTitle('O que você pode fazer'),
                   const SizedBox(height: 12),
                   GridView.count(

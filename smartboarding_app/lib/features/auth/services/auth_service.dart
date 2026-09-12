@@ -22,6 +22,43 @@ class AuthService {
     return token;
   }
 
+  /// Cadastro próprio. A API já devolve a sessão pronta, então o aluno cai
+  /// logado — não faz sentido pedir de novo o que ele acabou de digitar.
+  ///
+  /// A conta nasce SEM rota: ele chega na home no estado "sem rota" e entra
+  /// numa usando o código do admin.
+  Future<AuthToken> signup({
+    required String fullName,
+    required String email,
+    required String password,
+    String? institutionId,
+    String? course,
+    String? phone,
+    String? birthDate,
+  }) async {
+    final response = await _dio.post(
+      '/api/auth/signup',
+      data: {
+        'fullName': fullName,
+        'email': email,
+        'password': password,
+        'institutionId': ?institutionId,
+        if (course?.isNotEmpty ?? false) 'course': course,
+        if (phone?.isNotEmpty ?? false) 'phone': phone,
+        'birthDate': ?birthDate,
+      },
+    );
+    final data = response.data['data'] as Map<String, dynamic>;
+    final token = AuthToken.fromLogin(data, email);
+    await _storage.saveAuth(
+      token: token.token,
+      fullName: token.fullName,
+      role: token.role,
+      email: token.email,
+    );
+    return token;
+  }
+
   /// Responde igual havendo conta ou não — a tela nunca deve afirmar que o
   /// e-mail existe (RN22).
   Future<void> forgotPassword(String email) async {

@@ -42,6 +42,29 @@ class AuthProvider extends ChangeNotifier {
     notifyListeners();
   }
 
+  /// Cadastro proprio: a API ja devolve a sessao, entao o aluno entra direto.
+  Future<void> signup({
+    required String fullName,
+    required String email,
+    required String password,
+    String? institutionId,
+    String? course,
+    String? phone,
+    String? birthDate,
+  }) async {
+    _token = await _authService.signup(
+      fullName: fullName,
+      email: email,
+      password: password,
+      institutionId: institutionId,
+      course: course,
+      phone: phone,
+      birthDate: birthDate,
+    );
+    _status = AuthStatus.authenticated;
+    notifyListeners();
+  }
+
   Future<void> logout() async {
     // TODO(firebase): remover device token FCM aqui após ativar o push.
     // Ver docs/firebase-setup.md, passo 8 (NotificationService().removeToken).

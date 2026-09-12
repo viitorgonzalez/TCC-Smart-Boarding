@@ -15,6 +15,11 @@ class AppTextField extends StatelessWidget {
   final Widget? suffix;
   final String? Function(String?)? validator;
 
+  /// Campo de codigo entra em caixa alta sozinho: o codigo e normalizado no
+  /// backend de qualquer jeito, mas ver o que se digita igual ao que esta no
+  /// quadro evita a duvida de "sera que precisa ser maiuscula?".
+  final TextCapitalization textCapitalization;
+
   const AppTextField({
     super.key,
     required this.label,
@@ -28,6 +33,7 @@ class AppTextField extends StatelessWidget {
     this.keyboardType,
     this.suffix,
     this.validator,
+    this.textCapitalization = TextCapitalization.none,
   });
 
   @override
@@ -52,6 +58,7 @@ class AppTextField extends StatelessWidget {
           maxLength: maxLength,
           keyboardType: keyboardType,
           validator: validator,
+          textCapitalization: textCapitalization,
           decoration: InputDecoration(
             hintText: hint,
             prefixIcon: icon == null ? null : Icon(icon),

@@ -3,6 +3,7 @@ import 'package:app_links/app_links.dart';
 import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
 import 'core/providers/auth_provider.dart';
+import 'features/membership/providers/membership_provider.dart';
 import 'core/theme/app_theme.dart';
 import 'core/widgets/auth_gate.dart';
 import 'features/lists/providers/student_list_provider.dart';
@@ -86,6 +87,16 @@ class _SmartBoardingAppState extends State<SmartBoardingApp> {
       providers: [
         // Auth — global, persiste toda a sessão
         ChangeNotifierProvider(create: (_) => AuthProvider()..init()),
+
+        // Rotas do aluno: recarrega a cada troca de sessao, senao o proximo a
+        // logar herdaria as rotas do anterior.
+        ChangeNotifierProxyProvider<AuthProvider, MembershipProvider>(
+          create: (_) => MembershipProvider(),
+          update: (_, auth, prev) {
+            if (auth.status == AuthStatus.authenticated) prev!.load();
+            return prev!;
+          },
+        ),
 
         ChangeNotifierProxyProvider<AuthProvider, StudentListProvider>(
           create: (_) => StudentListProvider(ListService()),

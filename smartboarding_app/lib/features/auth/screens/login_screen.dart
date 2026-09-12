@@ -5,8 +5,8 @@ import '../../../core/theme/app_theme.dart';
 import '../../../core/widgets/app_text_field.dart';
 import '../../../core/widgets/loading_filled_button.dart';
 import '../../../core/widgets/snackbar_utils.dart';
-import '../../registration/screens/verify_invite_code_screen.dart';
 import 'forgot_password_screen.dart';
+import 'signup_screen.dart';
 
 class LoginScreen extends StatefulWidget {
   const LoginScreen({super.key});
@@ -117,12 +117,10 @@ class _LoginScreenState extends State<LoginScreen> {
                 const SizedBox(height: 8),
                 TextButton(
                   onPressed: () => Navigator.of(context).push(
-                    MaterialPageRoute(
-                      builder: (_) => const VerifyInviteCodeScreen(),
-                    ),
+                    MaterialPageRoute(builder: (_) => const SignupScreen()),
                   ),
                   child: const Text(
-                    'Tenho um convite',
+                    'Criar conta',
                     style: TextStyle(
                       color: AppColors.deepTeal,
                       fontWeight: FontWeight.w700,
