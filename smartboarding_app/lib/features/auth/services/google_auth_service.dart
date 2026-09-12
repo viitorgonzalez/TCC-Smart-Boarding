@@ -46,7 +46,11 @@ class GoogleAuthService {
   /// Sair do Google junto do logout do app: sem isto, o próximo login
   /// reentraria sozinho na conta anterior sem perguntar.
   Future<void> signOut() async {
-    if (!_iniciado) return;
+    // Inicializa antes: depois de reabrir o app a sessao vem do storage e o
+    // signIn() nunca rodou neste processo, entao sair era no-op -- e o proximo
+    // "Entrar com Google" reentrava sozinho na conta anterior, sem perguntar.
+    if (!googleSignInEnabled) return;
+    await _garantirInicializado();
     await _google.signOut();
   }
 }
