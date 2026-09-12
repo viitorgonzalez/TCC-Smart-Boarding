@@ -27,11 +27,16 @@ class _StudentProfileSheetState extends State<StudentProfileSheet> {
   final _service = UserService();
   StudentProfile? _profile;
   bool _busy = false;
+  // null = ainda nao sabemos (carregando ou a busca falhou). Enquanto for
+  // null, a trava do ultimo admin fica de fora -- desabilitar sem dado seria
+  // pior que deixar o backend recusar, que e o comportamento de hoje.
+  int? _adminCount;
 
   @override
   void initState() {
     super.initState();
     _load();
+    _loadAdminCount();
   }
 
   Future<void> _load() async {
@@ -40,6 +45,20 @@ class _StudentProfileSheetState extends State<StudentProfileSheet> {
       if (mounted) setState(() => _profile = p);
     } catch (e) {
       if (mounted) showErrorSnackBar(context, AppException.fromError(e));
+    }
+  }
+
+  /// Conta os admins pelo mesmo endpoint que a tela de usuarios ja usa --
+  /// sem endpoint novo. Fica em silencio no erro: essa contagem so serve pra
+  /// UI evitar um toque que o backend ia recusar de qualquer forma, entao uma
+  /// falha aqui nao pode virar outro alerta pro admin.
+  Future<void> _loadAdminCount() async {
+    try {
+      final users = await _service.getUsers();
+      final count = users.where((u) => u.role == 'ADMIN').length;
+      if (mounted) setState(() => _adminCount = count);
+    } catch (_) {
+      // _adminCount continua null de proposito.
     }
   }
 
@@ -75,6 +94,9 @@ class _StudentProfileSheetState extends State<StudentProfileSheet> {
             ? 'Acesso de administrador concedido'
             : 'Acesso de administrador removido',
       );
+      // A contagem muda pra todo mundo depois de promover/rebaixar -- reflete
+      // aqui pra travar de novo se esta virou a ultima conta admin.
+      await _loadAdminCount();
     } catch (e) {
       if (mounted) showErrorSnackBar(context, AppException.fromError(e));
     } finally {
@@ -90,6 +112,13 @@ class _StudentProfileSheetState extends State<StudentProfileSheet> {
     // o token de sessao nunca carregou um id de usuario.
     final meuEmail = context.watch<AuthProvider>().token?.email;
     final ehAPropriaConta = profile != null && profile.email == meuEmail;
+    // null (ainda carregando/falhou) nao trava por engano -- só com contagem
+    // confirmada de exatamente 1 admin (esta conta) a trava entra.
+    final ehUltimoAdmin =
+        profile != null &&
+        profile.role == 'ADMIN' &&
+        _adminCount != null &&
+        _adminCount! <= 1;
     return Padding(
       padding: const EdgeInsets.fromLTRB(20, 0, 20, 24),
       child: profile == null
@@ -100,6 +129,7 @@ class _StudentProfileSheetState extends State<StudentProfileSheet> {
               onToggle: _toggle,
               onToggleRole: _toggleRole,
               ehAPropriaConta: ehAPropriaConta,
+              ehUltimoAdmin: ehUltimoAdmin,
             ),
     );
   }
@@ -112,6 +142,7 @@ class StudentProfileBody extends StatelessWidget {
   final ValueChanged<bool> onToggle;
   final VoidCallback onToggleRole;
   final bool ehAPropriaConta;
+  final bool ehUltimoAdmin;
 
   const StudentProfileBody({
     super.key,
@@ -119,6 +150,7 @@ class StudentProfileBody extends StatelessWidget {
     required this.onToggle,
     required this.onToggleRole,
     required this.ehAPropriaConta,
+    required this.ehUltimoAdmin,
     this.busy = false,
   });
 
@@ -185,7 +217,10 @@ class StudentProfileBody extends StatelessWidget {
                   : 'Tornar administrador',
             ),
             subtitle: const Text('Fica registrado com seu nome e a hora.'),
-            enabled: !busy && (profile.role == 'ADMIN' || profile.isActive),
+            enabled:
+                !busy &&
+                (profile.role == 'ADMIN' || profile.isActive) &&
+                !ehUltimoAdmin,
             onTap: busy ? null : onToggleRole,
           ),
         const Divider(),

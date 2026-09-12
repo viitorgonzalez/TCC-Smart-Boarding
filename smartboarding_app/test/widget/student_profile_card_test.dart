@@ -42,6 +42,7 @@ void main() {
           onToggle: (_) {},
           onToggleRole: () {},
           ehAPropriaConta: false,
+          ehUltimoAdmin: false,
         ),
       ),
     );
@@ -61,6 +62,7 @@ void main() {
           onToggle: (_) {},
           onToggleRole: () {},
           ehAPropriaConta: false,
+          ehUltimoAdmin: false,
         ),
       ),
     );
@@ -81,6 +83,7 @@ void main() {
           onToggle: (v) => recebido = v,
           onToggleRole: () {},
           ehAPropriaConta: false,
+          ehUltimoAdmin: false,
         ),
       ),
     );
@@ -100,6 +103,7 @@ void main() {
           onToggle: (_) {},
           onToggleRole: () {},
           ehAPropriaConta: false,
+          ehUltimoAdmin: false,
         ),
       ),
     );
@@ -117,6 +121,7 @@ void main() {
             onToggle: (_) {},
             onToggleRole: () {},
             ehAPropriaConta: false,
+            ehUltimoAdmin: false,
           ),
         ),
       ),
@@ -148,6 +153,7 @@ void main() {
             onToggle: (_) {},
             onToggleRole: () {},
             ehAPropriaConta: false,
+            ehUltimoAdmin: false,
           ),
         ),
       ),
@@ -184,6 +190,7 @@ void main() {
           onToggle: (_) {},
           onToggleRole: () {},
           ehAPropriaConta: true,
+          ehUltimoAdmin: false,
         ),
       ),
     );
@@ -200,6 +207,7 @@ void main() {
           onToggle: (_) {},
           onToggleRole: () {},
           ehAPropriaConta: false,
+          ehUltimoAdmin: false,
         ),
       ),
     );
@@ -218,6 +226,7 @@ void main() {
           onToggle: (_) {},
           onToggleRole: () {},
           ehAPropriaConta: false,
+          ehUltimoAdmin: false,
         ),
       ),
     );
@@ -227,5 +236,50 @@ void main() {
       find.byKey(const Key('profile_role_action')),
     );
     expect(tile.enabled, isFalse);
+  });
+
+  /// Ultimo admin ativo: rebaixar travaria o sistema por fora -- ninguem mais
+  /// promove ninguem de volta. Mesmo tratamento da conta desativada: some a
+  /// opcao de tocar, nao o erro depois do toque.
+  testWidgets('ultimo admin nao pode ser rebaixado', (tester) async {
+    await tester.pumpWidget(
+      wrap(
+        StudentProfileBody(
+          profile: comPapel('ADMIN'),
+          onToggle: (_) {},
+          onToggleRole: () {},
+          ehAPropriaConta: false,
+          ehUltimoAdmin: true,
+        ),
+      ),
+    );
+    await tester.pumpAndSettle();
+
+    final tile = tester.widget<ListTile>(
+      find.byKey(const Key('profile_role_action')),
+    );
+    expect(tile.enabled, isFalse);
+  });
+
+  testWidgets('admin com outro admin na lista pode ser rebaixado', (
+    tester,
+  ) async {
+    await tester.pumpWidget(
+      wrap(
+        StudentProfileBody(
+          profile: comPapel('ADMIN'),
+          onToggle: (_) {},
+          onToggleRole: () {},
+          ehAPropriaConta: false,
+          ehUltimoAdmin: false,
+        ),
+      ),
+    );
+    await tester.pumpAndSettle();
+
+    final tile = tester.widget<ListTile>(
+      find.byKey(const Key('profile_role_action')),
+    );
+    expect(tile.enabled, isTrue);
   });
 }
