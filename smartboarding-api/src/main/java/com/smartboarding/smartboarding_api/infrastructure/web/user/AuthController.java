@@ -58,10 +58,6 @@ public class AuthController {
         User created = signupUseCase.signup(User.builder()
                 .email(request.email())
                 .fullName(request.fullName())
-                .institutionId(request.institutionId())
-                .course(request.course())
-                .phone(request.phone())
-                .birthDate(request.birthDate())
                 .build(), request.password());
 
         // Ja devolve a sessao: obrigar o aluno a digitar de novo o que acabou de

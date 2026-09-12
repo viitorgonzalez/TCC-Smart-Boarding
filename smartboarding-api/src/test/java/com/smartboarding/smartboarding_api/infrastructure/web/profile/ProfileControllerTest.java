@@ -37,6 +37,8 @@ class ProfileControllerTest extends WebMvcTestSupport {
 
     @MockitoBean ManageProfileUpdateUseCase useCase;
     @MockitoBean UserRepositoryPort userRepository;
+    @MockitoBean com.smartboarding.smartboarding_api.domain.membership.port.in.ManageUserInstitutionsUseCase
+            userInstitutionsUseCase;
 
     @BeforeEach
     void setUp() {
@@ -161,5 +163,44 @@ class ProfileControllerTest extends WebMvcTestSupport {
                 .andExpect(status().isOk());
 
         verify(useCase).reject(id, "Nome não confere com o documento", ADMIN_ID);
+    }
+
+    /// As instituicoes sao do proprio aluno: e pre-requisito pra entrar em rota,
+    /// entao o endpoint vive sob /me e usa o id do token.
+    @Test
+    void instituicoesUsamOUsuarioDoToken() throws Exception {
+        UUID inst = UUID.randomUUID();
+        when(userInstitutionsUseCase.institutionsOf(STUDENT_ID)).thenReturn(List.of(inst));
+
+        mvc.perform(get("/api/me/institutions").with(student()))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.data[0]").value(inst.toString()));
+
+        mvc.perform(post("/api/me/institutions/{id}", inst).with(student()))
+                .andExpect(status().isCreated());
+
+        verify(userInstitutionsUseCase).add(STUDENT_ID, inst);
+    }
+
+    @Test
+    void semTokenNaoMexeNasInstituicoes() throws Exception {
+        UUID inst = UUID.randomUUID();
+
+        mvc.perform(get("/api/me/institutions")).andExpect(status().isUnauthorized());
+        mvc.perform(post("/api/me/institutions/{id}", inst))
+                .andExpect(status().isUnauthorized());
+
+        verify(userInstitutionsUseCase, never()).add(any(), any());
+    }
+
+    @Test
+    void alunoRemoveAPropriaInstituicao() throws Exception {
+        UUID inst = UUID.randomUUID();
+
+        mvc.perform(org.springframework.test.web.servlet.request.MockMvcRequestBuilders
+                        .delete("/api/me/institutions/{id}", inst).with(student()))
+                .andExpect(status().isOk());
+
+        verify(userInstitutionsUseCase).remove(STUDENT_ID, inst);
     }
 }

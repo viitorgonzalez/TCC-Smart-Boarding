@@ -3,7 +3,9 @@ package com.smartboarding.smartboarding_api.application.membership;
 import com.smartboarding.smartboarding_api.domain.membership.entity.RouteInviteCode;
 import com.smartboarding.smartboarding_api.domain.membership.entity.RouteMember;
 import com.smartboarding.smartboarding_api.domain.membership.port.out.RouteInviteCodeRepositoryPort;
+import com.smartboarding.smartboarding_api.domain.membership.entity.UserInstitution;
 import com.smartboarding.smartboarding_api.domain.membership.port.out.RouteMemberRepositoryPort;
+import com.smartboarding.smartboarding_api.domain.membership.port.out.UserInstitutionRepositoryPort;
 import com.smartboarding.smartboarding_api.shared.exception.BadRequestException;
 import com.smartboarding.smartboarding_api.shared.exception.ConflictException;
 import org.junit.jupiter.api.BeforeEach;
@@ -38,13 +40,19 @@ class JoinRouteUseCaseImplTest {
 
     @Mock RouteInviteCodeRepositoryPort codeRepository;
     @Mock RouteMemberRepositoryPort memberRepository;
+    @Mock UserInstitutionRepositoryPort userInstitutionRepository;
 
     private JoinRouteUseCaseImpl useCase;
 
     @BeforeEach
     void setUp() {
         useCase = new JoinRouteUseCaseImpl(codeRepository, memberRepository,
+                userInstitutionRepository,
                 Clock.fixed(AGORA.toInstant(ZoneOffset.UTC), ZoneOffset.UTC));
+        // Por padrao o aluno ja tem instituicao; os testes de gate sobrescrevem.
+        when(userInstitutionRepository.findAllByUserId(any())).thenReturn(List.of(
+                UserInstitution.builder().userId(ALUNO)
+                        .institutionId(UUID.randomUUID()).build()));
         when(memberRepository.save(any())).thenAnswer(inv -> inv.getArgument(0));
         when(memberRepository.existsByUserIdAndRouteId(any(), any())).thenReturn(false);
     }
@@ -164,5 +172,39 @@ class JoinRouteUseCaseImplTest {
         when(memberRepository.findAllByUserId(ALUNO)).thenReturn(List.of());
 
         assertThat(useCase.routesOf(ALUNO)).isEmpty();
+    }
+
+    /// A instituicao diz onde o aluno desce e em que contagem ele entra. Sem
+    /// ela, entraria na lista alguem que o motorista nao sabe onde deixar.
+    @Test
+    void semInstituicaoNoPerfilNaoEntraEmRota() {
+        codigo("RU7K2M", AGORA.plusDays(30), null);
+        when(userInstitutionRepository.findAllByUserId(ALUNO)).thenReturn(List.of());
+
+        assertThatThrownBy(() -> useCase.join(ALUNO, "RU7K2M"))
+                .isInstanceOf(BadRequestException.class)
+                .hasMessageContaining("instituição no perfil");
+
+        verify(memberRepository, never()).save(any());
+    }
+
+    /// O gate roda ANTES de consultar o codigo: checar o codigo primeiro gastaria
+    /// uma consulta pra recusar de todo jeito, e daria mensagem errada a quem
+    /// tem perfil incompleto E codigo vencido.
+    @Test
+    void oGateDoPerfilVemAntesDaChecagemDoCodigo() {
+        when(userInstitutionRepository.findAllByUserId(ALUNO)).thenReturn(List.of());
+
+        assertThatThrownBy(() -> useCase.join(ALUNO, "QUALQUER"))
+                .hasMessageContaining("instituição no perfil");
+
+        verify(codeRepository, never()).findByCode(any());
+    }
+
+    @Test
+    void comInstituicaoDefinidaEntraNormalmente() {
+        codigo("RU7K2M", AGORA.plusDays(30), null);
+
+        assertThat(useCase.join(ALUNO, "RU7K2M").getRouteId()).isEqualTo(ROTA);
     }
 }

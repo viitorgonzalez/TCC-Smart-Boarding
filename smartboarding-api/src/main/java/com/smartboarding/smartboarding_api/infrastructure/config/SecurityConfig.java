@@ -55,6 +55,8 @@ public class SecurityConfig {
                         // Usar o codigo e do aluno logado, sobre as rotas DELE.
                         // O proprio perfil e do usuario logado; a fila de
                         // solicitacoes e do admin.
+                        .requestMatchers("/api/me/institutions/**").authenticated()
+                        .requestMatchers("/api/me/institutions").authenticated()
                         .requestMatchers("/api/me/profile-requests/**").authenticated()
                         .requestMatchers("/api/me/profile-requests").authenticated()
                         .requestMatchers("/api/profile-requests/**").hasRole("ADMIN")

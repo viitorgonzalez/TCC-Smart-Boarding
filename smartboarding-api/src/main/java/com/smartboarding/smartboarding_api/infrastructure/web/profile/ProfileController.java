@@ -1,6 +1,7 @@
 package com.smartboarding.smartboarding_api.infrastructure.web.profile;
 
 import com.smartboarding.smartboarding_api.domain.profile.entity.ProfileUpdateRequest;
+import com.smartboarding.smartboarding_api.domain.membership.port.in.ManageUserInstitutionsUseCase;
 import com.smartboarding.smartboarding_api.domain.profile.port.in.ManageProfileUpdateUseCase;
 import com.smartboarding.smartboarding_api.domain.user.entity.User;
 import com.smartboarding.smartboarding_api.domain.user.port.out.UserRepositoryPort;
@@ -30,11 +31,14 @@ public class ProfileController {
 
     private final ManageProfileUpdateUseCase useCase;
     private final UserRepositoryPort userRepository;
+    private final ManageUserInstitutionsUseCase userInstitutionsUseCase;
 
     public ProfileController(ManageProfileUpdateUseCase useCase,
-                             UserRepositoryPort userRepository) {
+                             UserRepositoryPort userRepository,
+                             ManageUserInstitutionsUseCase userInstitutionsUseCase) {
         this.useCase = useCase;
         this.userRepository = userRepository;
+        this.userInstitutionsUseCase = userInstitutionsUseCase;
     }
 
     @PostMapping("/me/profile-requests")
@@ -81,6 +85,28 @@ public class ProfileController {
                                                   @RequestBody @Valid RejectProfileUpdateRequest body,
                                                   Authentication auth) {
         useCase.reject(id, body.reason(), me(auth).getId());
+        return ResponseEntity.ok(ApiResponse.success());
+    }
+
+    /// Instituições do próprio aluno. É pré-requisito pra entrar em rota, então
+    /// mora aqui e não na tela de admin.
+    @GetMapping("/me/institutions")
+    public ResponseEntity<ApiResponse<List<UUID>>> myInstitutions(Authentication auth) {
+        return ResponseEntity.ok(ApiResponse.data(
+                userInstitutionsUseCase.institutionsOf(me(auth).getId())));
+    }
+
+    @PostMapping("/me/institutions/{institutionId}")
+    public ResponseEntity<ApiResponse<?>> addInstitution(@PathVariable UUID institutionId,
+                                                          Authentication auth) {
+        userInstitutionsUseCase.add(me(auth).getId(), institutionId);
+        return ResponseEntity.status(HttpStatus.CREATED).body(ApiResponse.success());
+    }
+
+    @DeleteMapping("/me/institutions/{institutionId}")
+    public ResponseEntity<ApiResponse<?>> removeInstitution(@PathVariable UUID institutionId,
+                                                             Authentication auth) {
+        userInstitutionsUseCase.remove(me(auth).getId(), institutionId);
         return ResponseEntity.ok(ApiResponse.success());
     }
 
