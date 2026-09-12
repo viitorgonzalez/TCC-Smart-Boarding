@@ -34,6 +34,7 @@ public class ListEntry {
     private LocalDateTime createdAt;
 
     @Column(name = "is_active", nullable = false)
+    @Builder.Default
     private boolean isActive = true;
 
     @Enumerated(EnumType.STRING)
