@@ -1,9 +1,11 @@
 package com.smartboarding.smartboarding_api.infrastructure.auth;
 
 import com.fasterxml.jackson.databind.JsonNode;
+import com.fasterxml.jackson.databind.ObjectMapper;
 import com.smartboarding.smartboarding_api.domain.user.port.out.GoogleTokenVerifierPort;
 import com.smartboarding.smartboarding_api.shared.exception.UnauthorizedException;
 import lombok.extern.slf4j.Slf4j;
+import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.beans.factory.annotation.Value;
 import org.springframework.stereotype.Component;
 import org.springframework.web.client.RestClient;
@@ -20,10 +22,20 @@ public class GoogleTokenVerifierAdapter implements GoogleTokenVerifierPort {
 
     private static final String TOKENINFO = "https://oauth2.googleapis.com/tokeninfo";
 
-    private final RestClient http = RestClient.create();
+    private static final ObjectMapper JSON = new ObjectMapper();
+
+    private final RestClient http;
     private final String clientId;
 
+    @Autowired
     public GoogleTokenVerifierAdapter(@Value("${google.client-id:}") String clientId) {
+        this(RestClient.builder(), clientId);
+    }
+
+    /// Recebe o builder pra que o teste consiga pendurar um MockRestServiceServer
+    /// e exercitar os conversores de verdade, sem sair pra rede.
+    GoogleTokenVerifierAdapter(RestClient.Builder builder, String clientId) {
+        this.http = builder.build();
         this.clientId = clientId;
     }
 
@@ -38,10 +50,16 @@ public class GoogleTokenVerifierAdapter implements GoogleTokenVerifierPort {
 
         JsonNode payload;
         try {
-            payload = http.get()
+            // Lê como texto e faz o parse aqui de propósito. Pedir JsonNode
+            // direto ao RestClient deixa a escolha do conversor pro Spring, e
+            // com Jackson 2 e 3 no mesmo classpath ele entrega a resposta pro
+            // conversor errado -- todo login real morria em "Type definition
+            // error" DEPOIS de o Google ter respondido 200.
+            String corpo = http.get()
                     .uri(TOKENINFO + "?id_token={t}", idToken)
                     .retrieve()
-                    .body(JsonNode.class);
+                    .body(String.class);
+            payload = corpo == null ? null : JSON.readTree(corpo);
         } catch (Exception e) {
             log.warn("Falha ao validar token do Google: {}", e.getMessage());
             throw new UnauthorizedException("Não foi possível validar seu login do Google.");
