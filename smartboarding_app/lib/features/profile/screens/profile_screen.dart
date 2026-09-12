@@ -11,6 +11,7 @@ import '../../../core/widgets/snackbar_utils.dart';
 import '../models/profile_update_model.dart';
 import '../services/profile_service.dart';
 import '../widgets/my_institutions_card.dart';
+import '../widgets/set_password_card.dart';
 
 /// Perfil do próprio usuário.
 ///
@@ -33,6 +34,7 @@ class _ProfileScreenState extends State<ProfileScreen> {
   final _courseCtrl = TextEditingController();
 
   ProfileUpdate? _pendente;
+  Me? _me;
   bool _loading = true;
   bool _saving = false;
 
@@ -53,9 +55,17 @@ class _ProfileScreenState extends State<ProfileScreen> {
   }
 
   Future<void> _load() async {
+    // Em catch proprio: o /me so decide se o card de senha aparece. Se ele
+    // falhar, o perfil inteiro ainda tem que abrir.
+    _service
+        .me()
+        .then((m) {
+          if (mounted) setState(() => _me = m);
+        })
+        .catchError((_) {});
     try {
-      final p = await _service.myPending();
-      if (mounted) setState(() => _pendente = p);
+      final pendente = await _service.myPending();
+      if (mounted) setState(() => _pendente = pendente);
     } catch (e) {
       if (mounted) showErrorSnackBar(context, AppException.fromError(e));
     } finally {
@@ -148,6 +158,12 @@ class _ProfileScreenState extends State<ProfileScreen> {
                 // resolver ao abrir o perfil.
                 const MyInstitutionsCard(),
                 const SizedBox(height: 20),
+                // So pra quem entrou pelo Google e ainda nao tem senha: oferecer
+                // a todos faria metade tomar 409 do backend.
+                if (_me case Me(hasPassword: false, hasGoogle: true)) ...[
+                  SetPasswordCard(onCreated: _load),
+                  const SizedBox(height: 20),
+                ],
 
                 if (emAnalise) ...[
                   AppCard(

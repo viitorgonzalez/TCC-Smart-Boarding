@@ -46,9 +46,13 @@ class ProfileControllerTest extends WebMvcTestSupport {
     void setUp() {
         when(userRepository.findByEmail("fernanda@edu.unifor.br")).thenReturn(Optional.of(
                 User.builder().id(STUDENT_ID).email("fernanda@edu.unifor.br")
-                        .fullName("Fernanda Lima").build()));
+                        .fullName("Fernanda Lima")
+                        .role(com.smartboarding.smartboarding_api.domain.user.entity.Role.STUDENT)
+                        .googleId("google-123").build()));
         when(userRepository.findByEmail("naiara@admin.com")).thenReturn(Optional.of(
-                User.builder().id(ADMIN_ID).email("naiara@admin.com").fullName("Naiara").build()));
+                User.builder().id(ADMIN_ID).email("naiara@admin.com").fullName("Naiara")
+                        .role(com.smartboarding.smartboarding_api.domain.user.entity.Role.ADMIN)
+                        .password("$2a$10$hash").build()));
         when(userRepository.findAll()).thenReturn(List.of());
         when(useCase.listPending()).thenReturn(List.of());
         when(useCase.myPending(any())).thenReturn(Optional.empty());
@@ -257,5 +261,36 @@ class ProfileControllerTest extends WebMvcTestSupport {
                                 {"password":"minhaSenha1"}"""))
                 .andExpect(status().isConflict())
                 .andExpect(jsonPath("$.code").value("PASSWORD_ALREADY_SET"));
+    }
+
+    /// A tela usa esses dois flags pra decidir se oferece "criar senha". Se o
+    /// /me mentisse, quem entrou pelo Google nao veria a opcao -- ou quem ja tem
+    /// senha veria e tomaria 409.
+    @Test
+    void meInformaPorOndeAContaEntra() throws Exception {
+        mvc.perform(get("/api/me").with(student()))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.data.hasPassword").value(false))
+                .andExpect(jsonPath("$.data.hasGoogle").value(true))
+                .andExpect(jsonPath("$.data.role").value("STUDENT"));
+
+        mvc.perform(get("/api/me").with(admin()))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.data.hasPassword").value(true))
+                .andExpect(jsonPath("$.data.hasGoogle").value(false));
+    }
+
+    @Test
+    void meExigeAutenticacao() throws Exception {
+        mvc.perform(get("/api/me")).andExpect(status().isUnauthorized());
+    }
+
+    /// O hash nunca pode sair no corpo: a tela so precisa saber SE existe senha.
+    @Test
+    void meNaoExpoeOHashDaSenha() throws Exception {
+        String corpo = mvc.perform(get("/api/me").with(admin()))
+                .andReturn().getResponse().getContentAsString();
+
+        org.assertj.core.api.Assertions.assertThat(corpo).doesNotContain("$2a$10$hash");
     }
 }

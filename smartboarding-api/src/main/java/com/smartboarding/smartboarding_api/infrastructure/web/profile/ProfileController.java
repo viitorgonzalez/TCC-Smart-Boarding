@@ -7,6 +7,7 @@ import com.smartboarding.smartboarding_api.domain.user.port.in.SetLocalPasswordU
 import com.smartboarding.smartboarding_api.infrastructure.web.user.dto.SetPasswordRequest;
 import com.smartboarding.smartboarding_api.domain.user.entity.User;
 import com.smartboarding.smartboarding_api.domain.user.port.out.UserRepositoryPort;
+import com.smartboarding.smartboarding_api.infrastructure.web.profile.dto.MeResponse;
 import com.smartboarding.smartboarding_api.infrastructure.web.profile.dto.ProfileUpdateRequestDto;
 import com.smartboarding.smartboarding_api.infrastructure.web.profile.dto.ProfileUpdateResponse;
 import com.smartboarding.smartboarding_api.infrastructure.web.profile.dto.RejectProfileUpdateRequest;
@@ -113,6 +114,11 @@ public class ProfileController {
                                                              Authentication auth) {
         userInstitutionsUseCase.remove(me(auth).getId(), institutionId);
         return ResponseEntity.ok(ApiResponse.success());
+    }
+
+    @GetMapping("/me")
+    public ResponseEntity<ApiResponse<MeResponse>> meInfo(Authentication auth) {
+        return ResponseEntity.ok(ApiResponse.data(MeResponse.from(me(auth))));
     }
 
     /// Define a senha local de quem entrou pelo Google. A partir daí ele entra

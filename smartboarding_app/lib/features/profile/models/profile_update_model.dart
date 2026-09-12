@@ -57,3 +57,32 @@ class ProfileUpdate {
     'Nascimento': ?birthDate,
   };
 }
+
+/// Quem sou eu, do ponto de vista da sessão atual. [hasPassword] e [hasGoogle]
+/// dizem por quais caminhos esta conta entra.
+class Me {
+  final String id;
+  final String fullName;
+  final String email;
+  final String role;
+  final bool hasPassword;
+  final bool hasGoogle;
+
+  const Me({
+    required this.id,
+    required this.fullName,
+    required this.email,
+    required this.role,
+    required this.hasPassword,
+    required this.hasGoogle,
+  });
+
+  factory Me.fromJson(Map<String, dynamic> json) => Me(
+    id: json['id'] as String,
+    fullName: json['fullName'] as String,
+    email: json['email'] as String,
+    role: json['role'] as String,
+    hasPassword: json['hasPassword'] as bool? ?? true,
+    hasGoogle: json['hasGoogle'] as bool? ?? false,
+  );
+}

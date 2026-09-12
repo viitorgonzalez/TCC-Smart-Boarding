@@ -57,6 +57,16 @@ class ProfileService {
     );
   }
 
+  Future<Me> me() async {
+    final response = await _dio.get('/api/me');
+    return Me.fromJson(response.data['data'] as Map<String, dynamic>);
+  }
+
+  /// Define a senha local de quem entrou pelo Google e ainda não tem uma.
+  Future<void> setLocalPassword(String password) async {
+    await _dio.post('/api/me/password', data: {'password': password});
+  }
+
   /// Instituições do próprio aluno. É pré-requisito pra entrar em rota, por
   /// isso vive sob /me e não na área do admin.
   Future<List<String>> myInstitutions() async {
