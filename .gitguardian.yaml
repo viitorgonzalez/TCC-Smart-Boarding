@@ -3,6 +3,11 @@
 # A varredura do PR #10 levantou 28 "segredos", todos senha de fixture em teste
 # ("sb@2026", "minhaSenha1") -- corpo de requisicao, nenhuma abre nada. Check com
 # 28 falsos positivos a cada push nao e lido, e aí o achado real passa junto.
+#
+# ignored_paths evita deteccao NOVA; o que ja virou incidente no dashboard
+# continua contando ate ser resolvido la. Foi por isso que a exclusao derrubou
+# de 28 pra 5, mas os 5 restantes -- todos fixture, nos mesmos caminhos --
+# precisaram ser marcados como falso positivo um a um.
 # Producao, config e .example seguem varridos, e sobre o que ficou de fora o hook
 # .githooks/pre-commit continua valendo.
 #
