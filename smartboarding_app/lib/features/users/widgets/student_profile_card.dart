@@ -20,10 +20,10 @@ class StudentProfileSheet extends StatefulWidget {
   const StudentProfileSheet({super.key, required this.userId});
 
   @override
-  State<StudentProfileSheet> createState() => _StudentProfileSheetState();
+  State<StudentProfileSheet> createState() => StudentProfileSheetState();
 }
 
-class _StudentProfileSheetState extends State<StudentProfileSheet> {
+class StudentProfileSheetState extends State<StudentProfileSheet> {
   final _service = UserService();
   StudentProfile? _profile;
   bool _busy = false;
@@ -32,11 +32,18 @@ class _StudentProfileSheetState extends State<StudentProfileSheet> {
   // pior que deixar o backend recusar, que e o comportamento de hoje.
   int? _adminCount;
 
+  /// Resolve quando as duas buscas do initState (perfil e contagem de admins)
+  /// terminam -- sucesso ou falha, já que as duas tratam o próprio erro
+  /// internamente e nunca relançam. Existe só pro teste aguardar a ficha
+  /// carregar por condição, não por uma duração chutada -- ver
+  /// student_profile_card_test.dart.
+  @visibleForTesting
+  late final Future<void> carregado;
+
   @override
   void initState() {
     super.initState();
-    _load();
-    _loadAdminCount();
+    carregado = Future.wait([_load(), _loadAdminCount()]);
   }
 
   Future<void> _load() async {

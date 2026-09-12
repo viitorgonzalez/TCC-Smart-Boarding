@@ -293,7 +293,7 @@ void main() {
   //
   // Os testes acima provam só a relação flag→enabled em StudentProfileBody,
   // que é apresentação. Quem calcula ehUltimoAdmin a partir da contagem real
-  // (e implementa o fail-open) é _StudentProfileSheetState -- então é ela que
+  // (e implementa o fail-open) é StudentProfileSheetState -- então é ela que
   // precisa estar sob teste aqui, com a camada HTTP falsa.
 
   /// Monta a ficha de verdade (não o Body) com GET /api/users/{id}/profile e
@@ -330,15 +330,37 @@ void main() {
         ),
       ),
     );
-    // As duas buscas do initState passam pelo Dio de verdade: sob o relogio
-    // falso do testWidgets, um await direto nelas nunca resolve sozinho.
-    await tester.runAsync(
-      () => Future<void>.delayed(const Duration(milliseconds: 20)),
+    // Espera pela condicao (a ficha terminar as duas buscas do initState), nao
+    // por uma duracao chutada: StudentProfileSheetState.carregado so existe
+    // pra isso. Um unico "await tester.runAsync(() => state.carregado)" trava
+    // pra sempre -- as buscas comecam dentro do initState, sob o relogio
+    // falso do testWidgets, entao parte da cadeia so anda com o relogio falso
+    // avancando (pump) e parte só com tempo real (runAsync); nenhum dos dois
+    // sozinho é suficiente. O laco intercala as duas coisas e para assim que
+    // "carregado" resolver, com um teto pra nao travar se quebrar de verdade.
+    final state = tester.state<StudentProfileSheetState>(
+      find.byType(StudentProfileSheet),
     );
-    // pump fixo, nao pumpAndSettle: enquanto o perfil nao chega a ficha mostra
-    // um CircularProgressIndicator (LoadingCard), que nunca deixa a arvore
-    // assentar sozinha.
-    await tester.pump(const Duration(milliseconds: 50));
+    var pronto = false;
+    state.carregado.then((_) => pronto = true);
+    const maxTentativas = 200;
+    var tentativas = 0;
+    while (!pronto && tentativas < maxTentativas) {
+      await tester.runAsync(
+        () => Future<void>.delayed(const Duration(milliseconds: 1)),
+      );
+      await tester.pump(const Duration(milliseconds: 1));
+      tentativas++;
+    }
+    if (!pronto) {
+      fail(
+        'StudentProfileSheetState.carregado nao resolveu apos $maxTentativas '
+        'tentativas -- a ficha nao carregou.',
+      );
+    }
+    // Mais um pump sem duracao: garante que o ultimo setState (o que marcou
+    // "pronto") já virou frame construído antes da asserção.
+    await tester.pump();
 
     return http;
   }
