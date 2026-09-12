@@ -29,33 +29,4 @@ void main() {
     final data = provider.state as AsyncData<List<UserModel>>;
     expect(data.value.single.fullName, 'Ana');
   });
-
-  test('create chama register e recarrega a lista', () async {
-    when(
-      () => service.register(
-        fullName: any(named: 'fullName'),
-        email: any(named: 'email'),
-        password: any(named: 'password'),
-        role: any(named: 'role'),
-      ),
-    ).thenAnswer((_) async {});
-    when(() => service.getUsers()).thenAnswer((_) async => const []);
-
-    await provider.create(
-      fullName: 'João',
-      email: 'j@x.com',
-      password: '123456',
-      role: 'DRIVER',
-    );
-
-    verify(
-      () => service.register(
-        fullName: 'João',
-        email: 'j@x.com',
-        password: '123456',
-        role: 'DRIVER',
-      ),
-    ).called(1);
-    verify(() => service.getUsers()).called(1);
-  });
 }

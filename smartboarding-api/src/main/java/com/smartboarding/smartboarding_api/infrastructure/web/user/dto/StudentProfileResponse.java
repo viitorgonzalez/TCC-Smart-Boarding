@@ -20,6 +20,7 @@ public record StudentProfileResponse(
         String course,
         String institution,
         boolean isActive,
+        String role,
         List<LocalDate> recentAttendance,
         List<StatusChange> statusHistory
 ) {

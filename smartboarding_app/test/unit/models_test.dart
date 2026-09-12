@@ -116,6 +116,7 @@ void main() {
         'course': 'Engenharia',
         'institution': 'Unifor',
         'isActive': false,
+        'role': 'STUDENT',
         'recentAttendance': ['2026-09-08', '2026-09-09'],
         'statusHistory': [
           {
@@ -139,6 +140,7 @@ void main() {
       final p = StudentProfile.fromJson({
         'id': 'aluno-1',
         'fullName': 'Fernanda Lima',
+        'role': 'STUDENT',
       });
 
       expect(p.course, isNull);
@@ -148,7 +150,11 @@ void main() {
     });
 
     test('isActive ausente assume ativo', () {
-      final p = StudentProfile.fromJson({'id': 'a', 'fullName': 'F'});
+      final p = StudentProfile.fromJson({
+        'id': 'a',
+        'fullName': 'F',
+        'role': 'STUDENT',
+      });
       expect(p.isActive, isTrue);
     });
 

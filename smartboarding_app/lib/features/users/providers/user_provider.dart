@@ -24,19 +24,4 @@ class UserProvider extends ChangeNotifier {
     }
     notifyListeners();
   }
-
-  Future<void> create({
-    required String fullName,
-    required String email,
-    required String password,
-    required String role,
-  }) async {
-    await _service.register(
-      fullName: fullName,
-      email: email,
-      password: password,
-      role: role,
-    );
-    await load();
-  }
 }

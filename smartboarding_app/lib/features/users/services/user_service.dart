@@ -18,24 +18,6 @@ class UserService {
         .toList();
   }
 
-  /// ADMIN-only — o aluno nasce por convite, não por aqui (RN13).
-  Future<void> register({
-    required String fullName,
-    required String email,
-    required String password,
-    required String role,
-  }) async {
-    await _dio.post(
-      '/api/auth/register',
-      data: {
-        'fullName': fullName,
-        'email': email,
-        'password': password,
-        'role': role,
-      },
-    );
-  }
-
   Future<StudentProfile> getProfile(String userId) async {
     final response = await _dio.get('/api/users/$userId/profile');
     return StudentProfile.fromJson(
@@ -47,6 +29,18 @@ class UserService {
     final response = await _dio.patch(
       '/api/users/$userId/status',
       data: {'active': active},
+    );
+    return StudentProfile.fromJson(
+      response.data['data'] as Map<String, dynamic>,
+    );
+  }
+
+  /// Concede ou retira acesso administrativo. Não cria conta — a conta já é da
+  /// pessoa.
+  Future<StudentProfile> setRole(String userId, String role) async {
+    final response = await _dio.patch(
+      '/api/users/$userId/role',
+      data: {'role': role},
     );
     return StudentProfile.fromJson(
       response.data['data'] as Map<String, dynamic>,

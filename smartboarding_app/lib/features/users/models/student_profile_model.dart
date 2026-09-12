@@ -10,6 +10,7 @@ class StudentProfile {
   final String? course;
   final String? institution;
   final bool isActive;
+  final String role;
   final List<String> recentAttendance;
   final List<StatusChange> statusHistory;
 
@@ -17,6 +18,7 @@ class StudentProfile {
     required this.id,
     required this.fullName,
     required this.isActive,
+    required this.role,
     this.email,
     this.phone,
     this.address,
@@ -37,6 +39,7 @@ class StudentProfile {
     course: json['course'] as String?,
     institution: json['institution'] as String?,
     isActive: json['isActive'] as bool? ?? true,
+    role: json['role'] as String,
     recentAttendance: (json['recentAttendance'] as List? ?? const [])
         .map((e) => e as String)
         .toList(),

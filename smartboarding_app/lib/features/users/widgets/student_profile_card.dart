@@ -1,5 +1,7 @@
 import 'package:flutter/material.dart';
+import 'package:provider/provider.dart';
 import '../../../core/errors/app_exception.dart';
+import '../../../core/providers/auth_provider.dart';
 import '../../../core/theme/app_theme.dart';
 import '../../../core/utils/date_format.dart';
 import '../../../core/widgets/initials_avatar.dart';
@@ -58,9 +60,36 @@ class _StudentProfileSheetState extends State<StudentProfileSheet> {
     }
   }
 
+  Future<void> _toggleRole() async {
+    final atual = _profile;
+    if (atual == null) return;
+    final novoPapel = atual.role == 'ADMIN' ? 'STUDENT' : 'ADMIN';
+    setState(() => _busy = true);
+    try {
+      final p = await _service.setRole(widget.userId, novoPapel);
+      if (!mounted) return;
+      setState(() => _profile = p);
+      showSuccessSnackBar(
+        context,
+        novoPapel == 'ADMIN'
+            ? 'Acesso de administrador concedido'
+            : 'Acesso de administrador removido',
+      );
+    } catch (e) {
+      if (mounted) showErrorSnackBar(context, AppException.fromError(e));
+    } finally {
+      if (mounted) setState(() => _busy = false);
+    }
+  }
+
   @override
   Widget build(BuildContext context) {
     final profile = _profile;
+    // Identifica a propria conta pelo e-mail: e a mesma chave que o resto do
+    // app usa pra "sou eu" (StudentListProvider.setUserEmail em main.dart) --
+    // o token de sessao nunca carregou um id de usuario.
+    final meuEmail = context.watch<AuthProvider>().token?.email;
+    final ehAPropriaConta = profile != null && profile.email == meuEmail;
     return Padding(
       padding: const EdgeInsets.fromLTRB(20, 0, 20, 24),
       child: profile == null
@@ -69,6 +98,8 @@ class _StudentProfileSheetState extends State<StudentProfileSheet> {
               profile: profile,
               busy: _busy,
               onToggle: _toggle,
+              onToggleRole: _toggleRole,
+              ehAPropriaConta: ehAPropriaConta,
             ),
     );
   }
@@ -79,11 +110,15 @@ class StudentProfileBody extends StatelessWidget {
   final StudentProfile profile;
   final bool busy;
   final ValueChanged<bool> onToggle;
+  final VoidCallback onToggleRole;
+  final bool ehAPropriaConta;
 
   const StudentProfileBody({
     super.key,
     required this.profile,
     required this.onToggle,
+    required this.onToggleRole,
+    required this.ehAPropriaConta,
     this.busy = false,
   });
 
@@ -139,6 +174,20 @@ class StudentProfileBody extends StatelessWidget {
             'A mudança fica registrada com seu nome e a hora.',
           ),
         ),
+        if (!ehAPropriaConta)
+          ListTile(
+            key: const Key('profile_role_action'),
+            contentPadding: EdgeInsets.zero,
+            leading: const Icon(Icons.shield_outlined),
+            title: Text(
+              profile.role == 'ADMIN'
+                  ? 'Remover acesso de administrador'
+                  : 'Tornar administrador',
+            ),
+            subtitle: const Text('Fica registrado com seu nome e a hora.'),
+            enabled: !busy && (profile.role == 'ADMIN' || profile.isActive),
+            onTap: busy ? null : onToggleRole,
+          ),
         const Divider(),
         Text('Idas recentes', style: theme.textTheme.titleSmall),
         const SizedBox(height: 6),

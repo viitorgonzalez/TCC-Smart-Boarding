@@ -7,7 +7,6 @@ import '../../routes/models/route_model.dart';
 import '../../routes/providers/route_provider.dart';
 import '../../../core/utils/async_value.dart';
 import '../providers/user_provider.dart';
-import '../widgets/create_user_form.dart';
 import '../widgets/role_meta.dart';
 import '../widgets/user_filter_bar.dart';
 import '../widgets/user_section_header.dart';
@@ -78,11 +77,6 @@ class _UserManagementScreenState extends State<UserManagementScreen> {
           ),
         ),
       ),
-      floatingActionButton: FloatingActionButton.extended(
-        onPressed: () => _openCreateForm(context),
-        icon: const Icon(Icons.person_add),
-        label: const Text('Novo admin'),
-      ),
     );
   }
 
@@ -109,17 +103,6 @@ class _UserManagementScreenState extends State<UserManagementScreen> {
     return ListView(
       padding: const EdgeInsets.fromLTRB(16, 12, 16, 88),
       children: children,
-    );
-  }
-
-  void _openCreateForm(BuildContext context) {
-    showModalBottomSheet<void>(
-      context: context,
-      isScrollControlled: true,
-      builder: (_) => ChangeNotifierProvider.value(
-        value: context.read<UserProvider>(),
-        child: const CreateUserForm(),
-      ),
     );
   }
 }

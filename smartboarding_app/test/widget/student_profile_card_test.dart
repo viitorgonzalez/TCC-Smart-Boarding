@@ -15,6 +15,7 @@ void main() {
     course: 'Ciência da Computação',
     institution: 'UNIFOR-MG',
     isActive: false,
+    role: 'STUDENT',
     recentAttendance: const ['2026-09-01', '2026-09-02'],
     statusHistory: const [
       StatusChange(
@@ -35,7 +36,14 @@ void main() {
   // nao tem uso de leitura nenhum.
   testWidgets('card mostra contato, mas nunca senha', (tester) async {
     await tester.pumpWidget(
-      wrap(StudentProfileBody(profile: perfil, onToggle: (_) {})),
+      wrap(
+        StudentProfileBody(
+          profile: perfil,
+          onToggle: (_) {},
+          onToggleRole: () {},
+          ehAPropriaConta: false,
+        ),
+      ),
     );
     await tester.pumpAndSettle();
 
@@ -47,7 +55,14 @@ void main() {
 
   testWidgets('card mostra quem mudou o status e quando', (tester) async {
     await tester.pumpWidget(
-      wrap(StudentProfileBody(profile: perfil, onToggle: (_) {})),
+      wrap(
+        StudentProfileBody(
+          profile: perfil,
+          onToggle: (_) {},
+          onToggleRole: () {},
+          ehAPropriaConta: false,
+        ),
+      ),
     );
     await tester.pumpAndSettle();
 
@@ -60,7 +75,14 @@ void main() {
   testWidgets('alternar o switch avisa quem abriu o card', (tester) async {
     bool? recebido;
     await tester.pumpWidget(
-      wrap(StudentProfileBody(profile: perfil, onToggle: (v) => recebido = v)),
+      wrap(
+        StudentProfileBody(
+          profile: perfil,
+          onToggle: (v) => recebido = v,
+          onToggleRole: () {},
+          ehAPropriaConta: false,
+        ),
+      ),
     );
     await tester.pumpAndSettle();
 
@@ -72,7 +94,14 @@ void main() {
 
   testWidgets('conta inativa aparece como inativa', (tester) async {
     await tester.pumpWidget(
-      wrap(StudentProfileBody(profile: perfil, onToggle: (_) {})),
+      wrap(
+        StudentProfileBody(
+          profile: perfil,
+          onToggle: (_) {},
+          onToggleRole: () {},
+          ehAPropriaConta: false,
+        ),
+      ),
     );
     await tester.pumpAndSettle();
 
@@ -83,7 +112,12 @@ void main() {
     await tester.pumpWidget(
       MaterialApp(
         home: Scaffold(
-          body: StudentProfileBody(profile: perfil, onToggle: (_) {}),
+          body: StudentProfileBody(
+            profile: perfil,
+            onToggle: (_) {},
+            onToggleRole: () {},
+            ehAPropriaConta: false,
+          ),
         ),
       ),
     );
@@ -101,6 +135,7 @@ void main() {
       id: 'aluno-2',
       fullName: 'Bruno Silva',
       isActive: true,
+      role: 'STUDENT',
       email: 'bruno@edu.unifor.br',
       phone: '   ',
     );
@@ -108,7 +143,12 @@ void main() {
     await tester.pumpWidget(
       MaterialApp(
         home: Scaffold(
-          body: StudentProfileBody(profile: semContato, onToggle: (_) {}),
+          body: StudentProfileBody(
+            profile: semContato,
+            onToggle: (_) {},
+            onToggleRole: () {},
+            ehAPropriaConta: false,
+          ),
         ),
       ),
     );
@@ -117,5 +157,75 @@ void main() {
     expect(find.byIcon(Icons.phone_outlined), findsNothing);
     expect(find.byIcon(Icons.place_outlined), findsNothing);
     expect(find.byIcon(Icons.cake_outlined), findsNothing);
+  });
+
+  StudentProfile comPapel(String role, {bool ativa = true}) => StudentProfile(
+    id: perfil.id,
+    fullName: perfil.fullName,
+    email: perfil.email,
+    phone: perfil.phone,
+    address: perfil.address,
+    birthDate: perfil.birthDate,
+    course: perfil.course,
+    institution: perfil.institution,
+    isActive: ativa,
+    role: role,
+    recentAttendance: perfil.recentAttendance,
+    statusHistory: perfil.statusHistory,
+  );
+
+  /// A trava aparece como ausencia de opcao, nao como erro depois do toque: o
+  /// admin nao descobre que nao podia so quando a API recusa.
+  testWidgets('a propria conta nao oferece troca de papel', (tester) async {
+    await tester.pumpWidget(
+      wrap(
+        StudentProfileBody(
+          profile: comPapel('ADMIN'),
+          onToggle: (_) {},
+          onToggleRole: () {},
+          ehAPropriaConta: true,
+        ),
+      ),
+    );
+    await tester.pumpAndSettle();
+
+    expect(find.byKey(const Key('profile_role_action')), findsNothing);
+  });
+
+  testWidgets('conta de aluno oferece promover', (tester) async {
+    await tester.pumpWidget(
+      wrap(
+        StudentProfileBody(
+          profile: comPapel('STUDENT'),
+          onToggle: (_) {},
+          onToggleRole: () {},
+          ehAPropriaConta: false,
+        ),
+      ),
+    );
+    await tester.pumpAndSettle();
+
+    expect(find.byKey(const Key('profile_role_action')), findsOneWidget);
+    expect(find.text('Tornar administrador'), findsOneWidget);
+  });
+
+  /// Promover conta desativada produz um admin que nao consegue entrar.
+  testWidgets('conta desativada nao oferece promover', (tester) async {
+    await tester.pumpWidget(
+      wrap(
+        StudentProfileBody(
+          profile: comPapel('STUDENT', ativa: false),
+          onToggle: (_) {},
+          onToggleRole: () {},
+          ehAPropriaConta: false,
+        ),
+      ),
+    );
+    await tester.pumpAndSettle();
+
+    final tile = tester.widget<ListTile>(
+      find.byKey(const Key('profile_role_action')),
+    );
+    expect(tile.enabled, isFalse);
   });
 }
