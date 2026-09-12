@@ -1,0 +1,26 @@
+# Configuração do GitGuardian (ggshield e integrações que leem este arquivo).
+#
+# Por que existe: a varredura do PR #10 levantou 28 "segredos", todos senhas de
+# fixture em teste -- "sb@2026", "minhaSenha1", "senhaNova1". Nenhuma abre nada:
+# são o corpo de requisição que o teste manda pro endpoint de login. Um check
+# que acusa 28 falsos positivos a cada push não é lido por ninguém, e aí o dia
+# em que aparecer um achado de verdade ele passa junto com o resto.
+#
+# O que NÃO é excluído: todo o código de produção (`src/main`, `lib/`), os
+# arquivos de configuração e os `.example`. Segredo de verdade continua sendo
+# procurado onde ele de fato apareceria.
+#
+# Controle que sobra sobre os caminhos excluídos: o hook `.githooks/pre-commit`
+# varre o diff staged inteiro -- teste incluído -- e bloqueia literal de alta
+# entropia (>=16 chars) atribuído a nome de credencial. Foi ele que barrou o
+# `.env.bak` com senha de banco e JWT_SECRET reais. Senha curta de fixture passa
+# por ele de propósito; segredo de verdade, não.
+version: 2
+
+secret:
+  ignored-paths:
+    # Testes da API (JUnit) -- fixtures de login, reset de senha e perfil.
+    - "smartboarding-api/src/test/**"
+    # Testes do app (unit e widget) e o e2e.
+    - "smartboarding_app/test/**"
+    - "smartboarding_app/integration_test/**"
