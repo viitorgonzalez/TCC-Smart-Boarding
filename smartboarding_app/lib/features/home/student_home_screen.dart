@@ -66,10 +66,8 @@ class StudentHomeScreen extends StatelessWidget {
             trailing: Row(
               mainAxisSize: MainAxisSize.min,
               children: [
-                // Porta permanente pro codigo, no modelo do Classroom. Antes
-                // ela so existia sem rota nenhuma (NoRouteCard) ou com duas ou
-                // mais (chip do RouteSelector): quem tinha exatamente uma --
-                // o caso comum -- nao tinha como entrar em outra.
+                // Fixa, no modelo do Classroom: entrar em mais uma rota e acao
+                // normal, nao estado de excecao.
                 HeaderIconButton(
                   key: const Key('student_home_join_route'),
                   icon: Icons.add,

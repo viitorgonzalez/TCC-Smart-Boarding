@@ -143,9 +143,6 @@ class _LoginScreenState extends State<LoginScreen> {
                     ),
                   ),
                 ),
-                // Build sem GOOGLE_WEB_CLIENT_ID nao tem como completar o
-                // login: esconder o botao e melhor que oferecer um caminho que
-                // morre depois de o usuario ja ter escolhido a conta.
                 if (googleSignInEnabled) ...[
                   const SizedBox(height: 20),
                   Row(

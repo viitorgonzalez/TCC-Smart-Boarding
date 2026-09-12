@@ -16,9 +16,8 @@ class GoogleAuthService {
   /// API. Sem ele o token sai endereçado ao app e o backend recusa no `aud`.
   Future<void> _garantirInicializado() async {
     if (_iniciado) return;
-    // Falha aqui, antes de abrir a tela de contas: deixar passar faria o
-    // usuario escolher a conta pra so entao tomar 401 do backend, sem pista
-    // nenhuma de que o problema e configuracao da build.
+    // Falha antes de abrir a tela de contas: deixar passar faria o usuario
+    // escolher a conta pra so entao tomar 401.
     if (!googleSignInEnabled) {
       throw StateError(
         'Login com Google não configurado nesta build '

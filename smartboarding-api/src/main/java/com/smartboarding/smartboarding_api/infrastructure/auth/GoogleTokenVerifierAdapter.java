@@ -10,12 +10,9 @@ import org.springframework.beans.factory.annotation.Value;
 import org.springframework.stereotype.Component;
 import org.springframework.web.client.RestClient;
 
-/// Valida o ID token contra o próprio Google.
-///
-/// Usa o endpoint tokeninfo em vez de verificar a assinatura localmente: sem
-/// biblioteca extra, e o Google faz a checagem de assinatura, emissor e prazo.
-/// A contrapartida é uma chamada de rede por login — aceitável no volume de um
-/// transporte universitário, e o caminho mais difícil de implementar errado.
+/// Valida o ID token contra o próprio Google, pelo endpoint tokeninfo: custa uma
+/// chamada de rede por login, mas é bem mais difícil de implementar errado do
+/// que conferir assinatura, emissor e prazo na mão.
 @Slf4j
 @Component
 public class GoogleTokenVerifierAdapter implements GoogleTokenVerifierPort {
@@ -32,8 +29,8 @@ public class GoogleTokenVerifierAdapter implements GoogleTokenVerifierPort {
         this(RestClient.builder(), clientId);
     }
 
-    /// Recebe o builder pra que o teste consiga pendurar um MockRestServiceServer
-    /// e exercitar os conversores de verdade, sem sair pra rede.
+    /// Builder injetável pro teste pendurar um MockRestServiceServer e exercitar
+    /// os conversores de verdade, sem sair pra rede.
     GoogleTokenVerifierAdapter(RestClient.Builder builder, String clientId) {
         this.http = builder.build();
         this.clientId = clientId;
@@ -50,11 +47,9 @@ public class GoogleTokenVerifierAdapter implements GoogleTokenVerifierPort {
 
         JsonNode payload;
         try {
-            // Lê como texto e faz o parse aqui de propósito. Pedir JsonNode
-            // direto ao RestClient deixa a escolha do conversor pro Spring, e
-            // com Jackson 2 e 3 no mesmo classpath ele entrega a resposta pro
-            // conversor errado -- todo login real morria em "Type definition
-            // error" DEPOIS de o Google ter respondido 200.
+            // Parse explicito: com Jackson 2 e 3 no mesmo classpath, pedir
+            // JsonNode direto ao RestClient cai no conversor errado e todo login
+            // real morria DEPOIS de o Google ter respondido 200.
             String corpo = http.get()
                     .uri(TOKENINFO + "?id_token={t}", idToken)
                     .retrieve()
