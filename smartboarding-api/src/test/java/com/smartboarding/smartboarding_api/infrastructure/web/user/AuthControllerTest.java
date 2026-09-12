@@ -5,7 +5,6 @@ import com.smartboarding.smartboarding_api.infrastructure.web.WebMvcTestSupport;
 import com.smartboarding.smartboarding_api.domain.passwordreset.port.in.RequestPasswordResetUseCase;
 import com.smartboarding.smartboarding_api.domain.passwordreset.port.in.ResetPasswordUseCase;
 import com.smartboarding.smartboarding_api.domain.user.port.in.LoginUseCase;
-import com.smartboarding.smartboarding_api.domain.user.port.in.RegisterUseCase;
 import com.smartboarding.smartboarding_api.shared.exception.BadRequestException;
 import com.smartboarding.smartboarding_api.shared.exception.UnauthorizedException;
 import org.junit.jupiter.api.Test;
@@ -33,7 +32,6 @@ class AuthControllerTest extends WebMvcTestSupport {
     @Autowired MockMvc mvc;
 
     @MockitoBean LoginUseCase loginUseCase;
-    @MockitoBean RegisterUseCase registerUseCase;
     @MockitoBean RequestPasswordResetUseCase requestPasswordResetUseCase;
     @MockitoBean ResetPasswordUseCase resetPasswordUseCase;
     @MockitoBean com.smartboarding.smartboarding_api.domain.user.port.in.SignupUseCase signupUseCase;
@@ -130,34 +128,16 @@ class AuthControllerTest extends WebMvcTestSupport {
                 .andExpect(jsonPath("$.code").value("CODE_EXPIRED"));
     }
 
-    /// /api/auth/register é hasRole("ADMIN") no SecurityConfig — aluno logado não
-    /// pode criar conta de admin.
+    /// Criar conta pra outra pessoa acabou: o admin que criava digitava a senha
+    /// inicial de alguem e continuava sabendo entrar. Acesso admin agora e
+    /// concessao sobre conta que a propria pessoa criou.
     @Test
-    void registerSemAdminEBloqueado() throws Exception {
-        mvc.perform(post("/api/auth/register").with(student())
-                        .contentType(MediaType.APPLICATION_JSON)
-                        .content("""
-                                {"email":"novo@admin.com","fullName":"Novo Admin","password":"senha123","role":"ADMIN"}"""))
-                .andExpect(status().isForbidden());
-
-        verify(registerUseCase, never()).execute(any(), anyString());
-    }
-
-    @Test
-    void registerComoAdminDevolve201() throws Exception {
-        when(registerUseCase.execute(any(), eq("senha123"))).thenAnswer(inv ->
-                com.smartboarding.smartboarding_api.domain.user.entity.User.builder()
-                        .id(java.util.UUID.randomUUID()).email("novo@admin.com")
-                        .fullName("Novo Admin")
-                        .role(com.smartboarding.smartboarding_api.domain.user.entity.Role.ADMIN)
-                        .build());
-
+    void oEndpointDeCriarAdminNaoExisteMais() throws Exception {
         mvc.perform(post("/api/auth/register").with(admin())
                         .contentType(MediaType.APPLICATION_JSON)
                         .content("""
-                                {"email":"novo@admin.com","fullName":"Novo Admin","password":"senha123","role":"ADMIN"}"""))
-                .andExpect(status().isCreated())
-                .andExpect(jsonPath("$.data.email").value("novo@admin.com"));
+                                {"email":"novo@admin.com","password":"segredo123","role":"ADMIN","fullName":"Novo"}"""))
+                .andExpect(status().isNotFound());
     }
 
     /// Cadastro proprio e publico: quem chega aqui ainda nao tem conta, entao
