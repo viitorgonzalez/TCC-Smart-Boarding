@@ -34,7 +34,7 @@ class SignupUseCaseImplTest {
 
     @BeforeEach
     void setUp() {
-        useCase = new SignupUseCaseImpl(userRepository, passwordEncoder);
+        useCase = new SignupUseCaseImpl(userRepository, passwordEncoder, "");
         when(userRepository.save(any())).thenAnswer(inv -> inv.getArgument(0));
         when(userRepository.existsByEmail(any())).thenReturn(false);
         when(passwordEncoder.encode(anyString())).thenReturn("$2a$10$hash");
@@ -103,5 +103,62 @@ class SignupUseCaseImplTest {
         verify(userRepository).save(captor.capture());
         assertThat(captor.getValue().getPassword()).doesNotContain("sb@2026");
         verify(passwordEncoder).encode("sb@2026");
+    }
+
+    /// Banco novo nao tem admin, logo nao ha quem promova. A variavel concede --
+    /// nao cria conta: a pessoa ainda se cadastra sozinha.
+    @Test
+    void oPrimeiroCadastroComOEmailDeBootstrapNasceAdmin() {
+        SignupUseCaseImpl comBootstrap = new SignupUseCaseImpl(
+                userRepository, passwordEncoder, "chefe@prefeitura.gov.br");
+        when(userRepository.countAdmins()).thenReturn(0L);
+
+        User criado = comBootstrap.signup(
+                User.builder().email("chefe@prefeitura.gov.br").fullName("Chefe").build(),
+                "segredo123");
+
+        assertThat(criado.getRole()).isEqualTo(Role.ADMIN);
+    }
+
+    /// A janela fecha sozinha: existindo admin, a condicao nunca mais e
+    /// verdadeira, mesmo com a variavel configurada pra sempre.
+    @Test
+    void comAdminExistenteOBootstrapNaoVale() {
+        SignupUseCaseImpl comBootstrap = new SignupUseCaseImpl(
+                userRepository, passwordEncoder, "chefe@prefeitura.gov.br");
+        when(userRepository.countAdmins()).thenReturn(1L);
+
+        User criado = comBootstrap.signup(
+                User.builder().email("chefe@prefeitura.gov.br").fullName("Chefe").build(),
+                "segredo123");
+
+        assertThat(criado.getRole()).isEqualTo(Role.STUDENT);
+    }
+
+    @Test
+    void outroEmailNaoVirapAdminNemComZeroAdmins() {
+        SignupUseCaseImpl comBootstrap = new SignupUseCaseImpl(
+                userRepository, passwordEncoder, "chefe@prefeitura.gov.br");
+
+        User criado = comBootstrap.signup(
+                User.builder().email("outra@pessoa.com").fullName("Outra").build(),
+                "segredo123");
+
+        assertThat(criado.getRole()).isEqualTo(Role.STUDENT);
+    }
+
+    /// Sem a variavel configurada -- o caso normal -- nada de especial acontece,
+    /// e nem se consulta o banco por admin.
+    @Test
+    void semVariavelConfiguradaNinguemNasceAdmin() {
+        SignupUseCaseImpl semBootstrap = new SignupUseCaseImpl(
+                userRepository, passwordEncoder, "");
+
+        User criado = semBootstrap.signup(
+                User.builder().email("qualquer@pessoa.com").fullName("Qualquer").build(),
+                "segredo123");
+
+        assertThat(criado.getRole()).isEqualTo(Role.STUDENT);
+        verify(userRepository, org.mockito.Mockito.never()).countAdmins();
     }
 }
