@@ -264,4 +264,47 @@ class UserControllerTest extends WebMvcTestSupport {
                 .andExpect(jsonPath("$.data.statusHistory[0].action").value("ACTIVATED"))
                 .andExpect(jsonPath("$.data.statusHistory[0].adminName").doesNotExist());
     }
+
+    @Test
+    void promoverDevolve200EChamaOUseCaseComOAdminDoToken() throws Exception {
+        when(manageUserStatusUseCase.setRole(any(), any(), any())).thenAnswer(i ->
+                com.smartboarding.smartboarding_api.domain.user.entity.User.builder()
+                        .id(i.getArgument(0)).fullName("Ana Oliveira").isActive(true)
+                        .role(com.smartboarding.smartboarding_api.domain.user.entity.Role.ADMIN)
+                        .build());
+
+        mvc.perform(patch("/api/users/{id}/role", STUDENT_ID).with(admin())
+                        .contentType(MediaType.APPLICATION_JSON)
+                        .content("""
+                                {"role":"ADMIN"}"""))
+                .andExpect(status().isOk());
+
+        verify(manageUserStatusUseCase).setRole(STUDENT_ID,
+                com.smartboarding.smartboarding_api.domain.user.entity.Role.ADMIN, ADMIN_ID);
+    }
+
+    /// Aluno mexendo em papel seria escalada de privilegio pela porta da frente.
+    @Test
+    void alunoNaoPodeMexerEmPapel() throws Exception {
+        mvc.perform(patch("/api/users/{id}/role", STUDENT_ID).with(student())
+                        .contentType(MediaType.APPLICATION_JSON)
+                        .content("""
+                                {"role":"ADMIN"}"""))
+                .andExpect(status().isForbidden());
+
+        verify(manageUserStatusUseCase, org.mockito.Mockito.never())
+                .setRole(any(), any(), any());
+    }
+
+    @Test
+    void papelInvalidoERecusadoAntesDoUseCase() throws Exception {
+        mvc.perform(patch("/api/users/{id}/role", STUDENT_ID).with(admin())
+                        .contentType(MediaType.APPLICATION_JSON)
+                        .content("""
+                                {"role":"SUPERUSER"}"""))
+                .andExpect(status().isBadRequest());
+
+        verify(manageUserStatusUseCase, org.mockito.Mockito.never())
+                .setRole(any(), any(), any());
+    }
 }

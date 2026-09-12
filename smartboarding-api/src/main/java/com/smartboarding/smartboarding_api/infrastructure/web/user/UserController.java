@@ -9,6 +9,7 @@ import com.smartboarding.smartboarding_api.domain.user.port.in.FindUserUseCase;
 import com.smartboarding.smartboarding_api.domain.user.port.in.ManageUserStatusUseCase;
 import com.smartboarding.smartboarding_api.domain.user.port.out.UserRepositoryPort;
 import com.smartboarding.smartboarding_api.infrastructure.web.user.dto.StudentProfileResponse;
+import com.smartboarding.smartboarding_api.infrastructure.web.user.dto.UpdateUserRoleRequest;
 import com.smartboarding.smartboarding_api.infrastructure.web.user.dto.UpdateUserStatusRequest;
 import com.smartboarding.smartboarding_api.infrastructure.web.user.dto.UserResponse;
 import com.smartboarding.smartboarding_api.shared.exception.UnauthorizedException;
@@ -92,6 +93,17 @@ public class UserController {
             @RequestBody @Valid UpdateUserStatusRequest request,
             Authentication auth) {
         User saved = manageUserStatusUseCase.setActive(id, request.active(), adminId(auth));
+        return ResponseEntity.ok(ApiResponse.data(profileOf(saved)));
+    }
+
+    /// Concede ou retira acesso administrativo. Não cria conta: a conta já é da
+    /// pessoa, e o que muda aqui é só o papel dela.
+    @PatchMapping("/{id}/role")
+    public ResponseEntity<ApiResponse<StudentProfileResponse>> setRole(
+            @PathVariable UUID id,
+            @RequestBody @Valid UpdateUserRoleRequest request,
+            Authentication auth) {
+        User saved = manageUserStatusUseCase.setRole(id, request.role(), adminId(auth));
         return ResponseEntity.ok(ApiResponse.data(profileOf(saved)));
     }
 

@@ -7,6 +7,7 @@ import com.smartboarding.smartboarding_api.shared.exception.UnauthorizedExceptio
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.dao.DataIntegrityViolationException;
 import org.springframework.http.ResponseEntity;
+import org.springframework.http.converter.HttpMessageNotReadableException;
 import org.springframework.web.bind.MethodArgumentNotValidException;
 import org.springframework.web.bind.annotation.ControllerAdvice;
 import org.springframework.web.bind.annotation.ExceptionHandler;
@@ -77,6 +78,16 @@ public class GlobalExceptionHandler {
         return ResponseEntity.status(400).body(Map.of(
                 "code", "VALIDATION_ERROR",
                 "error", "Valor inválido para o parâmetro: " + ex.getName()));
+    }
+
+    // Corpo malformado (JSON quebrado, valor fora do enum) estoura na
+    // desserialização, antes de @Valid rodar -- sem isto cai no handler
+    // genérico e um corpo que o próprio cliente montou errado vira 500.
+    @ExceptionHandler(HttpMessageNotReadableException.class)
+    public ResponseEntity<Map<String, String>> handleMalformedBody(HttpMessageNotReadableException ex) {
+        return ResponseEntity.status(400).body(Map.of(
+                "code", "VALIDATION_ERROR",
+                "error", "Corpo da requisição inválido."));
     }
 
     /// Toda escrita duplicada cai aqui. Os use cases checam antes de gravar pra
