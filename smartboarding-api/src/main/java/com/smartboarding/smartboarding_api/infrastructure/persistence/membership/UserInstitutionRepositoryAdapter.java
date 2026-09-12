@@ -19,7 +19,7 @@ public class UserInstitutionRepositoryAdapter implements UserInstitutionReposito
 
     @Override public UserInstitution save(UserInstitution link) { return jpa.save(link); }
     @Override public List<UserInstitution> findAllByUserId(UUID userId) {
-        return jpa.findAllByUserId(userId);
+        return jpa.findAllByUserIdOrderByCreatedAtAscIdAsc(userId);
     }
     @Override public boolean existsByUserIdAndInstitutionId(UUID userId, UUID institutionId) {
         return jpa.existsByUserIdAndInstitutionId(userId, institutionId);
