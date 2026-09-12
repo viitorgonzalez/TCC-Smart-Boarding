@@ -6,10 +6,12 @@ import com.smartboarding.smartboarding_api.domain.user.port.in.LoginUseCase;
 import com.smartboarding.smartboarding_api.domain.passwordreset.port.in.RequestPasswordResetUseCase;
 import com.smartboarding.smartboarding_api.domain.passwordreset.port.in.ResetPasswordUseCase;
 import com.smartboarding.smartboarding_api.domain.user.port.in.RegisterUseCase;
+import com.smartboarding.smartboarding_api.domain.user.port.in.SignupUseCase;
 import com.smartboarding.smartboarding_api.infrastructure.web.user.dto.ForgotPasswordRequest;
 import com.smartboarding.smartboarding_api.infrastructure.web.user.dto.LoginRequest;
 import com.smartboarding.smartboarding_api.infrastructure.web.user.dto.LoginResponse;
 import com.smartboarding.smartboarding_api.infrastructure.web.user.dto.RegisterRequest;
+import com.smartboarding.smartboarding_api.infrastructure.web.user.dto.SignupRequest;
 import com.smartboarding.smartboarding_api.infrastructure.web.user.dto.ResetPasswordRequest;
 import com.smartboarding.smartboarding_api.infrastructure.web.user.dto.UserResponse;
 import com.smartboarding.smartboarding_api.shared.web.ApiResponse;
@@ -29,21 +31,44 @@ public class AuthController {
     private final RegisterUseCase registerUseCase;
     private final RequestPasswordResetUseCase requestPasswordResetUseCase;
     private final ResetPasswordUseCase resetPasswordUseCase;
+    private final SignupUseCase signupUseCase;
 
     public AuthController(LoginUseCase loginUseCase,
                           RegisterUseCase registerUseCase,
                           RequestPasswordResetUseCase requestPasswordResetUseCase,
-                          ResetPasswordUseCase resetPasswordUseCase) {
+                          ResetPasswordUseCase resetPasswordUseCase,
+                          SignupUseCase signupUseCase) {
         this.loginUseCase = loginUseCase;
         this.registerUseCase = registerUseCase;
         this.requestPasswordResetUseCase = requestPasswordResetUseCase;
         this.resetPasswordUseCase = resetPasswordUseCase;
+        this.signupUseCase = signupUseCase;
     }
 
     @PostMapping("/login")
     public ResponseEntity<ApiResponse<LoginResponse>> login(@RequestBody @Valid LoginRequest request) {
         AuthToken token = loginUseCase.execute(request.email(), request.password());
         return ResponseEntity.ok(ApiResponse.data(new LoginResponse(token.token(), token.fullName(), token.role())));
+    }
+
+    /// Cadastro proprio do aluno. Publico: e o caminho de entrada de quem ainda
+    /// nao tem conta. A conta nasce sem rota -- o acesso vem depois, pelo codigo.
+    @PostMapping("/signup")
+    public ResponseEntity<ApiResponse<LoginResponse>> signup(@RequestBody @Valid SignupRequest request) {
+        User created = signupUseCase.signup(User.builder()
+                .email(request.email())
+                .fullName(request.fullName())
+                .institutionId(request.institutionId())
+                .course(request.course())
+                .phone(request.phone())
+                .birthDate(request.birthDate())
+                .build(), request.password());
+
+        // Ja devolve a sessao: obrigar o aluno a digitar de novo o que acabou de
+        // digitar e atrito sem ganho nenhum.
+        AuthToken token = loginUseCase.execute(created.getEmail(), request.password());
+        return ResponseEntity.status(HttpStatus.CREATED).body(ApiResponse.data(
+                new LoginResponse(token.token(), token.fullName(), token.role())));
     }
 
     @PostMapping("/register")

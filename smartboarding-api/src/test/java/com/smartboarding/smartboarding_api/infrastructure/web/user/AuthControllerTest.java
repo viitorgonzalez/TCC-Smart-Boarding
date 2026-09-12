@@ -36,6 +36,7 @@ class AuthControllerTest extends WebMvcTestSupport {
     @MockitoBean RegisterUseCase registerUseCase;
     @MockitoBean RequestPasswordResetUseCase requestPasswordResetUseCase;
     @MockitoBean ResetPasswordUseCase resetPasswordUseCase;
+    @MockitoBean com.smartboarding.smartboarding_api.domain.user.port.in.SignupUseCase signupUseCase;
 
     @Test
     void loginValidoDevolve200ComTokenNomeEPapel() throws Exception {
@@ -155,5 +156,96 @@ class AuthControllerTest extends WebMvcTestSupport {
                                 {"email":"novo@admin.com","fullName":"Novo Admin","password":"senha123","role":"ADMIN"}"""))
                 .andExpect(status().isCreated())
                 .andExpect(jsonPath("$.data.email").value("novo@admin.com"));
+    }
+
+    /// Cadastro proprio e publico: quem chega aqui ainda nao tem conta, entao
+    /// exigir token tornaria o endpoint inalcancavel.
+    @Test
+    void cadastroProprioEPublicoEDevolveSessaoPronta() throws Exception {
+        var criado = com.smartboarding.smartboarding_api.domain.user.entity.User.builder()
+                .id(java.util.UUID.randomUUID()).email("fernanda@edu.unifor.br")
+                .fullName("Fernanda Lima")
+                .role(com.smartboarding.smartboarding_api.domain.user.entity.Role.STUDENT)
+                .build();
+        when(signupUseCase.signup(any(), eq("sb@2026"))).thenReturn(criado);
+        when(loginUseCase.execute("fernanda@edu.unifor.br", "sb@2026"))
+                .thenReturn(new AuthToken("jwt-novo", "Fernanda Lima", "STUDENT"));
+
+        mvc.perform(post("/api/auth/signup")
+                        .contentType(MediaType.APPLICATION_JSON)
+                        .content("""
+                                {"fullName":"Fernanda Lima","email":"fernanda@edu.unifor.br",\
+                                "password":"sb@2026"}"""))
+                .andExpect(status().isCreated())
+                // Sessao ja vem pronta: obrigar a digitar de novo o que acabou de
+                // ser digitado e atrito sem ganho.
+                .andExpect(jsonPath("$.data.token").value("jwt-novo"))
+                .andExpect(jsonPath("$.data.role").value("STUDENT"));
+    }
+
+    /// RN10: senha com menos de 6 caracteres nao pode nem virar hash.
+    @Test
+    void cadastroComSenhaCurtaERecusado() throws Exception {
+        mvc.perform(post("/api/auth/signup")
+                        .contentType(MediaType.APPLICATION_JSON)
+                        .content("""
+                                {"fullName":"Fernanda Lima","email":"fernanda@edu.unifor.br",\
+                                "password":"123"}"""))
+                .andExpect(status().isBadRequest());
+
+        verify(signupUseCase, never()).signup(any(), anyString());
+    }
+
+    @Test
+    void cadastroComEmailInvalidoOuSemNomeERecusado() throws Exception {
+        mvc.perform(post("/api/auth/signup")
+                        .contentType(MediaType.APPLICATION_JSON)
+                        .content("""
+                                {"fullName":"Fernanda","email":"nao-e-email","password":"sb@2026"}"""))
+                .andExpect(status().isBadRequest());
+
+        mvc.perform(post("/api/auth/signup")
+                        .contentType(MediaType.APPLICATION_JSON)
+                        .content("""
+                                {"fullName":"","email":"fernanda@edu.unifor.br","password":"sb@2026"}"""))
+                .andExpect(status().isBadRequest());
+
+        verify(signupUseCase, never()).signup(any(), anyString());
+    }
+
+    /// O papel nao viaja no request. Mandar "role":"ADMIN" e ignorado -- o DTO
+    /// nem tem o campo, e o use case crava STUDENT.
+    @Test
+    void cadastroIgnoraTentativaDePedirPapelDeAdmin() throws Exception {
+        var criado = com.smartboarding.smartboarding_api.domain.user.entity.User.builder()
+                .id(java.util.UUID.randomUUID()).email("invasor@edu.unifor.br")
+                .fullName("Invasor")
+                .role(com.smartboarding.smartboarding_api.domain.user.entity.Role.STUDENT)
+                .build();
+        when(signupUseCase.signup(any(), anyString())).thenReturn(criado);
+        when(loginUseCase.execute(anyString(), anyString()))
+                .thenReturn(new AuthToken("jwt", "Invasor", "STUDENT"));
+
+        mvc.perform(post("/api/auth/signup")
+                        .contentType(MediaType.APPLICATION_JSON)
+                        .content("""
+                                {"fullName":"Invasor","email":"invasor@edu.unifor.br",\
+                                "password":"sb@2026","role":"ADMIN"}"""))
+                .andExpect(status().isCreated())
+                .andExpect(jsonPath("$.data.role").value("STUDENT"));
+    }
+
+    @Test
+    void emailJaCadastradoDevolve409() throws Exception {
+        when(signupUseCase.signup(any(), anyString())).thenThrow(
+                new com.smartboarding.smartboarding_api.shared.exception.ConflictException("EMAIL_ALREADY_EXISTS", "Esse e-mail já tem conta."));
+
+        mvc.perform(post("/api/auth/signup")
+                        .contentType(MediaType.APPLICATION_JSON)
+                        .content("""
+                                {"fullName":"Fernanda","email":"fernanda@edu.unifor.br",\
+                                "password":"sb@2026"}"""))
+                .andExpect(status().isConflict())
+                .andExpect(jsonPath("$.code").value("EMAIL_ALREADY_EXISTS"));
     }
 }
