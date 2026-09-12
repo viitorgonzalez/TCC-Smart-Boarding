@@ -3,6 +3,7 @@ package com.smartboarding.smartboarding_api.infrastructure.persistence.passwordr
 import com.smartboarding.smartboarding_api.domain.passwordreset.entity.PasswordResetRequest;
 import com.smartboarding.smartboarding_api.domain.passwordreset.port.out.PasswordResetRepositoryPort;
 import org.springframework.stereotype.Component;
+import org.springframework.transaction.annotation.Transactional;
 
 import java.time.LocalDateTime;
 import java.util.Optional;
@@ -28,6 +29,9 @@ public class PasswordResetRepositoryAdapter implements PasswordResetRepositoryPo
     }
 
     @Override
+    // O reset() roda sem transacao de proposito, entao o update precisa abrir a
+    // dele: @Modifying sem transacao por perto nao executa.
+    @Transactional
     public void invalidateAllForUser(UUID userId, LocalDateTime at) {
         jpaRepository.invalidateAllForUser(userId, at);
     }
