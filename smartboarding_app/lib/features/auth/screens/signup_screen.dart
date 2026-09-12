@@ -23,7 +23,8 @@ class _SignupScreenState extends State<SignupScreen> {
   final _passCtrl = TextEditingController();
   final _confirmCtrl = TextEditingController();
   bool _loading = false;
-  bool _obscure = true;
+  bool _obscureSenha = true;
+  bool _obscureConfirma = true;
 
   @override
   void dispose() {
@@ -86,6 +87,8 @@ class _SignupScreenState extends State<SignupScreen> {
                   label: 'Nome completo',
                   controller: _nameCtrl,
                   icon: Icons.person_outline,
+                  autofocus: true,
+                  textCapitalization: TextCapitalization.words,
                   validator: (v) => (v == null || v.trim().isEmpty)
                       ? 'Informe seu nome'
                       : null,
@@ -114,14 +117,16 @@ class _SignupScreenState extends State<SignupScreen> {
                   label: 'Senha',
                   controller: _passCtrl,
                   icon: Icons.lock_outline,
-                  obscureText: _obscure,
+                  obscureText: _obscureSenha,
                   suffix: IconButton(
+                    tooltip: _obscureSenha ? 'Mostrar senha' : 'Ocultar senha',
                     icon: Icon(
-                      _obscure
+                      _obscureSenha
                           ? Icons.visibility_outlined
                           : Icons.visibility_off_outlined,
                     ),
-                    onPressed: () => setState(() => _obscure = !_obscure),
+                    onPressed: () =>
+                        setState(() => _obscureSenha = !_obscureSenha),
                   ),
                   // RN10: o backend recusa abaixo de 6, entao avisar aqui evita
                   // uma ida ao servidor so pra levar erro.
@@ -135,7 +140,19 @@ class _SignupScreenState extends State<SignupScreen> {
                   label: 'Confirmar senha',
                   controller: _confirmCtrl,
                   icon: Icons.lock_outline,
-                  obscureText: _obscure,
+                  obscureText: _obscureConfirma,
+                  suffix: IconButton(
+                    tooltip: _obscureConfirma
+                        ? 'Mostrar senha'
+                        : 'Ocultar senha',
+                    icon: Icon(
+                      _obscureConfirma
+                          ? Icons.visibility_outlined
+                          : Icons.visibility_off_outlined,
+                    ),
+                    onPressed: () =>
+                        setState(() => _obscureConfirma = !_obscureConfirma),
+                  ),
                   validator: (v) =>
                       v != _passCtrl.text ? 'As senhas não conferem' : null,
                 ),

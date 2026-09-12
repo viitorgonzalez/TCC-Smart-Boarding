@@ -80,6 +80,7 @@ class _LoginScreenState extends State<LoginScreen> {
                 const SizedBox(height: 32),
                 AppTextField(
                   key: const Key('login_email_field'),
+                  autofocus: true,
                   label: 'Email',
                   controller: _emailCtrl,
                   icon: Icons.mail_outline,

@@ -23,7 +23,8 @@ class _ResetPasswordScreenState extends State<ResetPasswordScreen> {
   final _confirmCtrl = TextEditingController();
   final _service = AuthService();
   bool _loading = false;
-  bool _obscure = true;
+  bool _obscureSenha = true;
+  bool _obscureConfirma = true;
 
   @override
   void dispose() {
@@ -93,15 +94,17 @@ class _ResetPasswordScreenState extends State<ResetPasswordScreen> {
                   label: 'Nova senha',
                   controller: _passCtrl,
                   icon: Icons.lock_outline,
-                  obscureText: _obscure,
+                  obscureText: _obscureSenha,
                   suffix: IconButton(
+                    tooltip: _obscureSenha ? 'Mostrar senha' : 'Ocultar senha',
                     icon: Icon(
-                      _obscure
+                      _obscureSenha
                           ? Icons.visibility_outlined
                           : Icons.visibility_off_outlined,
                       color: AppColors.textSecondary,
                     ),
-                    onPressed: () => setState(() => _obscure = !_obscure),
+                    onPressed: () =>
+                        setState(() => _obscureSenha = !_obscureSenha),
                   ),
                   validator: (v) => (v == null || v.length < 6)
                       ? 'Mínimo de 6 caracteres'
@@ -113,7 +116,19 @@ class _ResetPasswordScreenState extends State<ResetPasswordScreen> {
                   label: 'Confirmar nova senha',
                   controller: _confirmCtrl,
                   icon: Icons.lock_outline,
-                  obscureText: _obscure,
+                  obscureText: _obscureConfirma,
+                  suffix: IconButton(
+                    tooltip: _obscureConfirma
+                        ? 'Mostrar senha'
+                        : 'Ocultar senha',
+                    icon: Icon(
+                      _obscureConfirma
+                          ? Icons.visibility_outlined
+                          : Icons.visibility_off_outlined,
+                    ),
+                    onPressed: () =>
+                        setState(() => _obscureConfirma = !_obscureConfirma),
+                  ),
                   validator: (v) =>
                       (v != _passCtrl.text) ? 'As senhas não conferem' : null,
                 ),
