@@ -8,6 +8,7 @@ import '../../core/widgets/app_header.dart';
 import '../../core/widgets/feature_card.dart';
 import '../lists/providers/student_list_provider.dart';
 import '../membership/providers/membership_provider.dart';
+import '../membership/screens/join_route_screen.dart';
 import '../profile/screens/profile_screen.dart';
 import '../membership/widgets/no_route_card.dart';
 import '../membership/widgets/route_selector.dart';
@@ -65,6 +66,18 @@ class StudentHomeScreen extends StatelessWidget {
             trailing: Row(
               mainAxisSize: MainAxisSize.min,
               children: [
+                // Porta permanente pro codigo, no modelo do Classroom. Antes
+                // ela so existia sem rota nenhuma (NoRouteCard) ou com duas ou
+                // mais (chip do RouteSelector): quem tinha exatamente uma --
+                // o caso comum -- nao tinha como entrar em outra.
+                HeaderIconButton(
+                  key: const Key('student_home_join_route'),
+                  icon: Icons.add,
+                  tooltip: 'Entrar com código',
+                  onPressed: () => Navigator.of(context).push(
+                    MaterialPageRoute(builder: (_) => const JoinRouteScreen()),
+                  ),
+                ),
                 HeaderIconButton(
                   icon: Icons.person_outline,
                   tooltip: 'Meu perfil',
