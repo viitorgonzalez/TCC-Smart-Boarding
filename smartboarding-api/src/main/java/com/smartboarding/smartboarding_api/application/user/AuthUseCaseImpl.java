@@ -53,7 +53,7 @@ public class AuthUseCaseImpl implements LoginUseCase, RegisterUseCase, IssueToke
 
         String token = generateToken(user);
         log.info("Login realizado: {}", maskEmail(email));
-        return new AuthToken(token, user.getFullName(), user.getRole().name());
+        return new AuthToken(token, user.getFullName(), user.getRole().name(), user.getEmail());
     }
 
     @Override
@@ -90,7 +90,8 @@ public class AuthUseCaseImpl implements LoginUseCase, RegisterUseCase, IssueToke
     /// token pra manter em sincronia.
     @Override
     public AuthToken issueFor(User user) {
-        return new AuthToken(generateToken(user), user.getFullName(), user.getRole().name());
+        return new AuthToken(generateToken(user), user.getFullName(), user.getRole().name(),
+                user.getEmail());
     }
 
     private String generateToken(User user) {

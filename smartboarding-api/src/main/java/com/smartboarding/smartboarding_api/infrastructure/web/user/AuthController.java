@@ -57,7 +57,7 @@ public class AuthController {
     @PostMapping("/login")
     public ResponseEntity<ApiResponse<LoginResponse>> login(@RequestBody @Valid LoginRequest request) {
         AuthToken token = loginUseCase.execute(request.email(), request.password());
-        return ResponseEntity.ok(ApiResponse.data(new LoginResponse(token.token(), token.fullName(), token.role())));
+        return ResponseEntity.ok(ApiResponse.data(LoginResponse.from(token)));
     }
 
     /// Cadastro proprio do aluno. Publico: e o caminho de entrada de quem ainda
@@ -73,7 +73,7 @@ public class AuthController {
         // digitar e atrito sem ganho nenhum.
         AuthToken token = loginUseCase.execute(created.getEmail(), request.password());
         return ResponseEntity.status(HttpStatus.CREATED).body(ApiResponse.data(
-                new LoginResponse(token.token(), token.fullName(), token.role())));
+                LoginResponse.from(token)));
     }
 
     /// Entrar com Google. Publico: e um caminho de entrada, como o login.
@@ -87,7 +87,7 @@ public class AuthController {
         User user = googleSignInUseCase.signIn(request.idToken());
         AuthToken token = issueTokenUseCase.issueFor(user);
         return ResponseEntity.ok(ApiResponse.data(
-                new LoginResponse(token.token(), token.fullName(), token.role())));
+                LoginResponse.from(token)));
     }
 
     @PostMapping("/register")

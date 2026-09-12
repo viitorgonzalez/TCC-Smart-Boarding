@@ -43,7 +43,7 @@ class AuthControllerTest extends WebMvcTestSupport {
     @Test
     void loginValidoDevolve200ComTokenNomeEPapel() throws Exception {
         when(loginUseCase.execute("fernanda@edu.unifor.br", "sb@2026"))
-                .thenReturn(new AuthToken("jwt-assinado", "Fernanda Lima", "STUDENT"));
+                .thenReturn(new AuthToken("jwt-assinado", "Fernanda Lima", "STUDENT", "fernanda@edu.unifor.br"));
 
         mvc.perform(post("/api/auth/login")
                         .contentType(MediaType.APPLICATION_JSON)
@@ -171,7 +171,7 @@ class AuthControllerTest extends WebMvcTestSupport {
                 .build();
         when(signupUseCase.signup(any(), eq("sb@2026"))).thenReturn(criado);
         when(loginUseCase.execute("fernanda@edu.unifor.br", "sb@2026"))
-                .thenReturn(new AuthToken("jwt-novo", "Fernanda Lima", "STUDENT"));
+                .thenReturn(new AuthToken("jwt-novo", "Fernanda Lima", "STUDENT", "fernanda@edu.unifor.br"));
 
         mvc.perform(post("/api/auth/signup")
                         .contentType(MediaType.APPLICATION_JSON)
@@ -226,7 +226,7 @@ class AuthControllerTest extends WebMvcTestSupport {
                 .build();
         when(signupUseCase.signup(any(), anyString())).thenReturn(criado);
         when(loginUseCase.execute(anyString(), anyString()))
-                .thenReturn(new AuthToken("jwt", "Invasor", "STUDENT"));
+                .thenReturn(new AuthToken("jwt", "Invasor", "STUDENT", "fernanda@edu.unifor.br"));
 
         mvc.perform(post("/api/auth/signup")
                         .contentType(MediaType.APPLICATION_JSON)
@@ -264,7 +264,7 @@ class AuthControllerTest extends WebMvcTestSupport {
                 .build();
         when(googleSignInUseCase.signIn("id-token-do-google")).thenReturn(user);
         when(issueTokenUseCase.issueFor(user))
-                .thenReturn(new AuthToken("jwt-google", "Fernanda Lima", "STUDENT"));
+                .thenReturn(new AuthToken("jwt-google", "Fernanda Lima", "STUDENT", "fernanda@edu.unifor.br"));
 
         mvc.perform(post("/api/auth/google")
                         .contentType(MediaType.APPLICATION_JSON)
@@ -298,5 +298,34 @@ class AuthControllerTest extends WebMvcTestSupport {
                         .content("""
                                 {"idToken":"lixo"}"""))
                 .andExpect(status().isUnauthorized());
+    }
+
+    /// O app usa o e-mail da sessao pra saber de quem carregar a lista do dia.
+    /// Quem entra pelo Google nunca digita e-mail nenhum: se a resposta nao
+    /// trouxer, a home fica carregando pra sempre.
+    @Test
+    void sessaoDoGoogleTrazOEmail() throws Exception {
+        when(issueTokenUseCase.issueFor(any())).thenReturn(
+                new AuthToken("jwt-google", "Fernanda Lima", "STUDENT", "fernanda@edu.unifor.br"));
+
+        mvc.perform(post("/api/auth/google")
+                        .contentType(MediaType.APPLICATION_JSON)
+                        .content("""
+                                {"idToken":"id-token-do-google"}"""))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.data.email").value("fernanda@edu.unifor.br"));
+    }
+
+    @Test
+    void sessaoDoLoginPorSenhaTambemTrazOEmail() throws Exception {
+        when(loginUseCase.execute("fernanda@edu.unifor.br", "segredo123")).thenReturn(
+                new AuthToken("jwt", "Fernanda Lima", "STUDENT", "fernanda@edu.unifor.br"));
+
+        mvc.perform(post("/api/auth/login")
+                        .contentType(MediaType.APPLICATION_JSON)
+                        .content("""
+                                {"email":"fernanda@edu.unifor.br","password":"segredo123"}"""))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.data.email").value("fernanda@edu.unifor.br"));
     }
 }
