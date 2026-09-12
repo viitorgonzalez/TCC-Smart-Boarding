@@ -2,7 +2,6 @@ import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
 import '../../core/providers/auth_provider.dart';
 import '../../core/theme/app_theme.dart';
-import '../../core/utils/async_value.dart';
 import '../../core/widgets/app_card.dart';
 import '../../core/widgets/app_header.dart';
 import '../../core/widgets/feature_card.dart';
@@ -13,11 +12,6 @@ import '../notifications/screens/broadcast_screen.dart';
 import '../warnings/screens/warnings_screen.dart';
 import '../notifications/screens/notifications_inbox_screen.dart';
 import '../notifications/services/notification_service.dart';
-import '../registration/providers/registration_provider.dart';
-import '../registration/screens/registration_approvals_screen.dart';
-import '../registration/services/institution_service.dart';
-import '../registration/services/registration_service.dart';
-import 'widgets/generate_invite_dialog.dart';
 import '../reports/providers/report_provider.dart';
 import '../reports/screens/reports_screen.dart';
 import '../reports/services/report_service.dart';
@@ -50,11 +44,6 @@ class AdminHomeScreen extends StatelessWidget {
           create: (_) => UserProvider(UserService())..load(),
         ),
         ChangeNotifierProvider(
-          create: (_) =>
-              RegistrationProvider(RegistrationService(), InstitutionService())
-                ..loadPending(),
-        ),
-        ChangeNotifierProvider(
           create: (_) => AdminStatsProvider(AdminStatsService())..load(),
         ),
       ],
@@ -80,7 +69,6 @@ class _AdminDashboard extends StatelessWidget {
     final reportProvider = context.read<ReportProvider>();
     final notificationProvider = context.read<NotificationProvider>();
     final userProvider = context.read<UserProvider>();
-    final registrationProvider = context.read<RegistrationProvider>();
 
     Navigator.push(
       context,
@@ -91,7 +79,6 @@ class _AdminDashboard extends StatelessWidget {
             ChangeNotifierProvider.value(value: reportProvider),
             ChangeNotifierProvider.value(value: notificationProvider),
             ChangeNotifierProvider.value(value: userProvider),
-            ChangeNotifierProvider.value(value: registrationProvider),
           ],
           child: Scaffold(
             appBar: AppBar(title: Text(title), actions: actions),
@@ -103,20 +90,13 @@ class _AdminDashboard extends StatelessWidget {
   }
 
   Future<void> _refresh(BuildContext context) async {
-    await Future.wait([
-      context.read<RegistrationProvider>().loadPending(),
-      context.read<AdminStatsProvider>().load(),
-    ]);
+    await context.read<AdminStatsProvider>().load();
   }
 
   @override
   Widget build(BuildContext context) {
     final auth = context.watch<AuthProvider>();
     final name = auth.token?.fullName ?? 'Admin';
-    final pending = switch (context.watch<RegistrationProvider>().pending) {
-      AsyncData(:final value) => value.length,
-      _ => 0,
-    };
 
     return Scaffold(
       body: Column(
@@ -143,28 +123,6 @@ class _AdminDashboard extends StatelessWidget {
               child: ListView(
                 padding: const EdgeInsets.all(20),
                 children: [
-                  AlertCard(
-                    icon: Icons.person_add_alt_1,
-                    title: 'Solicitações',
-                    subtitle: 'Aguardando aprovação',
-                    count: pending,
-                    onTap: () => _open(
-                      context,
-                      'Solicitações de cadastro',
-                      const RegistrationApprovalsScreen(),
-                      actions: [
-                        IconButton(
-                          icon: const Icon(Icons.mail_outline),
-                          tooltip: 'Gerar convite',
-                          onPressed: () => showDialog<void>(
-                            context: context,
-                            builder: (_) => const GenerateInviteDialog(),
-                          ),
-                        ),
-                      ],
-                    ),
-                  ),
-                  const SizedBox(height: 24),
                   const SectionTitle('Funcionalidades'),
                   const SizedBox(height: 12),
                   GridView.count(
@@ -228,18 +186,6 @@ class _AdminDashboard extends StatelessWidget {
                           context,
                           'Usuários',
                           const UserManagementScreen(),
-                          // Aluno só nasce por convite; sem isto a tela de
-                          // usuários não teria como trazer um.
-                          actions: [
-                            IconButton(
-                              icon: const Icon(Icons.person_add_alt_outlined),
-                              tooltip: 'Convidar aluno',
-                              onPressed: () => showDialog<bool>(
-                                context: context,
-                                builder: (_) => const GenerateInviteDialog(),
-                              ),
-                            ),
-                          ],
                         ),
                       ),
                     ],

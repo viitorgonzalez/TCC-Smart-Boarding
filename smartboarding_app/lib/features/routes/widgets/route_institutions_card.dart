@@ -1,8 +1,8 @@
 import 'package:flutter/material.dart';
 import '../../../core/theme/app_theme.dart';
 import '../../../core/widgets/app_card.dart';
-import '../../registration/models/institution_model.dart';
-import '../../registration/services/institution_service.dart';
+import '../../institutions/models/institution_model.dart';
+import '../../institutions/services/institution_service.dart';
 
 /// Instituições atendidas pela rota. O aluno só enxerga a rota se a instituição
 /// dele apontar pra cá (RN15), então criar já nasce vinculada.

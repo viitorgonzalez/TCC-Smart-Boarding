@@ -40,7 +40,6 @@ dependencies:
   # cobrança, diferente do Google Maps.
   flutter_map: ^8.1.1
   latlong2: ^0.9.1
-  app_links: ^6.3.3
 
 dev_dependencies:
   flutter_test:

@@ -5,3 +5,10 @@
 # sensivel das duas e faltava regra.
 **/firebase-service-account*.json
 **/GoogleService-Info.plist
+
+# Backup de .env tem credencial REAL, igual ao original. O padrao .env existente
+# nao cobre sufixo, e um `git add -A` leva o arquivo junto sem avisar -- foi o
+# que quase aconteceu ao remover o fluxo de convite.
+.env.bak*
+*.env.bak*
+.env.*.bak
