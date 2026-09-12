@@ -23,7 +23,14 @@ class StudentListProvider extends ChangeNotifier {
   }
 
   Future<void> load() async {
-    if (_userEmail.isEmpty) return;
+    // Sem e-mail nao da pra dizer quem esta inscrito. Sair calado deixava a tela
+    // girando pra sempre -- era assim que a sessao do Google (que nao mandava
+    // e-mail) aparecia pro aluno: carregamento infinito, sem erro nenhum.
+    if (_userEmail.isEmpty) {
+      _state = const AsyncError('Sessão sem e-mail. Entre novamente.');
+      notifyListeners();
+      return;
+    }
     _state = const AsyncLoading();
     notifyListeners();
     try {

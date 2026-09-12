@@ -11,13 +11,21 @@ class AuthToken {
     required this.email,
   });
 
-  /// [email] é passado separadamente pois a API não o retorna no LoginResponse.
-  factory AuthToken.fromLogin(Map<String, dynamic> json, String email) {
+  /// [fallbackEmail] cobre sessão antiga de API que ainda não mandava o campo.
+  /// Quem entra pelo Google nunca digita e-mail, então não há fallback possível
+  /// ali -- é da resposta que ele tem que vir.
+  factory AuthToken.fromLogin(
+    Map<String, dynamic> json, [
+    String fallbackEmail = '',
+  ]) {
+    final doServidor = json['email'] as String?;
     return AuthToken(
       token: json['token'] as String,
       fullName: json['fullName'] as String,
       role: json['role'] as String,
-      email: email,
+      email: (doServidor == null || doServidor.isEmpty)
+          ? fallbackEmail
+          : doServidor,
     );
   }
 }

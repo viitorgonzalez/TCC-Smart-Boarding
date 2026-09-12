@@ -33,7 +33,7 @@ class AuthService {
       data: {'idToken': idToken},
     );
     final data = response.data['data'] as Map<String, dynamic>;
-    final token = AuthToken.fromLogin(data, data['email'] as String? ?? '');
+    final token = AuthToken.fromLogin(data);
     await _storage.saveAuth(
       token: token.token,
       fullName: token.fullName,
