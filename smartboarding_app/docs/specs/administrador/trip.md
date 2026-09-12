@@ -1,7 +1,7 @@
 # Spec — Trajeto
 
 > Tela: `TripScreen` (dentro do painel do admin) · Acesso: 🧑‍💼 · Provider: `TripProvider`
-> Base: [`../PAGES.md`](../PAGES.md), [`../spec.md`](../spec.md) §3.8.
+> Base: [`../PAGES.md`](../../PAGES.md), [`../spec.md`](../../spec.md) §3.8.
 
 ## Objetivo
 

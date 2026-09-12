@@ -1,7 +1,7 @@
 # Spec — Recuperação de Senha
 
 > Telas: `ForgotPasswordScreen`, `ResetPasswordScreen` · Acesso: 🌐 · Provider: `AuthProvider`
-> Base: [`../PAGES.md`](../PAGES.md), [`../spec.md`](../spec.md) §3.
+> Base: [`../PAGES.md`](../../PAGES.md), [`../spec.md`](../../spec.md) §3.
 
 ## Objetivo
 
