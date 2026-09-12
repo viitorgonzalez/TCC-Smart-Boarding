@@ -180,4 +180,34 @@ class AuthUseCaseImplTest {
         assertThatThrownBy(() -> useCase().loadUserByUsername("ninguem@edu.unifor.br"))
                 .isInstanceOf(UsernameNotFoundException.class);
     }
+
+    /// O switch do admin nao valia nada: sem esta checagem, desativar um aluno
+    /// nao o impedia de entrar de novo no minuto seguinte.
+    @Test
+    void contaDesativadaNaoEntra() {
+        User desativada = User.builder().id(UUID.randomUUID())
+                .email("fernanda@edu.unifor.br").fullName("Fernanda Lima")
+                .password("$2a$10$hash").role(Role.STUDENT).isActive(false).build();
+        when(userRepository.findByEmail("fernanda@edu.unifor.br")).thenReturn(Optional.of(desativada));
+        when(passwordEncoder.matches(any(), any())).thenReturn(true);
+
+        assertThatThrownBy(() -> useCaseComToken().execute("fernanda@edu.unifor.br", "sb@2026"))
+                .isInstanceOf(UnauthorizedException.class)
+                .hasMessageContaining("desativada");
+    }
+
+    /// Mensagem diferente de credencial errada: quem foi desativado precisa
+    /// saber que o problema nao e a senha, senao fica tentando redefinir uma
+    /// senha que ja esta certa.
+    @Test
+    void contaDesativadaNaoSeConfundeComSenhaErrada() {
+        User desativada = User.builder().id(UUID.randomUUID())
+                .email("fernanda@edu.unifor.br").fullName("Fernanda Lima")
+                .password("$2a$10$hash").role(Role.STUDENT).isActive(false).build();
+        when(userRepository.findByEmail("fernanda@edu.unifor.br")).thenReturn(Optional.of(desativada));
+        when(passwordEncoder.matches(any(), any())).thenReturn(true);
+
+        assertThatThrownBy(() -> useCaseComToken().execute("fernanda@edu.unifor.br", "sb@2026"))
+                .hasMessageNotContaining("Credenciais");
+    }
 }

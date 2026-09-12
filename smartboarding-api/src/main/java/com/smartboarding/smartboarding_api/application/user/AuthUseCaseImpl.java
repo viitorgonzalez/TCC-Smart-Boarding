@@ -51,6 +51,13 @@ public class AuthUseCaseImpl implements LoginUseCase, RegisterUseCase, IssueToke
             throw new UnauthorizedException("Credenciais inválidas");
         }
 
+        // Mensagem diferente de credencial errada de propósito: quem foi
+        // desativado precisa saber que o problema não é a senha, senão fica
+        // tentando redefinir uma senha que já está certa.
+        if (!user.isActive()) {
+            throw new UnauthorizedException("Conta desativada. Procure o administrador.");
+        }
+
         String token = generateToken(user);
         log.info("Login realizado: {}", maskEmail(email));
         return new AuthToken(token, user.getFullName(), user.getRole().name(), user.getEmail());

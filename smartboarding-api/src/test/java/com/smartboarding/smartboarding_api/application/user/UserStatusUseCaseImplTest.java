@@ -41,7 +41,9 @@ class UserStatusUseCaseImplTest {
         useCase = new UserStatusUseCaseImpl(userRepository, logRepository,
                 Clock.fixed(NOW.atZone(ZONE).toInstant(), ZONE));
         when(userRepository.findById(STUDENT)).thenReturn(Optional.of(
-                User.builder().id(STUDENT).fullName("Ana Oliveira").isActive(true).build()));
+                User.builder().id(STUDENT).fullName("Ana Oliveira").isActive(true)
+                        .role(com.smartboarding.smartboarding_api.domain.user.entity.Role.STUDENT)
+                        .build()));
         when(userRepository.save(any())).thenAnswer(i -> i.getArgument(0));
         when(logRepository.save(any())).thenAnswer(i -> i.getArgument(0));
     }
@@ -87,5 +89,49 @@ class UserStatusUseCaseImplTest {
 
         verify(logRepository, never()).save(any());
         verify(userRepository, never()).save(any());
+    }
+
+    /// Desativar existe pra conter aluno que abusa da lista. Valendo pra admin,
+    /// o primeiro clique errado tranca quem administra o sistema pra fora dele
+    /// -- e nao sobra ninguem pra desfazer.
+    @Test
+    void adminNaoPodeSerDesativado() {
+        UUID outroAdmin = UUID.randomUUID();
+        when(userRepository.findById(outroAdmin)).thenReturn(Optional.of(
+                User.builder().id(outroAdmin).fullName("Naiara").isActive(true)
+                        .role(com.smartboarding.smartboarding_api.domain.user.entity.Role.ADMIN)
+                        .build()));
+
+        org.assertj.core.api.Assertions
+                .assertThatThrownBy(() -> useCase.setActive(outroAdmin, false, ADMIN))
+                .isInstanceOf(com.smartboarding.smartboarding_api.shared.exception.BadRequestException.class)
+                .hasMessageContaining("administrador");
+
+        org.mockito.Mockito.verify(userRepository, org.mockito.Mockito.never()).save(any());
+    }
+
+    @Test
+    void ninguemDesativaAPropriaConta() {
+        when(userRepository.findById(ADMIN)).thenReturn(Optional.of(
+                User.builder().id(ADMIN).fullName("Naiara").isActive(true)
+                        .role(com.smartboarding.smartboarding_api.domain.user.entity.Role.STUDENT)
+                        .build()));
+
+        org.assertj.core.api.Assertions
+                .assertThatThrownBy(() -> useCase.setActive(ADMIN, false, ADMIN))
+                .isInstanceOf(com.smartboarding.smartboarding_api.shared.exception.BadRequestException.class)
+                .hasMessageContaining("própria conta");
+    }
+
+    /// Reativar continua livre: a trava e so pra nao trancar ninguem pra fora.
+    @Test
+    void reativarAdminContinuaPermitido() {
+        UUID outroAdmin = UUID.randomUUID();
+        when(userRepository.findById(outroAdmin)).thenReturn(Optional.of(
+                User.builder().id(outroAdmin).fullName("Naiara").isActive(false)
+                        .role(com.smartboarding.smartboarding_api.domain.user.entity.Role.ADMIN)
+                        .build()));
+
+        assertThat(useCase.setActive(outroAdmin, true, ADMIN).isActive()).isTrue();
     }
 }

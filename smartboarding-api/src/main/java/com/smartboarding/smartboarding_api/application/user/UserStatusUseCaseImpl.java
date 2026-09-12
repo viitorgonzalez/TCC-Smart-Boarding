@@ -6,6 +6,8 @@ import com.smartboarding.smartboarding_api.domain.user.entity.UserStatusLog;
 import com.smartboarding.smartboarding_api.domain.user.port.in.ManageUserStatusUseCase;
 import com.smartboarding.smartboarding_api.domain.user.port.out.UserRepositoryPort;
 import com.smartboarding.smartboarding_api.domain.user.port.out.UserStatusLogRepositoryPort;
+import com.smartboarding.smartboarding_api.domain.user.entity.Role;
+import com.smartboarding.smartboarding_api.shared.exception.BadRequestException;
 import com.smartboarding.smartboarding_api.shared.exception.NotFoundException;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
@@ -35,6 +37,18 @@ public class UserStatusUseCaseImpl implements ManageUserStatusUseCase {
     public User setActive(UUID userId, boolean active, UUID adminId) {
         User user = userRepository.findById(userId)
                 .orElseThrow(() -> new NotFoundException("Usuário não encontrado com ID: " + userId));
+
+        // Desativar existe pra conter aluno que abusa da lista. Valendo pra
+        // admin, o primeiro clique errado tranca quem administra o sistema pra
+        // fora dele -- e não sobra ninguém pra desfazer.
+        if (!active && user.getRole() == Role.ADMIN) {
+            throw new BadRequestException("CANNOT_DEACTIVATE_ADMIN",
+                    "Conta de administrador não pode ser desativada.");
+        }
+        if (!active && userId.equals(adminId)) {
+            throw new BadRequestException("CANNOT_DEACTIVATE_SELF",
+                    "Você não pode desativar a própria conta.");
+        }
 
         // Sem mudança real não há o que registrar -- log cheio de repetição
         // esconde a ação que importa.

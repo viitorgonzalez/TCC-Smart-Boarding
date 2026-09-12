@@ -41,7 +41,7 @@ public class GoogleSignInUseCaseImpl implements GoogleSignInUseCase {
         // Ja vinculado: caminho normal de quem so esta voltando.
         Optional<User> porGoogle = userRepository.findByGoogleId(conta.googleId());
         if (porGoogle.isPresent()) {
-            return porGoogle.get();
+            return garantirAtiva(porGoogle.get());
         }
 
         // Mesmo e-mail, conta criada por senha: vincula em vez de recusar ou
@@ -51,7 +51,7 @@ public class GoogleSignInUseCaseImpl implements GoogleSignInUseCase {
         if (porEmail.isPresent()) {
             User existente = porEmail.get();
             existente.setGoogleId(conta.googleId());
-            User salvo = userRepository.save(existente);
+            User salvo = userRepository.save(garantirAtiva(existente));
             log.info("Conta existente vinculada ao Google: {}", maskEmail(conta.email()));
             return salvo;
         }
@@ -71,5 +71,14 @@ public class GoogleSignInUseCaseImpl implements GoogleSignInUseCase {
     private String maskEmail(String email) {
         if (email == null || !email.contains("@")) return "***";
         return email.charAt(0) + "***" + email.substring(email.indexOf('@'));
+    }
+
+    // O Google so prova QUEM e a pessoa; se o admin desativou a conta, entrar
+    // por aqui seria porta dos fundos pro login por senha.
+    private User garantirAtiva(User user) {
+        if (!user.isActive()) {
+            throw new UnauthorizedException("Conta desativada. Procure o administrador.");
+        }
+        return user;
     }
 }

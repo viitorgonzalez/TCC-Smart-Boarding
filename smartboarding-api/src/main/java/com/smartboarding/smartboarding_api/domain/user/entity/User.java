@@ -71,8 +71,12 @@ public class User implements UserDetails {
     @Column(name = "updated_at")
     private LocalDateTime updatedAt;
 
+    // Default no builder porque o login agora recusa conta inativa: sem isto,
+    // quem esquecesse de setar criaria uma conta que nunca entra, e o erro
+    // apareceria como "conta desativada" num cadastro recem-feito.
     @Column(name = "is_active")
-    private boolean isActive;
+    @Builder.Default
+    private boolean isActive = true;
 
     @Override
     public String getPassword() {

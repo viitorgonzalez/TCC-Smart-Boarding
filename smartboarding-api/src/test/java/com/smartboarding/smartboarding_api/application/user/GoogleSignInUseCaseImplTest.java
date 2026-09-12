@@ -123,4 +123,33 @@ class GoogleSignInUseCaseImplTest {
     void contaCriadaPeloGoogleEsempreStudent() {
         assertThat(useCase.signIn("token").getRole()).isEqualTo(Role.STUDENT);
     }
+
+    /// O Google so prova QUEM e a pessoa. Sem esta checagem, entrar pelo Google
+    /// seria porta dos fundos pro login por senha de uma conta desativada.
+    @Test
+    void contaDesativadaNaoEntraNemPeloGoogle() {
+        org.mockito.Mockito.reset(userRepository);
+        when(userRepository.findByGoogleId(GOOGLE_ID)).thenReturn(Optional.of(
+                User.builder().id(java.util.UUID.randomUUID()).email(EMAIL)
+                        .googleId(GOOGLE_ID).isActive(false).build()));
+        // sem stub de save: o fluxo tem que morrer antes de gravar
+
+        assertThatThrownBy(() -> useCase.signIn("token"))
+                .isInstanceOf(UnauthorizedException.class)
+                .hasMessageContaining("desativada");
+    }
+
+    @Test
+    void vincularAoGoogleNaoReviveContaDesativada() {
+        org.mockito.Mockito.reset(userRepository);
+        when(userRepository.findByGoogleId(any())).thenReturn(Optional.empty());
+        when(userRepository.findByEmail(EMAIL)).thenReturn(Optional.of(
+                User.builder().id(java.util.UUID.randomUUID()).email(EMAIL)
+                        .password("$2a$10$hash").isActive(false).build()));
+
+        assertThatThrownBy(() -> useCase.signIn("token"))
+                .isInstanceOf(UnauthorizedException.class);
+
+        org.mockito.Mockito.verify(userRepository, org.mockito.Mockito.never()).save(any());
+    }
 }
