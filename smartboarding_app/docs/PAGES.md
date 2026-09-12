@@ -35,7 +35,8 @@
 | Página | Acesso | Propósito | Contrato de API | Spec |
 |---|---|---|---|---|
 | Painel do admin | 🧑‍💼 | Dashboard com atalhos + contagem de pendências | — | [`admin-home.md`](./specs/administrador/admin-home.md) |
-| Solicitações de cadastro | 🧑‍💼 | Aprovar/negar cadastros pendentes, gerar convite | `GET /api/registration/pending`, `POST .../approve`\|`/reject`, `POST /api/registration/invite` | [`registration-approvals.md`](./specs/administrador/registration-approvals.md) |
+| Códigos da rota | 🧑‍💼 | Gerar e revogar o código que o aluno usa pra entrar na rota | `POST`\|`DELETE /api/routes/{id}/invite-codes` | — |
+| Pedidos de alteração de perfil | 🧑‍💼 | Aprovar/negar alteração de dado cadastral do aluno | `GET /api/profile-requests`, `POST .../approve`\|`/reject` | — |
 | Rotas e listas | 🧑‍💼 | CRUD de rota + lista do dia, avisos automáticos, instituições, veículos e paradas | `CRUD /api/routes`, `/api/institutions`, `/api/routes/{id}/vehicles`, `/api/routes/{id}/stops`, `/api/lists`, `/api/notifications/scheduled` | [`route-management.md`](./specs/administrador/route-management.md) |
 | Relatórios (admin) | 🧑‍💼 | Histórico completo, paginado, com veículo proposto | `GET /api/reports`, `GET /api/reports/{id}` | [`reports.md`](./specs/relatorios/reports.md) |
 | Trajeto | 🧑‍💼 | Iniciar/checkpoint/finalizar o trajeto do dia | `GET /api/trip/{listId}`, `POST .../{start,checkpoint/{stopId},finish}` | [`trip.md`](./specs/administrador/trip.md) |

@@ -77,7 +77,7 @@ com.smartboarding.smartboarding_api/
 ```
 
 Contextos (`<contexto>`): `user`, `route`, `institution`, `vehicle`, `stop`, `list`, `report`,
-`notification`, `registration`.
+`notification`, `membership`.
 
 ### 3.2 Persistência
 
@@ -86,7 +86,8 @@ Contextos (`<contexto>`): `user`, `route`, `institution`, `vehicle`, `stop`, `li
   sempre uma migration nova.
 - Tabelas: `users`, `routes`, `institutions`, `vehicles`, `stops`, `daily_lists`, `list_entries`
   (com `trip_type`), `reports` (com `proposed_vehicles`), `device_tokens`, `notifications`,
-  `registration_requests`, `refresh_tokens`, `password_reset_tokens`. Todas com PK `UUID`.
+  `route_invite_codes`, `route_members`, `user_institutions`, `password_reset_requests`.
+  Todas com PK `UUID`.
 
 ### 3.3 Autenticação e sessão
 
@@ -126,22 +127,21 @@ Contextos (`<contexto>`): `user`, `route`, `institution`, `vehicle`, `stop`, `li
 
 ## 4. Regras de Negócio
 
-### 4.1 Cadastro — convite e aprovação
+### 4.1 Cadastro — autocadastro e código de rota
 
-- **RN13** — Aluno se cadastra por convite, não por autocadastro livre. `ADMIN` gera o convite
-  (`POST /api/registration/invite`, só e-mail) — sistema cria um pedido de cadastro com token
-  único e envia e-mail (via Resend) com um **Android App Link / iOS Universal Link**
-  (`https://<domínio>/register/{token}`, não um esquema customizado). Com o app instalado, o
-  link abre direto na tela de cadastro; sem o app, cai numa página web mínima do próprio backend
-  pedindo pra instalar o app.
-  - Token de convite válido por 7 dias, renovável pelo admin reenviando o convite.
-  - Aluno preenche os dados (incluindo a instituição, escolhida entre as cadastradas) e submete
-    — isso não cria a conta ainda, só marca o pedido como enviado, aguardando revisão.
-  - `POST /api/auth/register` existe só pra `ADMIN` criar outro `ADMIN` diretamente, sem convite
-    — não aceita `role=STUDENT` nem instituição.
-- **RN14** — `ADMIN` lista os pedidos pendentes (`GET /api/registration/pending`) e aprova (cria
-  a conta de fato) ou nega. Negar não invalida o token: enquanto ele não expirou, o aluno pode
-  reenviar os dados e gerar uma nova avaliação.
+- **RN13** — Aluno se cadastra sozinho (`POST /api/auth/signup`, só nome, e-mail e senha) e já
+  recebe a sessão. A conta nasce **sem rota**: existir no sistema e pertencer a uma rota são
+  coisas separadas.
+  - `POST /api/auth/register` existe só pra `ADMIN` criar outro `ADMIN` — não aceita
+    `role=STUDENT`.
+  - `POST /api/auth/google` entra pelo Google; quem entrou assim pode definir uma senha local
+    depois (`POST /api/me/password`) e passa a ter os dois caminhos.
+- **RN14** — O acesso à rota vem de um **código** que o `ADMIN` gera
+  (`POST /api/routes/{routeId}/invite-codes`) e distribui. O aluno entra com ele
+  (`POST /api/me/routes`), e pode pertencer a mais de uma rota.
+  - Código tem validade (`ROUTE_INVITE_VALIDITY_DAYS`, default 30 dias) e pode ser revogado.
+  - Entrar exige perfil com instituição definida — sem isso a API recusa com
+    `PROFILE_INCOMPLETE`.
 
 ### 4.2 Instituições e rotas
 
@@ -270,7 +270,9 @@ Contextos (`<contexto>`): `user`, `route`, `institution`, `vehicle`, `stop`, `li
 | `User` | `user` | `id`, `email`, `password` (hash), `role` (`ADMIN`\|`STUDENT`), `fullName`, `course?`, `institution?`, `phone?`, `address?`, `birthDate?`, `expiryDate?` |
 | `RefreshToken` | `user` | `id`, `userId`, `tokenHash`, `expiresAt` |
 | `PasswordResetToken` | `user` | `id`, `userId`, `tokenHash`, `expiresAt` |
-| `RegistrationRequest` | `registration` | `id`, `email`, `token`, `status` (`PENDING`\|`SUBMITTED`\|`APPROVED`\|`REJECTED`), `expiresAt`, dados submetidos (mesmos campos opcionais de `User` + `institutionId`) |
+| `RouteInviteCode` | `membership` | `id`, `routeId`, `code`, `expiresAt`, `revokedAt?`, `createdBy` |
+| `RouteMember` | `membership` | `id`, `userId`, `routeId`, `joinedAt` — único por par |
+| `UserInstitution` | `membership` | `id`, `userId`, `institutionId` — único por par |
 | `Route` | `route` | `id`, `name`, `description?`, `isActive`, `closeTime` |
 | `Institution` | `institution` | `id`, `name`, `address`, `latitude`, `longitude`, `routeId?` |
 | `Vehicle` | `vehicle` | `id`, `routeId`, `type`, `capacity` |
@@ -295,12 +297,15 @@ Contextos (`<contexto>`): `user`, `route`, `institution`, `vehicle`, `stop`, `li
 | POST | `/api/auth/register` | ADMIN | `{email, password≥6, fullName}` | `UserResponse` (role sempre ADMIN) | `409 EMAIL_ALREADY_EXISTS`, `400 VALIDATION_ERROR` |
 | POST | `/api/auth/forgot-password` | Público | `{email}` | `{success:true}` (sempre) | — |
 | POST | `/api/auth/reset-password` | Público | `{email, code, newPassword}` | `{success:true}` | `400` `INVALID_CODE` / `CODE_EXPIRED` / `TOO_MANY_ATTEMPTS` |
-| POST | `/api/registration/invite` | ADMIN | `{email}` | `{id, token, expiresAt}` | — |
-| GET | `/api/registration/invite/{token}` | Público | — | dados do convite | `404` |
-| POST | `/api/registration/{token}/submit` | Público | `{fullName, password, institutionId, course?, phone?, address?, birthDate?}` | `{status: "SUBMITTED"}` | `400`, `404` |
-| GET | `/api/registration/pending` | ADMIN | — | `RegistrationRequest[]` | — |
-| POST | `/api/registration/{id}/approve` | ADMIN | — | `UserResponse` | `404` |
-| POST | `/api/registration/{id}/reject` | ADMIN | — | `{success:true}` | `404` |
+| POST | `/api/auth/signup` | Público | `{fullName, email, password}` | `{token, fullName, role, email}` | `400`, `409` |
+| POST | `/api/auth/google` | Público | `{idToken}` | `{token, fullName, role, email}` | `401` |
+| POST | `/api/routes/{routeId}/invite-codes` | ADMIN | `{expiresAt?}` | `{id, code, expiresAt}` | `404` |
+| DELETE | `/api/routes/{routeId}/invite-codes/{codeId}` | ADMIN | — | `{success:true}` | `404` |
+| GET | `/api/me/routes` | Autenticado | — | `RouteResponse[]` | — |
+| POST | `/api/me/routes` | Autenticado | `{code}` | `RouteResponse` | `400` (`PROFILE_INCOMPLETE`), `404`, `410` |
+| DELETE | `/api/me/routes/{routeId}` | Autenticado | — | `{success:true}` | `404` |
+| GET | `/api/me` | Autenticado | — | `{id, fullName, email, role, hasPassword, hasGoogle}` | — |
+| POST | `/api/me/password` | Autenticado | `{password}` | `{success:true}` | `400`, `409` |
 | GET | `/api/users` / `/api/users/{id}` | ADMIN | — | `UserResponse[]` / `UserResponse` | `404` |
 | POST | `/api/routes` | ADMIN | `{name, description?}` | `RouteResponse` | `409` nome duplicado |
 | GET | `/api/routes` | Público | — | `RouteResponse[]` (só ativas) | — |
