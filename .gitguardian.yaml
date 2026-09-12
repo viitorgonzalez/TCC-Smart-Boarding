@@ -5,10 +5,13 @@
 # 28 falsos positivos a cada push nao e lido, e aí o achado real passa junto.
 # Producao, config e .example seguem varridos, e sobre o que ficou de fora o hook
 # .githooks/pre-commit continua valendo.
+#
+# ATENCAO: isto vale pro ggshield (CLI). O check "GitGuardian Security Checks"
+# do PR e server-side e le a exclusao do dashboard, nao deste arquivo.
 version: 2
 
 secret:
-  ignored-paths:
+  ignored_paths:
     - "smartboarding-api/src/test/**"
     - "smartboarding_app/test/**"
     - "smartboarding_app/integration_test/**"
