@@ -1,10 +1,16 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_test/flutter_test.dart';
+import 'package:provider/provider.dart';
+import 'package:smartboarding_app/core/providers/auth_provider.dart';
 import 'package:smartboarding_app/core/theme/app_theme.dart';
 import 'package:smartboarding_app/features/users/models/student_profile_model.dart';
 import 'package:smartboarding_app/features/users/widgets/student_profile_card.dart';
 
+import '../support/fake_http.dart';
+
 void main() {
+  TestWidgetsFlutterBinding.ensureInitialized();
+
   final perfil = StudentProfile(
     id: 'aluno-1',
     fullName: 'Ana Oliveira',
@@ -276,6 +282,98 @@ void main() {
       ),
     );
     await tester.pumpAndSettle();
+
+    final tile = tester.widget<ListTile>(
+      find.byKey(const Key('profile_role_action')),
+    );
+    expect(tile.enabled, isTrue);
+  });
+
+  // ─── StudentProfileSheet: a trava do ultimo admin de ponta a ponta ──────
+  //
+  // Os testes acima provam só a relação flag→enabled em StudentProfileBody,
+  // que é apresentação. Quem calcula ehUltimoAdmin a partir da contagem real
+  // (e implementa o fail-open) é _StudentProfileSheetState -- então é ela que
+  // precisa estar sob teste aqui, com a camada HTTP falsa.
+
+  /// Monta a ficha de verdade (não o Body) com GET /api/users/{id}/profile e
+  /// GET /api/users stubados. [usuarios] é o corpo de /api/users; [status]
+  /// deixa simular a rota falhando (ex.: 500) pro cenário de fail-open.
+  Future<FakeHttpAdapter> abrirFicha(
+    WidgetTester tester, {
+    required List<Map<String, dynamic>> usuarios,
+    int status = 200,
+  }) async {
+    final http = await installFakeHttp(token: 'jwt-de-teste');
+    http.on(
+      'GET',
+      '/api/users/admin-1/profile',
+      body: {
+        'data': {
+          'id': 'admin-1',
+          'fullName': 'Admin Um',
+          'email': 'admin1@edu.unifor.br',
+          'isActive': true,
+          'role': 'ADMIN',
+          'recentAttendance': [],
+          'statusHistory': [],
+        },
+      },
+    );
+    http.on('GET', '/api/users', status: status, body: {'data': usuarios});
+
+    await tester.pumpWidget(
+      ChangeNotifierProvider(
+        create: (_) => AuthProvider(),
+        child: const MaterialApp(
+          home: Scaffold(body: StudentProfileSheet(userId: 'admin-1')),
+        ),
+      ),
+    );
+    // As duas buscas do initState passam pelo Dio de verdade: sob o relogio
+    // falso do testWidgets, um await direto nelas nunca resolve sozinho.
+    await tester.runAsync(
+      () => Future<void>.delayed(const Duration(milliseconds: 20)),
+    );
+    // pump fixo, nao pumpAndSettle: enquanto o perfil nao chega a ficha mostra
+    // um CircularProgressIndicator (LoadingCard), que nunca deixa a arvore
+    // assentar sozinha.
+    await tester.pump(const Duration(milliseconds: 50));
+
+    return http;
+  }
+
+  Map<String, dynamic> admin(String id) => {
+    'id': id,
+    'fullName': 'Admin $id',
+    'email': '$id@edu.unifor.br',
+    'role': 'ADMIN',
+  };
+
+  testWidgets('um admin so: rebaixar fica desabilitado', (tester) async {
+    await abrirFicha(tester, usuarios: [admin('admin-1')]);
+
+    final tile = tester.widget<ListTile>(
+      find.byKey(const Key('profile_role_action')),
+    );
+    expect(tile.enabled, isFalse);
+  });
+
+  testWidgets('dois admins: rebaixar fica habilitado', (tester) async {
+    await abrirFicha(tester, usuarios: [admin('admin-1'), admin('admin-2')]);
+
+    final tile = tester.widget<ListTile>(
+      find.byKey(const Key('profile_role_action')),
+    );
+    expect(tile.enabled, isTrue);
+  });
+
+  /// Fail-open: se a contagem nem chega, a tela não pode travar por engano --
+  /// quem recusa de verdade é o backend, no toque.
+  testWidgets('GET /api/users falha: rebaixar continua habilitado', (
+    tester,
+  ) async {
+    await abrirFicha(tester, usuarios: [], status: 500);
 
     final tile = tester.widget<ListTile>(
       find.byKey(const Key('profile_role_action')),
