@@ -64,8 +64,8 @@ class _ProfileScreenState extends State<ProfileScreen> {
         })
         .catchError((_) {});
     try {
-      final pendente = await _service.myPending();
-      if (mounted) setState(() => _pendente = pendente);
+      final ultimo = await _service.myLatest();
+      if (mounted) setState(() => _pendente = ultimo);
     } catch (e) {
       if (mounted) showErrorSnackBar(context, AppException.fromError(e));
     } finally {

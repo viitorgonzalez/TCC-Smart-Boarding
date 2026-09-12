@@ -13,6 +13,11 @@ public interface ManageProfileUpdateUseCase {
     /// Pendente do próprio aluno, pra tela mostrar "em análise".
     Optional<ProfileUpdateRequest> myPending(UUID userId);
 
+    /// Último pedido do aluno, em qualquer estado. O `myPending` só devolve
+    /// PENDING, então a recusa -- e o motivo que o admin é obrigado a escrever
+    /// -- nunca chegava a quem precisa dela pra corrigir e reenviar.
+    Optional<ProfileUpdateRequest> myLatest(UUID userId);
+
     List<ProfileUpdateRequest> listPending();
 
     ProfileUpdateRequest approve(UUID requestId, UUID adminId);

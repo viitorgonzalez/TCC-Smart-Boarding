@@ -116,6 +116,15 @@ public class ProfileController {
         return ResponseEntity.ok(ApiResponse.success());
     }
 
+    /// Último pedido, em qualquer estado -- é por aqui que a recusa e o motivo
+    /// chegam ao aluno.
+    @GetMapping("/me/profile-requests/latest")
+    public ResponseEntity<ApiResponse<ProfileUpdateResponse>> myLatest(Authentication auth) {
+        User me = me(auth);
+        return ResponseEntity.ok(ApiResponse.data(useCase.myLatest(me.getId())
+                .map(r -> ProfileUpdateResponse.from(r, me.getFullName())).orElse(null)));
+    }
+
     @GetMapping("/me")
     public ResponseEntity<ApiResponse<MeResponse>> meInfo(Authentication auth) {
         return ResponseEntity.ok(ApiResponse.data(MeResponse.from(me(auth))));

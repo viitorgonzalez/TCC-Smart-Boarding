@@ -1,5 +1,6 @@
 package com.smartboarding.smartboarding_api.application.profile;
 
+import com.smartboarding.smartboarding_api.domain.membership.port.in.ManageUserInstitutionsUseCase;
 import com.smartboarding.smartboarding_api.domain.profile.entity.ProfileUpdateRequest;
 import com.smartboarding.smartboarding_api.domain.profile.entity.ProfileUpdateStatus;
 import com.smartboarding.smartboarding_api.domain.profile.port.in.ManageProfileUpdateUseCase;
@@ -25,13 +26,16 @@ public class ProfileUpdateUseCaseImpl implements ManageProfileUpdateUseCase {
 
     private final ProfileUpdateRequestRepositoryPort requestRepository;
     private final UserRepositoryPort userRepository;
+    private final ManageUserInstitutionsUseCase userInstitutions;
     private final Clock clock;
 
     public ProfileUpdateUseCaseImpl(ProfileUpdateRequestRepositoryPort requestRepository,
                                     UserRepositoryPort userRepository,
+                                    ManageUserInstitutionsUseCase userInstitutions,
                                     Clock clock) {
         this.requestRepository = requestRepository;
         this.userRepository = userRepository;
+        this.userInstitutions = userInstitutions;
         this.clock = clock;
     }
 
@@ -67,6 +71,12 @@ public class ProfileUpdateUseCaseImpl implements ManageProfileUpdateUseCase {
 
     @Override
     @Transactional(readOnly = true)
+    public Optional<ProfileUpdateRequest> myLatest(UUID userId) {
+        return requestRepository.findAllByUserId(userId).stream().findFirst();
+    }
+
+    @Override
+    @Transactional(readOnly = true)
     public List<ProfileUpdateRequest> listPending() {
         return requestRepository.findAllPending();
     }
@@ -84,7 +94,14 @@ public class ProfileUpdateUseCaseImpl implements ManageProfileUpdateUseCase {
         if (pedido.getPhone() != null) user.setPhone(pedido.getPhone());
         if (pedido.getAddress() != null) user.setAddress(pedido.getAddress());
         if (pedido.getCourse() != null) user.setCourse(pedido.getCourse());
-        if (pedido.getInstitutionId() != null) user.setInstitutionId(pedido.getInstitutionId());
+        // Institution vai pelo vinculo, nao no campo direto: users.institution_id
+        // e derivado de user_institutions por um unico escritor (syncPrimary).
+        // Gravando aqui, o campo apontaria pra uma instituicao sem linha na
+        // tabela -- e o proximo add/remove no perfil desfaria a aprovacao.
+        if (pedido.getInstitutionId() != null
+                && !userInstitutions.institutionsOf(user.getId()).contains(pedido.getInstitutionId())) {
+            userInstitutions.add(user.getId(), pedido.getInstitutionId());
+        }
         if (pedido.getBirthDate() != null) user.setBirthDate(pedido.getBirthDate());
         userRepository.save(user);
 

@@ -57,6 +57,16 @@ class ProfileService {
     );
   }
 
+  /// Último pedido em qualquer estado: é por ele que a recusa e o motivo
+  /// chegam ao aluno. O /pending só devolve PENDING.
+  Future<ProfileUpdate?> myLatest() async {
+    final response = await _dio.get('/api/me/profile-requests/latest');
+    final data = response.data['data'];
+    return data == null
+        ? null
+        : ProfileUpdate.fromJson(data as Map<String, dynamic>);
+  }
+
   Future<Me> me() async {
     final response = await _dio.get('/api/me');
     return Me.fromJson(response.data['data'] as Map<String, dynamic>);

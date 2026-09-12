@@ -40,13 +40,15 @@ class ProfileUpdateUseCaseImplTest {
 
     @Mock ProfileUpdateRequestRepositoryPort requestRepository;
     @Mock UserRepositoryPort userRepository;
+    @Mock com.smartboarding.smartboarding_api.domain.membership.port.in.ManageUserInstitutionsUseCase
+            userInstitutions;
 
     private ProfileUpdateUseCaseImpl useCase;
     private User aluno;
 
     @BeforeEach
     void setUp() {
-        useCase = new ProfileUpdateUseCaseImpl(requestRepository, userRepository,
+        useCase = new ProfileUpdateUseCaseImpl(requestRepository, userRepository, userInstitutions,
                 Clock.fixed(AGORA.toInstant(ZoneOffset.UTC), ZoneOffset.UTC));
         aluno = User.builder().id(ALUNO).email("fernanda@edu.unifor.br")
                 .fullName("Fernanda Lima").phone("37999990000")
@@ -185,5 +187,55 @@ class ProfileUpdateUseCaseImplTest {
 
         assertThatThrownBy(() -> useCase.approve(p.getId(), ADMIN))
                 .isInstanceOf(NotFoundException.class);
+    }
+
+    /// users.institution_id e derivado de user_institutions por um unico
+    /// escritor. Gravando direto na aprovacao, o campo apontava pra uma
+    /// instituicao sem linha na tabela -- e o proximo add/remove no perfil
+    /// recalculava e desfazia a aprovacao do admin, sem aviso nenhum.
+    @Test
+    void aprovarInstituicaoCriaOVinculoEmVezDeGravarOCampo() {
+        UUID novaInstituicao = UUID.randomUUID();
+        ProfileUpdateRequest pedido = ProfileUpdateRequest.builder()
+                .id(UUID.randomUUID()).userId(ALUNO).institutionId(novaInstituicao)
+                .status(ProfileUpdateStatus.PENDING).build();
+        when(requestRepository.findById(pedido.getId())).thenReturn(Optional.of(pedido));
+        when(userInstitutions.institutionsOf(ALUNO)).thenReturn(java.util.List.of());
+
+        useCase.approve(pedido.getId(), ADMIN);
+
+        org.mockito.Mockito.verify(userInstitutions).add(ALUNO, novaInstituicao);
+        assertThat(aluno.getInstitutionId()).isNull();
+    }
+
+    /// Aprovar duas vezes, ou aprovar instituicao que o aluno ja declarou, nao
+    /// pode estourar: o add() recusa vinculo repetido com 409.
+    @Test
+    void aprovarInstituicaoJaVinculadaNaoQuebra() {
+        UUID jaTem = UUID.randomUUID();
+        ProfileUpdateRequest pedido = ProfileUpdateRequest.builder()
+                .id(UUID.randomUUID()).userId(ALUNO).institutionId(jaTem)
+                .status(ProfileUpdateStatus.PENDING).build();
+        when(requestRepository.findById(pedido.getId())).thenReturn(Optional.of(pedido));
+        when(userInstitutions.institutionsOf(ALUNO)).thenReturn(java.util.List.of(jaTem));
+
+        useCase.approve(pedido.getId(), ADMIN);
+
+        org.mockito.Mockito.verify(userInstitutions, org.mockito.Mockito.never()).add(any(), any());
+    }
+
+    /// O admin e obrigado a escrever o motivo da recusa justamente pro aluno
+    /// ler. Com myPending (so PENDING), ele nunca chegava la.
+    @Test
+    void oUltimoPedidoDevolveARecusaComOMotivo() {
+        ProfileUpdateRequest recusado = ProfileUpdateRequest.builder()
+                .id(UUID.randomUUID()).userId(ALUNO)
+                .status(ProfileUpdateStatus.REJECTED).rejectionReason("Curso não confere")
+                .build();
+        when(requestRepository.findAllByUserId(ALUNO)).thenReturn(java.util.List.of(recusado));
+
+        assertThat(useCase.myLatest(ALUNO)).get()
+                .extracting(ProfileUpdateRequest::getRejectionReason)
+                .isEqualTo("Curso não confere");
     }
 }
