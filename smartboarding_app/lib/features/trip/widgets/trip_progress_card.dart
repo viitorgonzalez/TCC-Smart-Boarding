@@ -19,7 +19,13 @@ class TripProgressCard extends StatelessWidget {
 
     final (rotulo, cor) = switch (trip) {
       _ when trip.finished => ('Concluído', AppColors.positiveFg),
-      _ when trip.inProgress => ('Em andamento', AppColors.deepTeal),
+      // A perna muda o que o admin espera ver na lista abaixo; dizer qual e
+      // evita a duvida de "por que as paradas inverteram?".
+      _ when trip.inProgress && trip.onReturn => (
+        'Volta em andamento',
+        AppColors.deepTeal,
+      ),
+      _ when trip.inProgress => ('Ida em andamento', AppColors.deepTeal),
       _ => ('Não iniciado', AppColors.textSecondary),
     };
 

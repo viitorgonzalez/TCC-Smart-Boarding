@@ -4,16 +4,27 @@ class TripStatus {
   final String listId;
   final String routeName;
   final String? startedAt;
+
+  /// Quando a ida acabou. Nulo = ainda na ida.
+  final String? outboundFinishedAt;
   final String? finishedAt;
+
+  /// OUTBOUND ou RETURN. A API já manda as paradas na ordem certa de cada
+  /// perna — o app não reordena, só rotula.
+  final String leg;
   final List<TripStop> stops;
 
   const TripStatus({
     required this.listId,
     required this.routeName,
     required this.stops,
+    this.leg = 'OUTBOUND',
     this.startedAt,
+    this.outboundFinishedAt,
     this.finishedAt,
   });
+
+  bool get onReturn => leg == 'RETURN';
 
   bool get inProgress => startedAt != null && finishedAt == null;
   bool get notStarted => startedAt == null;
@@ -33,7 +44,9 @@ class TripStatus {
     listId: json['listId'] as String,
     routeName: json['routeName'] as String,
     startedAt: json['startedAt'] as String?,
+    outboundFinishedAt: json['outboundFinishedAt'] as String?,
     finishedAt: json['finishedAt'] as String?,
+    leg: json['leg'] as String? ?? 'OUTBOUND',
     stops: (json['stops'] as List? ?? const [])
         .map((e) => TripStop.fromJson(e as Map<String, dynamic>))
         .toList(),

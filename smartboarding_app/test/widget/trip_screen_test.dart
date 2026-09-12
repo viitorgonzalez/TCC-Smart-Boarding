@@ -7,13 +7,17 @@ import 'package:smartboarding_app/features/trip/widgets/trip_progress_card.dart'
 
 TripStatus viagem({
   String? startedAt,
+  String? outboundFinishedAt,
   String? finishedAt,
+  String leg = 'OUTBOUND',
   List<Map<String, dynamic>> stops = const [],
 }) => TripStatus.fromJson({
   'listId': 'l1',
   'routeName': 'Rota Universitária',
   'startedAt': startedAt,
+  'outboundFinishedAt': outboundFinishedAt,
   'finishedAt': finishedAt,
+  'leg': leg,
   'stops': stops,
 });
 
@@ -45,7 +49,7 @@ void main() {
       );
 
       expect(find.text('1 de 3 paradas'), findsOneWidget);
-      expect(find.textContaining('Em andamento'), findsOneWidget);
+      expect(find.textContaining('em andamento'), findsOneWidget);
       expect(find.textContaining('06:00'), findsOneWidget);
     });
 
@@ -176,6 +180,68 @@ void main() {
         find.text('Todos os alunos da rota são avisados.'),
         findsOneWidget,
       );
+    });
+  });
+
+  group('perna do trajeto', () {
+    testWidgets('ida em andamento diz que e a ida', (tester) async {
+      await tester.pumpWidget(
+        envolve(
+          TripProgressCard(trip: viagem(startedAt: '2026-09-12T06:00:00')),
+        ),
+      );
+
+      expect(find.textContaining('Ida em andamento'), findsOneWidget);
+    });
+
+    // A perna muda o que o admin ve na lista (as paradas invertem); dizer qual e
+    // evita a duvida de "por que a ordem mudou?".
+    testWidgets('volta em andamento diz que e a volta', (tester) async {
+      await tester.pumpWidget(
+        envolve(
+          TripProgressCard(
+            trip: viagem(
+              startedAt: '2026-09-12T06:00:00',
+              outboundFinishedAt: '2026-09-12T07:00:00',
+              leg: 'RETURN',
+            ),
+          ),
+        ),
+      );
+
+      expect(find.textContaining('Volta em andamento'), findsOneWidget);
+    });
+
+    testWidgets('encerrado nao fala de perna', (tester) async {
+      await tester.pumpWidget(
+        envolve(
+          TripProgressCard(
+            trip: viagem(
+              startedAt: '2026-09-12T06:00:00',
+              outboundFinishedAt: '2026-09-12T07:00:00',
+              finishedAt: '2026-09-12T18:30:00',
+              leg: 'RETURN',
+            ),
+          ),
+        ),
+      );
+
+      expect(find.textContaining('Concluído'), findsOneWidget);
+      expect(find.textContaining('em andamento'), findsNothing);
+    });
+
+    // Resposta antiga sem o campo nao pode derrubar a tela.
+    testWidgets('sem o campo leg assume ida', (tester) async {
+      final semLeg = TripStatus.fromJson({
+        'listId': 'l1',
+        'routeName': 'Rota Universitária',
+        'startedAt': '2026-09-12T06:00:00',
+        'stops': [],
+      });
+
+      expect(semLeg.onReturn, isFalse);
+      await tester.pumpWidget(envolve(TripProgressCard(trip: semLeg)));
+      expect(find.textContaining('Ida em andamento'), findsOneWidget);
     });
   });
 }
