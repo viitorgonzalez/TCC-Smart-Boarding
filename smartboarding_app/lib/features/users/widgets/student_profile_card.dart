@@ -172,6 +172,7 @@ class StudentProfileBody extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final theme = Theme.of(context);
+    final cannotDeactivate = profile.role == 'ADMIN' && profile.isActive;
     return Column(
       mainAxisSize: MainAxisSize.min,
       crossAxisAlignment: CrossAxisAlignment.stretch,
@@ -212,13 +213,20 @@ class StudentProfileBody extends StatelessWidget {
         ),
         const SizedBox(height: 16),
         ProfileInfoRows(profile: profile),
+        // Mesma trava do backend (CANNOT_DEACTIVATE_ADMIN), na interface: o
+        // primeiro toque errado trancaria quem administra o sistema pra fora
+        // dele. Só o sentido "desativar" é barrado -- reativar um admin
+        // inativo continua valendo, e é o que o backend também aceita.
         SwitchListTile(
+          key: const Key('profile_active_switch'),
           contentPadding: EdgeInsets.zero,
           value: profile.isActive,
-          onChanged: busy ? null : onToggle,
+          onChanged: busy || cannotDeactivate ? null : onToggle,
           title: const Text('Conta ativa'),
-          subtitle: const Text(
-            'A mudança fica registrada com seu nome e a hora.',
+          subtitle: Text(
+            cannotDeactivate
+                ? 'Remova o acesso de administrador antes de desativar.'
+                : 'A mudança fica registrada com seu nome e a hora.',
           ),
         ),
         if (!ehAPropriaConta)

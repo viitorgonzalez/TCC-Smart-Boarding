@@ -43,16 +43,20 @@ mudanças de status. Duas ações:
 
 Cada mudança fica registrada com o nome de quem fez e a hora.
 
-### As três travas aparecem na interface, não depois do toque
+### As quatro travas aparecem na interface, não depois do toque
 
-O backend recusa as três situações abaixo, mas a tela não deixa chegar lá: o admin não descobre
-que não podia só quando a API responde erro.
+O backend recusa as quatro situações abaixo, mas a tela não deixa chegar lá: o admin não
+descobre que não podia só quando a API responde erro.
 
 | Situação | Na tela | Por quê |
 |---|---|---|
 | A conta é a sua | a opção de papel **não aparece** | um clique errado tiraria o próprio acesso, e só outro admin poderia devolver |
 | É o último admin ativo | rebaixar fica **desabilitado** | sem admin nenhum, ninguém promove ninguém de volta — a saída seria editar o banco à mão |
 | A conta está desativada | promover fica **desabilitado** | produziria um admin que não consegue entrar: a tela mostraria acesso concedido e o login negaria |
+| A conta é de um admin ativo | o switch **Conta ativa** fica desabilitado, e o subtítulo vira "Remova o acesso de administrador antes de desativar." | desativar admin é recusado (`CANNOT_DEACTIVATE_ADMIN`); o fluxo é rebaixar e depois desativar, e quem fizesse na ordem errada levava o erro pós-toque sem saber qual era a saída |
+
+Só o sentido **desativar** é barrado: reativar um admin inativo continua valendo, que é o que o
+backend também aceita.
 
 A trava do último admin depende de saber quantos admins existem. Enquanto essa contagem não
 chega — carregando ou falhou —, a opção fica **habilitada** de propósito, e o backend recusa se

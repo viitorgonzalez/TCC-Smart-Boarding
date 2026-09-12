@@ -290,6 +290,80 @@ void main() {
     expect(tile.enabled, isTrue);
   });
 
+  /// A quarta trava, a que faltava na interface. O backend recusa com
+  /// CANNOT_DEACTIVATE_ADMIN, e o switch plenamente habilitado convidava ao erro
+  /// pós-toque que a spec diz ter eliminado -- ainda por cima sem dizer que a
+  /// saída é rebaixar antes.
+  testWidgets('admin ativo nao pode ser desativado pela ficha', (tester) async {
+    await tester.pumpWidget(
+      wrap(
+        StudentProfileBody(
+          profile: comPapel('ADMIN'),
+          onToggle: (_) {},
+          onToggleRole: () {},
+          ehAPropriaConta: false,
+          ehUltimoAdmin: false,
+        ),
+      ),
+    );
+    await tester.pumpAndSettle();
+
+    final switchTile = tester.widget<SwitchListTile>(
+      find.byKey(const Key('profile_active_switch')),
+    );
+    expect(switchTile.onChanged, isNull);
+    expect(
+      find.text('Remova o acesso de administrador antes de desativar.'),
+      findsOneWidget,
+    );
+  });
+
+  /// Só o sentido "desativar" é barrado: reativar um admin inativo é o que o
+  /// backend também aceita, e travar aqui bloquearia uma ação legítima.
+  testWidgets('admin inativo ainda pode ser reativado', (tester) async {
+    await tester.pumpWidget(
+      wrap(
+        StudentProfileBody(
+          profile: comPapel('ADMIN', ativa: false),
+          onToggle: (_) {},
+          onToggleRole: () {},
+          ehAPropriaConta: false,
+          ehUltimoAdmin: false,
+        ),
+      ),
+    );
+    await tester.pumpAndSettle();
+
+    final switchTile = tester.widget<SwitchListTile>(
+      find.byKey(const Key('profile_active_switch')),
+    );
+    expect(switchTile.onChanged, isNotNull);
+  });
+
+  testWidgets('aluno ativo segue podendo ser desativado', (tester) async {
+    await tester.pumpWidget(
+      wrap(
+        StudentProfileBody(
+          profile: comPapel('STUDENT'),
+          onToggle: (_) {},
+          onToggleRole: () {},
+          ehAPropriaConta: false,
+          ehUltimoAdmin: false,
+        ),
+      ),
+    );
+    await tester.pumpAndSettle();
+
+    final switchTile = tester.widget<SwitchListTile>(
+      find.byKey(const Key('profile_active_switch')),
+    );
+    expect(switchTile.onChanged, isNotNull);
+    expect(
+      find.text('A mudança fica registrada com seu nome e a hora.'),
+      findsOneWidget,
+    );
+  });
+
   // ─── StudentProfileSheet: a trava do ultimo admin de ponta a ponta ──────
   //
   // Os testes acima provam só a relação flag→enabled em StudentProfileBody,
