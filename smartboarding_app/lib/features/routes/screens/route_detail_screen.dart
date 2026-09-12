@@ -12,8 +12,6 @@ import '../../../core/widgets/app_card.dart';
 import '../../../core/widgets/snackbar_utils.dart';
 import '../../lists/widgets/daily_list_section.dart';
 import '../../notifications/widgets/scheduled_notifications_section.dart';
-import '../../institutions/models/institution_model.dart';
-import '../../institutions/services/institution_service.dart';
 import '../../users/models/user_model.dart';
 import '../../users/screens/route_students_screen.dart';
 import '../../users/services/user_service.dart';
@@ -35,7 +33,6 @@ class RouteDetailScreen extends StatefulWidget {
 
 class _RouteDetailScreenState extends State<RouteDetailScreen> {
   final _service = RouteService();
-  final _institutionService = InstitutionService();
 
   late final TextEditingController _nameCtrl;
   late final TextEditingController _descCtrl;
@@ -44,7 +41,6 @@ class _RouteDetailScreenState extends State<RouteDetailScreen> {
 
   List<StopModel> _stops = const [];
   List<VehicleModel> _vehicles = const [];
-  List<InstitutionModel> _institutions = const [];
   List<UserModel> _students = const [];
   bool _loading = true;
   bool _saving = false;
@@ -84,15 +80,13 @@ class _RouteDetailScreenState extends State<RouteDetailScreen> {
       final results = await Future.wait([
         _service.getStops(widget.route.id),
         _service.getVehicles(widget.route.id),
-        _institutionService.getInstitutions(),
         UserService().getUsers(routeId: widget.route.id),
       ]);
       if (!mounted) return;
       setState(() {
         _stops = results[0] as List<StopModel>;
         _vehicles = results[1] as List<VehicleModel>;
-        _institutions = results[2] as List<InstitutionModel>;
-        _students = (results[3] as List<UserModel>)
+        _students = (results[2] as List<UserModel>)
             .where((u) => u.role == 'STUDENT')
             .toList();
         _loading = false;
@@ -177,11 +171,7 @@ class _RouteDetailScreenState extends State<RouteDetailScreen> {
                 const SizedBox(height: 24),
                 const SectionTitle('Instituições atendidas'),
                 const SizedBox(height: 12),
-                RouteInstitutionsCard(
-                  routeId: widget.route.id,
-                  institutions: _institutions,
-                  run: _run,
-                ),
+                RouteInstitutionsCard(routeId: widget.route.id),
                 const SizedBox(height: 24),
                 const SectionTitle('Alunos'),
                 const SizedBox(height: 12),

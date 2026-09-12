@@ -19,6 +19,9 @@ import '../routes/providers/route_provider.dart';
 import '../routes/screens/routes_screen.dart';
 import '../routes/services/route_service.dart';
 import '../users/providers/user_provider.dart';
+import '../../core/utils/async_value.dart';
+import '../institutions/providers/institution_provider.dart';
+import '../institutions/screens/institutions_screen.dart';
 import '../users/screens/user_management_screen.dart';
 import '../users/services/user_service.dart';
 import 'widgets/today_summary.dart';
@@ -46,6 +49,7 @@ class AdminHomeScreen extends StatelessWidget {
         ChangeNotifierProvider(
           create: (_) => AdminStatsProvider(AdminStatsService())..load(),
         ),
+        ChangeNotifierProvider(create: (_) => InstitutionProvider()..load()),
       ],
       child: const _AdminDashboard(),
     );
@@ -69,6 +73,7 @@ class _AdminDashboard extends StatelessWidget {
     final reportProvider = context.read<ReportProvider>();
     final notificationProvider = context.read<NotificationProvider>();
     final userProvider = context.read<UserProvider>();
+    final institutionProvider = context.read<InstitutionProvider>();
 
     Navigator.push(
       context,
@@ -79,6 +84,7 @@ class _AdminDashboard extends StatelessWidget {
             ChangeNotifierProvider.value(value: reportProvider),
             ChangeNotifierProvider.value(value: notificationProvider),
             ChangeNotifierProvider.value(value: userProvider),
+            ChangeNotifierProvider.value(value: institutionProvider),
           ],
           child: Scaffold(
             appBar: AppBar(title: Text(title), actions: actions),
@@ -186,6 +192,22 @@ class _AdminDashboard extends StatelessWidget {
                           context,
                           'Usuários',
                           const UserManagementScreen(),
+                        ),
+                      ),
+                      FeatureCard(
+                        icon: Icons.school_outlined,
+                        label: 'Instituições',
+                        onTap: () => _open(
+                          context,
+                          'Instituições',
+                          InstitutionsScreen(
+                            routes: switch (context
+                                .read<RouteProvider>()
+                                .state) {
+                              AsyncData(:final value) => value,
+                              _ => const [],
+                            },
+                          ),
                         ),
                       ),
                     ],
