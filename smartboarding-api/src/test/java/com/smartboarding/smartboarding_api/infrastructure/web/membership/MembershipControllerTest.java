@@ -143,4 +143,40 @@ class MembershipControllerTest extends WebMvcTestSupport {
 
         verify(joinRouteUseCase).leave(STUDENT_ID, ROTA);
     }
+
+    /// Duplo toque no botao: a checagem do use case passa nas duas requisicoes e
+    /// quem barra a segunda e a constraint UNIQUE(user_id, route_id). Sem tratar,
+    /// o aluno via "erro interno no servidor" num caso que e so "voce ja entrou".
+    @Test
+    void corridaNaEntradaVira409EnaoErroInterno() throws Exception {
+        org.mockito.Mockito.doThrow(new org.springframework.dao.DataIntegrityViolationException(
+                        "duplicate key value violates unique constraint \"route_members_user_id_route_id_key\""))
+                .when(joinRouteUseCase).join(any(), org.mockito.ArgumentMatchers.anyString());
+
+        mvc.perform(post("/api/me/routes").with(student())
+                        .contentType(MediaType.APPLICATION_JSON)
+                        .content("""
+                                {"code":"ABC123"}"""))
+                .andExpect(status().isConflict())
+                .andExpect(jsonPath("$.code").value("ALREADY_EXISTS"));
+    }
+
+    /// O nome da constraint nao pode vazar pro cliente: entrega nome de tabela e
+    /// de coluna pra quem so mandou um codigo.
+    @Test
+    void aMensagemDoBancoNaoVazaNaResposta() throws Exception {
+        org.mockito.Mockito.doThrow(new org.springframework.dao.DataIntegrityViolationException(
+                        "duplicate key violates unique constraint \"route_members_user_id_route_id_key\""))
+                .when(joinRouteUseCase).join(any(), org.mockito.ArgumentMatchers.anyString());
+
+        String corpo = mvc.perform(post("/api/me/routes").with(student())
+                        .contentType(MediaType.APPLICATION_JSON)
+                        .content("""
+                                {"code":"ABC123"}"""))
+                .andReturn().getResponse().getContentAsString();
+
+        org.assertj.core.api.Assertions.assertThat(corpo)
+                .doesNotContain("route_members")
+                .doesNotContain("constraint");
+    }
 }
