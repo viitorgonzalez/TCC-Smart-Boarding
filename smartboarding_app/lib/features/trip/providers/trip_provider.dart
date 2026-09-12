@@ -11,6 +11,11 @@ class TripProvider extends ChangeNotifier {
   AsyncValue<TripStatus> _state = const AsyncLoading();
   AsyncValue<TripStatus> get state => _state;
 
+  /// Acao em voo. Sem isso o duplo toque vira dois checkpoints, e o segundo
+  /// morre em erro na cara de quem esta dirigindo.
+  bool _busy = false;
+  bool get busy => _busy;
+
   TripProvider(this._service, this.listId);
 
   Future<void> load() => _run(() => _service.status(listId));
@@ -23,11 +28,16 @@ class TripProvider extends ChangeNotifier {
   Future<void> finish() => _run(() => _service.finish(listId));
 
   Future<void> _run(Future<TripStatus> Function() action) async {
+    if (_busy) return;
+    _busy = true;
+    notifyListeners();
     try {
       _state = AsyncData(await action());
     } catch (e) {
       _state = AsyncError(AppException.fromError(e));
+    } finally {
+      _busy = false;
+      notifyListeners();
     }
-    notifyListeners();
   }
 }
