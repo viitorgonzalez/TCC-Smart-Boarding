@@ -88,7 +88,7 @@ void main() {
     });
 
     // Campo opcional vazio viraria string vazia no banco em vez de null.
-    test('campos opcionais vazios nao sao enviados', () async {
+    test('cadastro manda so nome, e-mail e senha', () async {
       http.on(
         'POST',
         '/api/auth/signup',
@@ -101,11 +101,13 @@ void main() {
         fullName: 'Joao',
         email: 'joao@edu.unifor.br',
         password: 'sb@2026',
-        course: '',
-        phone: '',
       );
 
       final data = http.requests.single.data as Map;
+      // Instituicao, curso e contato ficaram no perfil, que e pre-requisito pra
+      // entrar em rota. Mandar daqui recriaria o formulario longo que a mudanca
+      // eliminou.
+      expect(data.keys, containsAll(['fullName', 'email', 'password']));
       expect(data.containsKey('course'), isFalse);
       expect(data.containsKey('phone'), isFalse);
       expect(data.containsKey('institutionId'), isFalse);

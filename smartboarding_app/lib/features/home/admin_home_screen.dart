@@ -22,6 +22,7 @@ import '../users/providers/user_provider.dart';
 import '../../core/utils/async_value.dart';
 import '../institutions/providers/institution_provider.dart';
 import '../institutions/screens/institutions_screen.dart';
+import '../profile/screens/profile_screen.dart';
 import '../users/screens/user_management_screen.dart';
 import '../users/services/user_service.dart';
 import 'widgets/today_summary.dart';
@@ -110,15 +111,24 @@ class _AdminDashboard extends StatelessWidget {
           AppHeader(
             overline: 'GESTÃO DE TRANSPORTE',
             title: 'Painel do Admin',
-            trailing: CircleAvatar(
-              radius: 24,
-              backgroundColor: AppColors.mutedTeal,
-              child: Text(
-                name.isNotEmpty ? name[0].toUpperCase() : 'A',
-                style: const TextStyle(
-                  color: Colors.white,
-                  fontSize: 18,
-                  fontWeight: FontWeight.w700,
+            // O avatar vira o acesso ao perfil: e onde o usuario procura, e
+            // evita mais um icone no header.
+            trailing: InkWell(
+              key: const Key('admin_open_profile'),
+              customBorder: const CircleBorder(),
+              onTap: () => Navigator.of(
+                context,
+              ).push(MaterialPageRoute(builder: (_) => const ProfileScreen())),
+              child: CircleAvatar(
+                radius: 24,
+                backgroundColor: AppColors.mutedTeal,
+                child: Text(
+                  name.isNotEmpty ? name[0].toUpperCase() : 'A',
+                  style: const TextStyle(
+                    color: Colors.white,
+                    fontSize: 18,
+                    fontWeight: FontWeight.w700,
+                  ),
                 ),
               ),
             ),

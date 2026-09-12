@@ -47,19 +47,11 @@ class AuthProvider extends ChangeNotifier {
     required String fullName,
     required String email,
     required String password,
-    String? institutionId,
-    String? course,
-    String? phone,
-    String? birthDate,
   }) async {
     _token = await _authService.signup(
       fullName: fullName,
       email: email,
       password: password,
-      institutionId: institutionId,
-      course: course,
-      phone: phone,
-      birthDate: birthDate,
     );
     _status = AuthStatus.authenticated;
     notifyListeners();

@@ -8,6 +8,7 @@ import '../../core/widgets/app_header.dart';
 import '../../core/widgets/feature_card.dart';
 import '../lists/providers/student_list_provider.dart';
 import '../membership/providers/membership_provider.dart';
+import '../profile/screens/profile_screen.dart';
 import '../membership/widgets/no_route_card.dart';
 import '../membership/widgets/route_selector.dart';
 import '../notifications/screens/notifications_inbox_screen.dart';
@@ -61,10 +62,22 @@ class StudentHomeScreen extends StatelessWidget {
                 ),
               ),
             ),
-            trailing: HeaderIconButton(
-              icon: Icons.logout,
-              tooltip: 'Sair',
-              onPressed: auth.logout,
+            trailing: Row(
+              mainAxisSize: MainAxisSize.min,
+              children: [
+                HeaderIconButton(
+                  icon: Icons.person_outline,
+                  tooltip: 'Meu perfil',
+                  onPressed: () => Navigator.of(context).push(
+                    MaterialPageRoute(builder: (_) => const ProfileScreen()),
+                  ),
+                ),
+                HeaderIconButton(
+                  icon: Icons.logout,
+                  tooltip: 'Sair',
+                  onPressed: auth.logout,
+                ),
+              ],
             ),
           ),
           Expanded(

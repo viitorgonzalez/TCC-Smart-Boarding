@@ -56,4 +56,19 @@ class ProfileService {
       data: {'reason': reason},
     );
   }
+
+  /// Instituições do próprio aluno. É pré-requisito pra entrar em rota, por
+  /// isso vive sob /me e não na área do admin.
+  Future<List<String>> myInstitutions() async {
+    final response = await _dio.get('/api/me/institutions');
+    return (response.data['data'] as List).map((e) => e as String).toList();
+  }
+
+  Future<void> addInstitution(String institutionId) async {
+    await _dio.post('/api/me/institutions/$institutionId');
+  }
+
+  Future<void> removeInstitution(String institutionId) async {
+    await _dio.delete('/api/me/institutions/$institutionId');
+  }
 }

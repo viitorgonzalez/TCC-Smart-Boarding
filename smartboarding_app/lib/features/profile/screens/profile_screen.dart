@@ -10,6 +10,7 @@ import '../../../core/widgets/loading_filled_button.dart';
 import '../../../core/widgets/snackbar_utils.dart';
 import '../models/profile_update_model.dart';
 import '../services/profile_service.dart';
+import '../widgets/my_institutions_card.dart';
 
 /// Perfil do próprio usuário.
 ///
@@ -141,6 +142,11 @@ class _ProfileScreenState extends State<ProfileScreen> {
                     ],
                   ),
                 ),
+                const SizedBox(height: 20),
+                // Fica ACIMA do formulario: sem instituicao o aluno nao entra em
+                // rota nenhuma, entao e a primeira coisa que ele precisa
+                // resolver ao abrir o perfil.
+                const MyInstitutionsCard(),
                 const SizedBox(height: 20),
 
                 if (emAnalise) ...[

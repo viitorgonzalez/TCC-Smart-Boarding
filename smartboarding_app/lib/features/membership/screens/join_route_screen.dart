@@ -5,6 +5,7 @@ import '../../../core/theme/app_theme.dart';
 import '../../../core/widgets/app_text_field.dart';
 import '../../../core/widgets/loading_filled_button.dart';
 import '../../../core/widgets/snackbar_utils.dart';
+import '../../profile/screens/profile_screen.dart';
 import '../providers/membership_provider.dart';
 
 /// Entrar numa rota com o código que o admin distribui.
@@ -64,7 +65,18 @@ class _JoinRouteScreenState extends State<JoinRouteScreen> {
                     color: AppColors.textSecondary,
                   ),
                 ),
-                const SizedBox(height: 24),
+                const SizedBox(height: 16),
+                // O backend recusa o codigo se o perfil nao tiver instituicao.
+                // Dizer isso aqui evita o aluno descobrir so depois de digitar.
+                TextButton.icon(
+                  key: const Key('join_open_profile'),
+                  onPressed: () => Navigator.of(context).push(
+                    MaterialPageRoute(builder: (_) => const ProfileScreen()),
+                  ),
+                  icon: const Icon(Icons.person_outline, size: 18),
+                  label: const Text('Ainda não defini minha instituição'),
+                ),
+                const SizedBox(height: 8),
                 AppTextField(
                   key: const Key('join_code_field'),
                   label: 'Código da rota',

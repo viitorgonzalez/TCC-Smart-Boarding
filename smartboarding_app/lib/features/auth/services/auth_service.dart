@@ -31,22 +31,10 @@ class AuthService {
     required String fullName,
     required String email,
     required String password,
-    String? institutionId,
-    String? course,
-    String? phone,
-    String? birthDate,
   }) async {
     final response = await _dio.post(
       '/api/auth/signup',
-      data: {
-        'fullName': fullName,
-        'email': email,
-        'password': password,
-        'institutionId': ?institutionId,
-        if (course?.isNotEmpty ?? false) 'course': course,
-        if (phone?.isNotEmpty ?? false) 'phone': phone,
-        'birthDate': ?birthDate,
-      },
+      data: {'fullName': fullName, 'email': email, 'password': password},
     );
     final data = response.data['data'] as Map<String, dynamic>;
     final token = AuthToken.fromLogin(data, email);
