@@ -27,6 +27,9 @@ acesso, não cadastrar gente.
 - **Seletor de rota** no topo, quando existe mais de uma.
 - **Filtro por papel** (`ADMIN`, `STUDENT`); sem filtro, a lista agrupa por papel nessa ordem.
 - **Lista**: nome, e-mail e papel. Tocar abre a ficha.
+  - Mudou status ou papel na ficha, **a lista recarrega ao fechar**. O agrupamento e a etiqueta
+    saem do papel; sem recarregar, o aluno recém-promovido continuaria no grupo "Alunos" com a
+    etiqueta antiga até um pull-to-refresh. Fechar sem mexer em nada não custa requisição.
 
 ## A ficha do usuário
 

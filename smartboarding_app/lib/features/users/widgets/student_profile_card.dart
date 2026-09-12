@@ -17,7 +17,15 @@ import 'profile_info_rows.dart';
 class StudentProfileSheet extends StatefulWidget {
   final String userId;
 
-  const StudentProfileSheet({super.key, required this.userId});
+  /// Avisa quem abriu a folha que status ou papel mudaram — a lista de trás
+  /// precisa recarregar pra não seguir mostrando o dado antigo.
+  final VoidCallback? onChanged;
+
+  const StudentProfileSheet({
+    super.key,
+    required this.userId,
+    this.onChanged,
+  });
 
   @override
   State<StudentProfileSheet> createState() => StudentProfileSheetState();
@@ -71,6 +79,7 @@ class StudentProfileSheetState extends State<StudentProfileSheet> {
     setState(() => _busy = true);
     try {
       final p = await _service.setActive(widget.userId, active);
+      widget.onChanged?.call();
       if (!mounted) return;
       setState(() => _profile = p);
       showSuccessSnackBar(
@@ -91,6 +100,7 @@ class StudentProfileSheetState extends State<StudentProfileSheet> {
     setState(() => _busy = true);
     try {
       final p = await _service.setRole(widget.userId, novoPapel);
+      widget.onChanged?.call();
       if (!mounted) return;
       setState(() => _profile = p);
       showSuccessSnackBar(

@@ -117,7 +117,15 @@ class _RouteStudentsScreenState extends State<RouteStudentsScreen> {
                           ? user.fullName[0].toUpperCase()
                           : '?',
                     ),
-                    onTap: () => showStudentProfile(context, user.id),
+                    // A lista filtra por papel e marca conta inativa: mudou
+                    // na ficha, recarrega.
+                    onTap: () async {
+                      final changed = await showStudentProfile(
+                        context,
+                        user.id,
+                      );
+                      if (changed && mounted) await _reload();
+                    },
                     title: Text(user.fullName),
                     subtitle: Text(
                       user.institution == null

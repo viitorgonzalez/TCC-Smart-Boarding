@@ -7,6 +7,7 @@ import 'package:smartboarding_app/features/users/models/student_profile_model.da
 import 'package:smartboarding_app/features/users/widgets/student_profile_card.dart';
 
 import '../support/fake_http.dart';
+import '../support/pump_until.dart';
 
 void main() {
   TestWidgetsFlutterBinding.ensureInitialized();
@@ -303,6 +304,7 @@ void main() {
     WidgetTester tester, {
     required int admins,
     int status = 200,
+    VoidCallback? onChanged,
   }) async {
     final http = await installFakeHttp(token: 'jwt-de-teste');
     http.on(
@@ -330,42 +332,26 @@ void main() {
     await tester.pumpWidget(
       ChangeNotifierProvider(
         create: (_) => AuthProvider(),
-        child: const MaterialApp(
-          home: Scaffold(body: StudentProfileSheet(userId: 'admin-1')),
+        child: MaterialApp(
+          home: Scaffold(
+            body: StudentProfileSheet(userId: 'admin-1', onChanged: onChanged),
+          ),
         ),
       ),
     );
     // Espera pela condicao (a ficha terminar as duas buscas do initState), nao
     // por uma duracao chutada: StudentProfileSheetState.carregado so existe
-    // pra isso. Um unico "await tester.runAsync(() => state.carregado)" trava
-    // pra sempre -- as buscas comecam dentro do initState, sob o relogio
-    // falso do testWidgets, entao parte da cadeia so anda com o relogio falso
-    // avancando (pump) e parte só com tempo real (runAsync); nenhum dos dois
-    // sozinho é suficiente. O laco intercala as duas coisas e para assim que
-    // "carregado" resolver, com um teto pra nao travar se quebrar de verdade.
+    // pra isso.
     final state = tester.state<StudentProfileSheetState>(
       find.byType(StudentProfileSheet),
     );
     var pronto = false;
     state.carregado.then((_) => pronto = true);
-    const maxTentativas = 200;
-    var tentativas = 0;
-    while (!pronto && tentativas < maxTentativas) {
-      await tester.runAsync(
-        () => Future<void>.delayed(const Duration(milliseconds: 1)),
-      );
-      await tester.pump(const Duration(milliseconds: 1));
-      tentativas++;
-    }
-    if (!pronto) {
-      fail(
-        'StudentProfileSheetState.carregado nao resolveu apos $maxTentativas '
-        'tentativas -- a ficha nao carregou.',
-      );
-    }
-    // Mais um pump sem duracao: garante que o ultimo setState (o que marcou
-    // "pronto") já virou frame construído antes da asserção.
-    await tester.pump();
+    await pumpUntil(
+      tester,
+      () => pronto,
+      describe: 'a ficha terminar as buscas do initState',
+    );
 
     return http;
   }
@@ -419,4 +405,61 @@ void main() {
     );
   });
 
+  /// A folha só atualiza o estado dela. Sem avisar quem a abriu, a lista de trás
+  /// seguiria com o papel antigo até um pull-to-refresh.
+  testWidgets('mudar o papel avisa quem abriu a folha', (tester) async {
+    var avisou = false;
+    final http = await abrirFicha(
+      tester,
+      admins: 2,
+      onChanged: () => avisou = true,
+    );
+    http.on(
+      'PATCH',
+      '/api/users/admin-1/role',
+      body: {
+        'data': {
+          'id': 'admin-1',
+          'fullName': 'Admin Um',
+          'email': 'admin1@edu.unifor.br',
+          'isActive': true,
+          'role': 'STUDENT',
+          'recentAttendance': [],
+          'statusHistory': [],
+        },
+      },
+    );
+
+    await tester.tap(find.byKey(const Key('profile_role_action')));
+    await pumpUntil(
+      tester,
+      () => avisou,
+      describe: 'o aviso de mudança de papel',
+    );
+
+    expect(avisou, isTrue);
+  });
+
+  /// O aviso é sobre mudança que aconteceu: PATCH recusado não pode mandar a
+  /// lista recarregar como se algo tivesse mudado.
+  testWidgets('papel recusado pelo backend não avisa mudança', (tester) async {
+    var avisou = false;
+    final http = await abrirFicha(
+      tester,
+      admins: 2,
+      onChanged: () => avisou = true,
+    );
+    http.on('PATCH', '/api/users/admin-1/role', status: 400, body: {
+      'error': {'code': 'LAST_ADMIN', 'message': 'Este é o único administrador.'},
+    });
+
+    await tester.tap(find.byKey(const Key('profile_role_action')));
+    await pumpUntil(
+      tester,
+      () => http.requests.any((r) => r.method == 'PATCH'),
+      describe: 'o PATCH de papel',
+    );
+
+    expect(avisou, isFalse);
+  });
 }
