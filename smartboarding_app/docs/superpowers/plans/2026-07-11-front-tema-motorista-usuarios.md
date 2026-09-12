@@ -725,14 +725,14 @@ void main() {
     await provider.create(
       fullName: 'João',
       email: 'j@x.com',
-      password: '123456',
+      password: '****',
       role: 'DRIVER',
     );
 
     verify(() => service.register(
           fullName: 'João',
           email: 'j@x.com',
-          password: '123456',
+          password: '****',
           role: 'DRIVER',
         )).called(1);
     verify(() => service.getUsers()).called(1);
