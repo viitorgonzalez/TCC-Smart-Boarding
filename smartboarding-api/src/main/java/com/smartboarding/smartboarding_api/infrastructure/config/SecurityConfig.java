@@ -53,6 +53,12 @@ public class SecurityConfig {
                         .requestMatchers("/api/routes/*/invite-codes/**").hasRole("ADMIN")
                         .requestMatchers("/api/routes/*/invite-codes").hasRole("ADMIN")
                         // Usar o codigo e do aluno logado, sobre as rotas DELE.
+                        // O proprio perfil e do usuario logado; a fila de
+                        // solicitacoes e do admin.
+                        .requestMatchers("/api/me/profile-requests/**").authenticated()
+                        .requestMatchers("/api/me/profile-requests").authenticated()
+                        .requestMatchers("/api/profile-requests/**").hasRole("ADMIN")
+                        .requestMatchers("/api/profile-requests").hasRole("ADMIN")
                         .requestMatchers("/api/me/routes/**").authenticated()
                         .requestMatchers("/api/me/routes").authenticated()
                         .requestMatchers(HttpMethod.GET, "/api/routes/*/vehicles").hasRole("ADMIN")
