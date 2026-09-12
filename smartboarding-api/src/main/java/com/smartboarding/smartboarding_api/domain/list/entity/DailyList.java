@@ -46,6 +46,11 @@ public class DailyList {
     @Column(name = "trip_started_at")
     private LocalDateTime tripStartedAt;
 
+    /// Quando a ida terminou. Nulo = ainda na ida, ou nem comecou.
+    /// trip_finished_at marca o fim do dia inteiro -- agora o fim da VOLTA.
+    @Column(name = "outbound_finished_at")
+    private LocalDateTime outboundFinishedAt;
+
     @Column(name = "trip_finished_at")
     private LocalDateTime tripFinishedAt;
 }

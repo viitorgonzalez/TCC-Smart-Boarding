@@ -6,6 +6,7 @@ import com.smartboarding.smartboarding_api.domain.route.entity.Route;
 import com.smartboarding.smartboarding_api.domain.stop.entity.Stop;
 import com.smartboarding.smartboarding_api.domain.stop.port.in.ManageStopsUseCase;
 import com.smartboarding.smartboarding_api.domain.trip.entity.TripCheckpoint;
+import com.smartboarding.smartboarding_api.domain.trip.entity.TripLeg;
 import com.smartboarding.smartboarding_api.domain.trip.port.in.ConductTripUseCase;
 import com.smartboarding.smartboarding_api.domain.trip.port.out.TripCheckpointRepositoryPort;
 import com.smartboarding.smartboarding_api.infrastructure.web.WebMvcTestSupport;
@@ -165,5 +166,74 @@ class TripControllerTest extends WebMvcTestSupport {
         mvc.perform(post("/api/trip/{id}/finish", LIST_ID).with(admin()))
                 .andExpect(status().isConflict())
                 .andExpect(jsonPath("$.code").value("TRIP_NOT_STARTED"));
+    }
+
+    // ─── Ida e volta ──────────────────────────────────────────────────────────
+
+    private static final UUID SEGUNDO = UUID.fromString("dddddddd-0000-0000-0000-000000000002");
+
+    private void doisPontosPrincipais() {
+        when(manageStopsUseCase.listByRoute(ROUTE_ID)).thenReturn(List.of(
+                Stop.builder().id(STOP_ID).routeId(ROUTE_ID).name("Rodoviária")
+                        .sequence(1).isMainPoint(true).build(),
+                Stop.builder().id(SEGUNDO).routeId(ROUTE_ID).name("UNIFOR-MG")
+                        .sequence(2).isMainPoint(true).build()));
+    }
+
+    @Test
+    void naIdaAsParadasSaemNaOrdemDaRota() throws Exception {
+        doisPontosPrincipais();
+
+        mvc.perform(get("/api/trip/{id}", LIST_ID).with(admin()))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.data.leg").value("OUTBOUND"))
+                .andExpect(jsonPath("$.data.stops[0].name").value("Rodoviária"))
+                .andExpect(jsonPath("$.data.stops[1].name").value("UNIFOR-MG"));
+    }
+
+    /// Na volta o onibus refaz o mesmo caminho de tras pra frente -- a ordem tem
+    /// que inverter, senao a tela pede pra marcar a primeira parada da cidade
+    /// enquanto ele ainda esta no campus.
+    @Test
+    void naVoltaAsParadasSaemInvertidas() throws Exception {
+        doisPontosPrincipais();
+        lista.setOutboundFinishedAt(LocalDateTime.of(2026, 9, 12, 7, 0));
+
+        mvc.perform(get("/api/trip/{id}", LIST_ID).with(admin()))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.data.leg").value("RETURN"))
+                .andExpect(jsonPath("$.data.stops[0].name").value("UNIFOR-MG"))
+                .andExpect(jsonPath("$.data.stops[1].name").value("Rodoviária"));
+    }
+
+    /// A mesma parada tem checkpoint nas DUAS pernas. Sem filtrar por perna antes
+    /// de indexar, o toMap por stopId estoura com chave duplicada e o endpoint
+    /// inteiro morre em 500 assim que a volta comeca.
+    @Test
+    void aMesmaParadaNasDuasPernasNaoDerrubaOEndpoint() throws Exception {
+        doisPontosPrincipais();
+        lista.setOutboundFinishedAt(LocalDateTime.of(2026, 9, 12, 7, 0));
+        when(checkpointRepository.findAllByDailyListId(LIST_ID)).thenReturn(List.of(
+                TripCheckpoint.builder().dailyListId(LIST_ID).stopId(STOP_ID)
+                        .leg(TripLeg.OUTBOUND)
+                        .reachedAt(LocalDateTime.of(2026, 9, 12, 6, 10)).build(),
+                TripCheckpoint.builder().dailyListId(LIST_ID).stopId(STOP_ID)
+                        .leg(TripLeg.RETURN)
+                        .reachedAt(LocalDateTime.of(2026, 9, 12, 18, 30)).build()));
+
+        mvc.perform(get("/api/trip/{id}", LIST_ID).with(admin()))
+                .andExpect(status().isOk())
+                // Mostra o horario da VOLTA, nao o da ida.
+                .andExpect(jsonPath("$.data.stops[1].reachedAt").value(
+                        org.hamcrest.Matchers.containsString("18:30")));
+    }
+
+    @Test
+    void outboundFinishedAtVaiNaResposta() throws Exception {
+        doisPontosPrincipais();
+        lista.setOutboundFinishedAt(LocalDateTime.of(2026, 9, 12, 7, 0));
+
+        mvc.perform(get("/api/trip/{id}", LIST_ID).with(admin()))
+                .andExpect(jsonPath("$.data.outboundFinishedAt").exists());
     }
 }

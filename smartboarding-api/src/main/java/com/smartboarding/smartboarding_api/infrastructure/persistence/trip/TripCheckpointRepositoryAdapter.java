@@ -27,7 +27,8 @@ public class TripCheckpointRepositoryAdapter implements TripCheckpointRepository
     }
 
     @Override
-    public boolean existsByDailyListIdAndStopId(UUID dailyListId, UUID stopId) {
-        return jpaRepository.existsByDailyListIdAndStopId(dailyListId, stopId);
+    public boolean existsByDailyListIdAndStopIdAndLeg(UUID dailyListId, UUID stopId,
+            com.smartboarding.smartboarding_api.domain.trip.entity.TripLeg leg) {
+        return jpaRepository.existsByDailyListIdAndStopIdAndLeg(dailyListId, stopId, leg);
     }
 }

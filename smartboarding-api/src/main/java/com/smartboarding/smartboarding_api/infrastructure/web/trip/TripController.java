@@ -5,6 +5,7 @@ import com.smartboarding.smartboarding_api.domain.list.port.in.FindListUseCase;
 import com.smartboarding.smartboarding_api.domain.stop.entity.Stop;
 import com.smartboarding.smartboarding_api.domain.stop.port.in.ManageStopsUseCase;
 import com.smartboarding.smartboarding_api.domain.trip.entity.TripCheckpoint;
+import com.smartboarding.smartboarding_api.domain.trip.entity.TripLeg;
 import com.smartboarding.smartboarding_api.domain.trip.port.in.ConductTripUseCase;
 import com.smartboarding.smartboarding_api.domain.trip.port.out.TripCheckpointRepositoryPort;
 import com.smartboarding.smartboarding_api.infrastructure.web.trip.dto.TripStatusResponse;
@@ -60,20 +61,32 @@ public class TripController {
     }
 
     private TripStatusResponse statusOf(DailyList list) {
+        TripLeg leg = list.getOutboundFinishedAt() == null ? TripLeg.OUTBOUND : TripLeg.RETURN;
+
+        // Filtra pela perna ANTES de indexar: a mesma parada tem checkpoint nas
+        // duas, e um toMap por stopId estouraria com chave duplicada assim que a
+        // volta comecasse.
         Map<UUID, TripCheckpoint> reached = checkpointRepository.findAllByDailyListId(list.getId())
                 .stream()
+                .filter(c -> c.getLeg() == leg)
                 .collect(Collectors.toMap(TripCheckpoint::getStopId, Function.identity()));
+
+        // Na volta o onibus refaz o mesmo caminho de tras pra frente.
+        Comparator<Stop> ordem = leg == TripLeg.OUTBOUND
+                ? Comparator.comparingInt(Stop::getSequence)
+                : Comparator.comparingInt(Stop::getSequence).reversed();
 
         List<TripStatusResponse.TripStopStatus> stops = manageStopsUseCase
                 .listByRoute(list.getRoute().getId()).stream()
                 .filter(Stop::isMainPoint)
-                .sorted(Comparator.comparingInt(Stop::getSequence))
+                .sorted(ordem)
                 .map(stop -> new TripStatusResponse.TripStopStatus(
                         stop.getId(), stop.getName(), stop.getSequence(),
                         reached.containsKey(stop.getId()) ? reached.get(stop.getId()).getReachedAt() : null))
                 .toList();
 
         return new TripStatusResponse(list.getId(), list.getRoute().getName(),
-                list.getTripStartedAt(), list.getTripFinishedAt(), stops);
+                list.getTripStartedAt(), list.getOutboundFinishedAt(),
+                list.getTripFinishedAt(), leg.name(), stops);
     }
 }

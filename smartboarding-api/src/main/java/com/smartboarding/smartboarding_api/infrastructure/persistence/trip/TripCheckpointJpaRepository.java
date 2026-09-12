@@ -9,5 +9,6 @@ import java.util.UUID;
 public interface TripCheckpointJpaRepository extends JpaRepository<TripCheckpoint, UUID> {
     List<TripCheckpoint> findAllByDailyListIdOrderByReachedAtAsc(UUID dailyListId);
 
-    boolean existsByDailyListIdAndStopId(UUID dailyListId, UUID stopId);
+    boolean existsByDailyListIdAndStopIdAndLeg(UUID dailyListId, UUID stopId,
+            com.smartboarding.smartboarding_api.domain.trip.entity.TripLeg leg);
 }

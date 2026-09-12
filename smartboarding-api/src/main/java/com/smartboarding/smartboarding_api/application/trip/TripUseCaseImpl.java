@@ -6,6 +6,7 @@ import com.smartboarding.smartboarding_api.domain.notification.port.in.PublishNo
 import com.smartboarding.smartboarding_api.domain.stop.entity.Stop;
 import com.smartboarding.smartboarding_api.domain.stop.port.out.StopRepositoryPort;
 import com.smartboarding.smartboarding_api.domain.trip.entity.TripCheckpoint;
+import com.smartboarding.smartboarding_api.domain.trip.entity.TripLeg;
 import com.smartboarding.smartboarding_api.domain.trip.port.in.ConductTripUseCase;
 import com.smartboarding.smartboarding_api.domain.trip.port.out.TripCheckpointRepositoryPort;
 import com.smartboarding.smartboarding_api.shared.exception.BadRequestException;
@@ -16,6 +17,8 @@ import org.springframework.transaction.annotation.Transactional;
 
 import java.time.Clock;
 import java.time.LocalDateTime;
+import java.util.Comparator;
+import java.util.List;
 import java.util.UUID;
 
 @Slf4j
@@ -75,21 +78,74 @@ public class TripUseCaseImpl implements ConductTripUseCase {
                     "Só ponto principal gera checkpoint — parada comum aparece só no mapa.");
         }
 
-        // Idempotente: o admin pode tocar duas vezes, e a segunda não pode virar
-        // um segundo aviso pro aluno.
-        if (checkpointRepository.existsByDailyListIdAndStopId(listId, stopId)) {
+        TripLeg leg = currentLeg(list);
+
+        // Idempotente DENTRO da perna: o admin pode tocar duas vezes, e a segunda
+        // não pode virar um segundo aviso. Mas a mesma parada na volta é uma
+        // chegada nova, não repetição.
+        if (checkpointRepository.existsByDailyListIdAndStopIdAndLeg(listId, stopId, leg)) {
             return list;
         }
 
         checkpointRepository.save(TripCheckpoint.builder()
                 .dailyListId(listId)
                 .stopId(stopId)
+                .leg(leg)
                 .reachedAt(LocalDateTime.now(clock))
                 .build());
 
-        announce(list, "Ônibus chegou em " + stop.getName(),
-                "O ônibus da %s chegou em %s.".formatted(list.getRoute().getName(), stop.getName()));
-        return list;
+        String direcao = leg == TripLeg.OUTBOUND ? "" : " (volta)";
+        announce(list, "Ônibus chegou em " + stop.getName() + direcao,
+                "O ônibus da %s chegou em %s%s."
+                        .formatted(list.getRoute().getName(), stop.getName(), direcao));
+
+        return advanceIfLegComplete(list, leg);
+    }
+
+    /// Chegar ao último ponto da ida vira a volta; chegar ao último da volta
+    /// encerra o dia. O admin não precisa apertar mais nada — ele já disse onde
+    /// está, e pedir uma confirmação extra pra algo que o sistema sabe deduzir
+    /// só adiciona um toque no meio do trajeto.
+    private DailyList advanceIfLegComplete(DailyList list, TripLeg leg) {
+        List<Stop> pontos = mainPoints(list);
+        if (pontos.isEmpty()) {
+            return list;
+        }
+        long marcados = checkpointRepository.findAllByDailyListId(list.getId()).stream()
+                .filter(c -> c.getLeg() == leg)
+                .count();
+        if (marcados < pontos.size()) {
+            return list;
+        }
+
+        LocalDateTime agora = LocalDateTime.now(clock);
+        if (leg == TripLeg.OUTBOUND) {
+            list.setOutboundFinishedAt(agora);
+            DailyList saved = dailyListRepository.save(list);
+            announce(saved, "Ida concluída",
+                    "O ônibus da %s chegou ao destino final. A volta começa agora."
+                            .formatted(saved.getRoute().getName()));
+            return saved;
+        }
+
+        list.setTripFinishedAt(agora);
+        DailyList saved = dailyListRepository.save(list);
+        announce(saved, "Trajeto finalizado",
+                "O ônibus da %s concluiu a volta de hoje.".formatted(saved.getRoute().getName()));
+        return saved;
+    }
+
+    /// Ida até o destino final estar marcado; volta dali em diante.
+    private TripLeg currentLeg(DailyList list) {
+        return list.getOutboundFinishedAt() == null ? TripLeg.OUTBOUND : TripLeg.RETURN;
+    }
+
+    /// Só ponto principal entra no trajeto. Na volta a ordem é a inversa —
+    /// o ônibus refaz o mesmo caminho de trás pra frente.
+    private List<Stop> mainPoints(DailyList list) {
+        return stopRepository.findAllByRouteIdOrderBySequenceAsc(list.getRoute().getId()).stream()
+                .filter(Stop::isMainPoint)
+                .toList();
     }
 
     @Override
@@ -98,7 +154,13 @@ public class TripUseCaseImpl implements ConductTripUseCase {
         DailyList list = findList(listId);
         assertInProgress(list);
 
-        list.setTripFinishedAt(LocalDateTime.now(clock));
+        // Encerrar a mao fecha o dia inteiro, esteja na ida ou na volta: e a
+        // saida pro caso de o onibus nao completar o percurso.
+        LocalDateTime agora = LocalDateTime.now(clock);
+        if (list.getOutboundFinishedAt() == null) {
+            list.setOutboundFinishedAt(agora);
+        }
+        list.setTripFinishedAt(agora);
         DailyList saved = dailyListRepository.save(list);
 
         announce(saved, "Trajeto finalizado",

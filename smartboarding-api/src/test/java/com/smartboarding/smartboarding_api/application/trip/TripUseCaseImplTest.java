@@ -8,6 +8,7 @@ import com.smartboarding.smartboarding_api.domain.route.entity.Route;
 import com.smartboarding.smartboarding_api.domain.stop.entity.Stop;
 import com.smartboarding.smartboarding_api.domain.stop.port.out.StopRepositoryPort;
 import com.smartboarding.smartboarding_api.domain.trip.entity.TripCheckpoint;
+import com.smartboarding.smartboarding_api.domain.trip.entity.TripLeg;
 import com.smartboarding.smartboarding_api.domain.trip.port.out.TripCheckpointRepositoryPort;
 import com.smartboarding.smartboarding_api.shared.exception.BadRequestException;
 import org.junit.jupiter.api.BeforeEach;
@@ -120,7 +121,8 @@ class TripUseCaseImplTest {
     @Test
     void checkpointRepetidoNaoDuplicaNemAvisaDeNovo() {
         when(dailyListRepository.findById(LIST_ID)).thenReturn(Optional.of(listWith(NOW.minusMinutes(5), null)));
-        when(checkpointRepository.existsByDailyListIdAndStopId(LIST_ID, MAIN_STOP)).thenReturn(true);
+        when(checkpointRepository.existsByDailyListIdAndStopIdAndLeg(eq(LIST_ID), eq(MAIN_STOP), any()))
+                .thenReturn(true);
 
         useCase.checkpoint(LIST_ID, MAIN_STOP);
 
@@ -165,5 +167,145 @@ class TripUseCaseImplTest {
         assertThatThrownBy(() -> useCase.checkpoint(LIST_ID, MAIN_STOP))
                 .isInstanceOf(BadRequestException.class)
                 .hasMessageContaining("não é da rota");
+    }
+
+    // ─── Ida e volta ──────────────────────────────────────────────────────────
+
+    private static final UUID SEGUNDO_PONTO = UUID.randomUUID();
+
+    /// Dois pontos principais: a ida termina no segundo, e a volta refaz os dois
+    /// na ordem inversa.
+    private void rotaComDoisPontos() {
+        var p1 = Stop.builder().id(MAIN_STOP).routeId(ROUTE_ID).name("Rodoviária")
+                .sequence(1).isMainPoint(true).build();
+        var p2 = Stop.builder().id(SEGUNDO_PONTO).routeId(ROUTE_ID).name("UNIFOR-MG")
+                .sequence(2).isMainPoint(true).build();
+        when(stopRepository.findAllByRouteIdOrderBySequenceAsc(ROUTE_ID))
+                .thenReturn(java.util.List.of(p1, p2));
+        when(stopRepository.findById(SEGUNDO_PONTO)).thenReturn(Optional.of(p2));
+        when(stopRepository.findById(MAIN_STOP)).thenReturn(Optional.of(p1));
+    }
+
+    private void jaMarcados(TripLeg leg, UUID... stops) {
+        when(checkpointRepository.findAllByDailyListId(LIST_ID)).thenReturn(
+                java.util.Arrays.stream(stops)
+                        .map(id -> TripCheckpoint.builder()
+                                .dailyListId(LIST_ID).stopId(id).leg(leg).build())
+                        .toList());
+    }
+
+    /// O admin ja disse onde esta; pedir uma confirmacao extra pra algo que o
+    /// sistema deduz so adicionaria um toque no meio do trajeto.
+    @Test
+    void marcarOUltimoPontoDaIdaViraAVoltaSozinho() {
+        rotaComDoisPontos();
+        when(dailyListRepository.findById(LIST_ID))
+                .thenReturn(Optional.of(listWith(NOW.minusMinutes(30), null)));
+        jaMarcados(TripLeg.OUTBOUND, MAIN_STOP, SEGUNDO_PONTO);
+
+        DailyList result = useCase.checkpoint(LIST_ID, SEGUNDO_PONTO);
+
+        assertThat(result.getOutboundFinishedAt()).isEqualTo(NOW);
+        assertThat(result.getTripFinishedAt()).isNull();
+    }
+
+    @Test
+    void idaIncompletaNaoViraVolta() {
+        rotaComDoisPontos();
+        when(dailyListRepository.findById(LIST_ID))
+                .thenReturn(Optional.of(listWith(NOW.minusMinutes(30), null)));
+        jaMarcados(TripLeg.OUTBOUND, MAIN_STOP);
+
+        DailyList result = useCase.checkpoint(LIST_ID, MAIN_STOP);
+
+        assertThat(result.getOutboundFinishedAt()).isNull();
+    }
+
+    /// A mesma parada e visitada nas duas pernas. Sem a perna na checagem, o
+    /// primeiro checkpoint da volta seria lido como repeticao da ida e ignorado.
+    @Test
+    void aMesmaParadaEMarcadaDeNovoNaVolta() {
+        rotaComDoisPontos();
+        var comIdaPronta = listWith(NOW.minusHours(2), null);
+        comIdaPronta.setOutboundFinishedAt(NOW.minusMinutes(10));
+        when(dailyListRepository.findById(LIST_ID)).thenReturn(Optional.of(comIdaPronta));
+        jaMarcados(TripLeg.RETURN);
+        when(checkpointRepository.existsByDailyListIdAndStopIdAndLeg(
+                eq(LIST_ID), eq(SEGUNDO_PONTO), eq(TripLeg.RETURN))).thenReturn(false);
+
+        useCase.checkpoint(LIST_ID, SEGUNDO_PONTO);
+
+        var captor = org.mockito.ArgumentCaptor.forClass(TripCheckpoint.class);
+        verify(checkpointRepository).save(captor.capture());
+        assertThat(captor.getValue().getLeg()).isEqualTo(TripLeg.RETURN);
+    }
+
+    @Test
+    void marcarOUltimoPontoDaVoltaEncerraODia() {
+        rotaComDoisPontos();
+        var naVolta = listWith(NOW.minusHours(3), null);
+        naVolta.setOutboundFinishedAt(NOW.minusHours(1));
+        when(dailyListRepository.findById(LIST_ID)).thenReturn(Optional.of(naVolta));
+        jaMarcados(TripLeg.RETURN, SEGUNDO_PONTO, MAIN_STOP);
+
+        DailyList result = useCase.checkpoint(LIST_ID, MAIN_STOP);
+
+        assertThat(result.getTripFinishedAt()).isEqualTo(NOW);
+    }
+
+    @Test
+    void avisoDaVoltaSeDistingueDoDaIda() {
+        rotaComDoisPontos();
+        var naVolta = listWith(NOW.minusHours(3), null);
+        naVolta.setOutboundFinishedAt(NOW.minusHours(1));
+        when(dailyListRepository.findById(LIST_ID)).thenReturn(Optional.of(naVolta));
+        jaMarcados(TripLeg.RETURN);
+
+        useCase.checkpoint(LIST_ID, MAIN_STOP);
+
+        verify(publishNotificationUseCase).publish(
+                org.mockito.ArgumentMatchers.contains("(volta)"),
+                org.mockito.ArgumentMatchers.contains("(volta)"),
+                eq(ROUTE_ID), anyInt(), isNull());
+    }
+
+    /// Saida pro caso de o onibus nao completar o percurso: encerrar a mao fecha
+    /// o dia inteiro, e marca a ida como concluida pra lista nao ficar num
+    /// estado impossivel (dia encerrado, ida em aberto).
+    @Test
+    void encerrarAMaoNoMeioDaIdaFechaAsDuasPernas() {
+        when(dailyListRepository.findById(LIST_ID))
+                .thenReturn(Optional.of(listWith(NOW.minusMinutes(20), null)));
+
+        DailyList result = useCase.finish(LIST_ID);
+
+        assertThat(result.getTripFinishedAt()).isEqualTo(NOW);
+        assertThat(result.getOutboundFinishedAt()).isEqualTo(NOW);
+    }
+
+    @Test
+    void encerrarAMaoNaVoltaPreservaAHoraRealDaIda() {
+        var naVolta = listWith(NOW.minusHours(3), null);
+        var fimDaIda = NOW.minusHours(1);
+        naVolta.setOutboundFinishedAt(fimDaIda);
+        when(dailyListRepository.findById(LIST_ID)).thenReturn(Optional.of(naVolta));
+
+        DailyList result = useCase.finish(LIST_ID);
+
+        assertThat(result.getOutboundFinishedAt()).isEqualTo(fimDaIda);
+        assertThat(result.getTripFinishedAt()).isEqualTo(NOW);
+    }
+
+    @Test
+    void rotaSemPontoPrincipalNaoTravaNemAvancaSozinha() {
+        when(stopRepository.findAllByRouteIdOrderBySequenceAsc(ROUTE_ID))
+                .thenReturn(java.util.List.of());
+        when(dailyListRepository.findById(LIST_ID))
+                .thenReturn(Optional.of(listWith(NOW.minusMinutes(5), null)));
+        jaMarcados(TripLeg.OUTBOUND, MAIN_STOP);
+
+        DailyList result = useCase.checkpoint(LIST_ID, MAIN_STOP);
+
+        assertThat(result.getOutboundFinishedAt()).isNull();
     }
 }

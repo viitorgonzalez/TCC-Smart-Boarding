@@ -28,6 +28,11 @@ public class TripCheckpoint {
     @Column(name = "stop_id", nullable = false)
     private UUID stopId;
 
+    @Enumerated(EnumType.STRING)
+    @Column(nullable = false, length = 10)
+    @Builder.Default
+    private TripLeg leg = TripLeg.OUTBOUND;
+
     @Column(name = "reached_at", nullable = false)
     private LocalDateTime reachedAt;
 }
