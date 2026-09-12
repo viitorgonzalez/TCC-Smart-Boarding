@@ -25,4 +25,10 @@ public class UserRepositoryAdapter implements UserRepositoryPort {
     @Override public long countActiveStudents() { return jpa.countActiveStudents(); }
     @Override public long countByInstitutionId(UUID institutionId) { return jpa.countByInstitutionId(institutionId); }
     @Override public java.util.List<User> findByRouteId(UUID routeId) { return jpa.findByRouteId(routeId); }
+
+    @Override
+    public java.util.Optional<com.smartboarding.smartboarding_api.domain.user.entity.User>
+            findByGoogleId(String googleId) {
+        return jpa.findByGoogleId(googleId);
+    }
 }

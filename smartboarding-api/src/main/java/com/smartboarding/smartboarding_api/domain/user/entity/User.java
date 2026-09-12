@@ -29,8 +29,15 @@ public class User implements UserDetails {
     @Column(nullable = false, unique = true, length = 100)
     private String email;
 
-    @Column(nullable = false)
+    /// Nulo em conta criada pelo Google que ainda nao definiu senha local.
+    /// Guardar placeholder seria pior: viraria uma senha real e adivinhavel.
+    @Column
     private String password;
+
+    /// Preenchido quando a conta esta vinculada a um login do Google. A conta
+    /// pode ter os dois caminhos ao mesmo tempo.
+    @Column(name = "google_id", length = 64)
+    private String googleId;
 
     @Enumerated(EnumType.STRING)
     @Column(nullable = false)
@@ -103,5 +110,13 @@ public class User implements UserDetails {
     @Override
     public boolean isEnabled() {
         return isActive;
+    }
+
+    public boolean hasPassword() {
+        return password != null && !password.isBlank();
+    }
+
+    public boolean hasGoogle() {
+        return googleId != null && !googleId.isBlank();
     }
 }

@@ -15,4 +15,6 @@ public interface UserRepositoryPort {
     long countActiveStudents();
     long countByInstitutionId(UUID institutionId);
     List<User> findByRouteId(UUID routeId);
+
+    java.util.Optional<com.smartboarding.smartboarding_api.domain.user.entity.User> findByGoogleId(String googleId);
 }

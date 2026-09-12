@@ -26,4 +26,6 @@ public interface UserJpaRepository extends JpaRepository<User, UUID> {
     List<User> findByRouteId(@Param("routeId") UUID routeId);
     Optional<User> findByEmail(String email);
     boolean existsByEmail(String email);
+
+    java.util.Optional<com.smartboarding.smartboarding_api.domain.user.entity.User> findByGoogleId(String googleId);
 }

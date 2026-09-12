@@ -3,6 +3,8 @@ package com.smartboarding.smartboarding_api.infrastructure.web.profile;
 import com.smartboarding.smartboarding_api.domain.profile.entity.ProfileUpdateRequest;
 import com.smartboarding.smartboarding_api.domain.membership.port.in.ManageUserInstitutionsUseCase;
 import com.smartboarding.smartboarding_api.domain.profile.port.in.ManageProfileUpdateUseCase;
+import com.smartboarding.smartboarding_api.domain.user.port.in.SetLocalPasswordUseCase;
+import com.smartboarding.smartboarding_api.infrastructure.web.user.dto.SetPasswordRequest;
 import com.smartboarding.smartboarding_api.domain.user.entity.User;
 import com.smartboarding.smartboarding_api.domain.user.port.out.UserRepositoryPort;
 import com.smartboarding.smartboarding_api.infrastructure.web.profile.dto.ProfileUpdateRequestDto;
@@ -32,13 +34,16 @@ public class ProfileController {
     private final ManageProfileUpdateUseCase useCase;
     private final UserRepositoryPort userRepository;
     private final ManageUserInstitutionsUseCase userInstitutionsUseCase;
+    private final SetLocalPasswordUseCase setLocalPasswordUseCase;
 
     public ProfileController(ManageProfileUpdateUseCase useCase,
                              UserRepositoryPort userRepository,
-                             ManageUserInstitutionsUseCase userInstitutionsUseCase) {
+                             ManageUserInstitutionsUseCase userInstitutionsUseCase,
+                             SetLocalPasswordUseCase setLocalPasswordUseCase) {
         this.useCase = useCase;
         this.userRepository = userRepository;
         this.userInstitutionsUseCase = userInstitutionsUseCase;
+        this.setLocalPasswordUseCase = setLocalPasswordUseCase;
     }
 
     @PostMapping("/me/profile-requests")
@@ -107,6 +112,15 @@ public class ProfileController {
     public ResponseEntity<ApiResponse<?>> removeInstitution(@PathVariable UUID institutionId,
                                                              Authentication auth) {
         userInstitutionsUseCase.remove(me(auth).getId(), institutionId);
+        return ResponseEntity.ok(ApiResponse.success());
+    }
+
+    /// Define a senha local de quem entrou pelo Google. A partir daí ele entra
+    /// pelos dois caminhos.
+    @PostMapping("/me/password")
+    public ResponseEntity<ApiResponse<?>> setPassword(
+            @RequestBody @Valid SetPasswordRequest body, Authentication auth) {
+        setLocalPasswordUseCase.setPassword(me(auth).getId(), body.password());
         return ResponseEntity.ok(ApiResponse.success());
     }
 

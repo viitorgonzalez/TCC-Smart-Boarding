@@ -34,6 +34,8 @@ public class SecurityConfig {
                         // definicao, estes dois precisam ser publicos.
                         // Cadastro proprio: quem chega aqui ainda nao tem conta.
                         .requestMatchers(HttpMethod.POST, "/api/auth/signup").permitAll()
+                        // Entrar com Google e caminho de entrada, como o login.
+                        .requestMatchers(HttpMethod.POST, "/api/auth/google").permitAll()
                         .requestMatchers(HttpMethod.POST, "/api/auth/forgot-password").permitAll()
                         .requestMatchers(HttpMethod.POST, "/api/auth/reset-password").permitAll()
                         .requestMatchers(HttpMethod.GET, "/api/routes").permitAll()
@@ -55,6 +57,7 @@ public class SecurityConfig {
                         // Usar o codigo e do aluno logado, sobre as rotas DELE.
                         // O proprio perfil e do usuario logado; a fila de
                         // solicitacoes e do admin.
+                        .requestMatchers(HttpMethod.POST, "/api/me/password").authenticated()
                         .requestMatchers("/api/me/institutions/**").authenticated()
                         .requestMatchers("/api/me/institutions").authenticated()
                         .requestMatchers("/api/me/profile-requests/**").authenticated()

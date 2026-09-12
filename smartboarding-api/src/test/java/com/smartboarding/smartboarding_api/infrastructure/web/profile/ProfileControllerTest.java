@@ -39,6 +39,8 @@ class ProfileControllerTest extends WebMvcTestSupport {
     @MockitoBean UserRepositoryPort userRepository;
     @MockitoBean com.smartboarding.smartboarding_api.domain.membership.port.in.ManageUserInstitutionsUseCase
             userInstitutionsUseCase;
+    @MockitoBean com.smartboarding.smartboarding_api.domain.user.port.in.SetLocalPasswordUseCase
+            setLocalPasswordUseCase;
 
     @BeforeEach
     void setUp() {
@@ -202,5 +204,58 @@ class ProfileControllerTest extends WebMvcTestSupport {
                 .andExpect(status().isOk());
 
         verify(userInstitutionsUseCase).remove(STUDENT_ID, inst);
+    }
+
+    // ─── Definir senha local ──────────────────────────────────────────────────
+
+    /// Quem entrou pelo Google define uma senha e passa a entrar pelos dois
+    /// caminhos. O id sai do token: aceitar userId deixaria definir a senha de
+    /// outro.
+    @Test
+    void definirSenhaUsaOUsuarioDoToken() throws Exception {
+        mvc.perform(post("/api/me/password").with(student())
+                        .contentType(MediaType.APPLICATION_JSON)
+                        .content("""
+                                {"password":"minhaSenha1"}"""))
+                .andExpect(status().isOk());
+
+        verify(setLocalPasswordUseCase).setPassword(STUDENT_ID, "minhaSenha1");
+    }
+
+    @Test
+    void definirSenhaExigeToken() throws Exception {
+        mvc.perform(post("/api/me/password")
+                        .contentType(MediaType.APPLICATION_JSON)
+                        .content("""
+                                {"password":"minhaSenha1"}"""))
+                .andExpect(status().isUnauthorized());
+
+        verify(setLocalPasswordUseCase, never()).setPassword(any(), anyString());
+    }
+
+    /// RN10: abaixo de 6 nao vira hash.
+    @Test
+    void senhaCurtaERecusadaAntesDoUseCase() throws Exception {
+        mvc.perform(post("/api/me/password").with(student())
+                        .contentType(MediaType.APPLICATION_JSON)
+                        .content("""
+                                {"password":"123"}"""))
+                .andExpect(status().isBadRequest());
+
+        verify(setLocalPasswordUseCase, never()).setPassword(any(), anyString());
+    }
+
+    @Test
+    void quemJaTemSenhaRecebe409() throws Exception {
+        org.mockito.Mockito.doThrow(new com.smartboarding.smartboarding_api.shared.exception
+                        .ConflictException("PASSWORD_ALREADY_SET", "Você já tem senha."))
+                .when(setLocalPasswordUseCase).setPassword(any(), anyString());
+
+        mvc.perform(post("/api/me/password").with(student())
+                        .contentType(MediaType.APPLICATION_JSON)
+                        .content("""
+                                {"password":"minhaSenha1"}"""))
+                .andExpect(status().isConflict())
+                .andExpect(jsonPath("$.code").value("PASSWORD_ALREADY_SET"));
     }
 }

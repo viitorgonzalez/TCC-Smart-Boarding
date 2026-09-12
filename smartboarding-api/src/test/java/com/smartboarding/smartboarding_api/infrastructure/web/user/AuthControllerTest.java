@@ -37,6 +37,8 @@ class AuthControllerTest extends WebMvcTestSupport {
     @MockitoBean RequestPasswordResetUseCase requestPasswordResetUseCase;
     @MockitoBean ResetPasswordUseCase resetPasswordUseCase;
     @MockitoBean com.smartboarding.smartboarding_api.domain.user.port.in.SignupUseCase signupUseCase;
+    @MockitoBean com.smartboarding.smartboarding_api.domain.user.port.in.GoogleSignInUseCase googleSignInUseCase;
+    @MockitoBean com.smartboarding.smartboarding_api.domain.user.port.in.IssueTokenUseCase issueTokenUseCase;
 
     @Test
     void loginValidoDevolve200ComTokenNomeEPapel() throws Exception {
@@ -247,5 +249,54 @@ class AuthControllerTest extends WebMvcTestSupport {
                                 "password":"sb@2026"}"""))
                 .andExpect(status().isConflict())
                 .andExpect(jsonPath("$.code").value("EMAIL_ALREADY_EXISTS"));
+    }
+
+    // ─── Entrar com Google ────────────────────────────────────────────────────
+
+    /// Publico: e um caminho de entrada, como o login. Exigir token aqui
+    /// tornaria o endpoint inalcancavel pra quem nao tem conta.
+    @Test
+    void entrarComGoogleEPublicoEDevolveSessao() throws Exception {
+        var user = com.smartboarding.smartboarding_api.domain.user.entity.User.builder()
+                .id(java.util.UUID.randomUUID()).email("fernanda@edu.unifor.br")
+                .fullName("Fernanda Lima")
+                .role(com.smartboarding.smartboarding_api.domain.user.entity.Role.STUDENT)
+                .build();
+        when(googleSignInUseCase.signIn("id-token-do-google")).thenReturn(user);
+        when(issueTokenUseCase.issueFor(user))
+                .thenReturn(new AuthToken("jwt-google", "Fernanda Lima", "STUDENT"));
+
+        mvc.perform(post("/api/auth/google")
+                        .contentType(MediaType.APPLICATION_JSON)
+                        .content("""
+                                {"idToken":"id-token-do-google"}"""))
+                .andExpect(status().isOk())
+                // Mesmo formato de sessao do login por senha: o caminho de
+                // entrada nao muda o que a sessao e.
+                .andExpect(jsonPath("$.data.token").value("jwt-google"))
+                .andExpect(jsonPath("$.data.role").value("STUDENT"));
+    }
+
+    @Test
+    void googleSemTokenERecusadoAntesDoUseCase() throws Exception {
+        mvc.perform(post("/api/auth/google")
+                        .contentType(MediaType.APPLICATION_JSON)
+                        .content("""
+                                {"idToken":""}"""))
+                .andExpect(status().isBadRequest());
+
+        verify(googleSignInUseCase, never()).signIn(anyString());
+    }
+
+    @Test
+    void tokenDoGoogleInvalidoDevolve401() throws Exception {
+        when(googleSignInUseCase.signIn(anyString())).thenThrow(
+                new UnauthorizedException("Login do Google inválido."));
+
+        mvc.perform(post("/api/auth/google")
+                        .contentType(MediaType.APPLICATION_JSON)
+                        .content("""
+                                {"idToken":"lixo"}"""))
+                .andExpect(status().isUnauthorized());
     }
 }
