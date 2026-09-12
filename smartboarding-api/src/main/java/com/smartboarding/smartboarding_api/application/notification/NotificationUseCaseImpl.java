@@ -4,11 +4,11 @@ import com.smartboarding.smartboarding_api.domain.notification.port.in.SendBroad
 import com.smartboarding.smartboarding_api.domain.notification.port.in.SendToUserUseCase;
 import com.smartboarding.smartboarding_api.domain.notification.port.out.DeviceTokenRepositoryPort;
 import com.smartboarding.smartboarding_api.domain.notification.port.out.FcmPort;
-import com.smartboarding.smartboarding_api.domain.institution.entity.Institution;
-import com.smartboarding.smartboarding_api.domain.institution.port.out.InstitutionRepositoryPort;
 import com.smartboarding.smartboarding_api.domain.notification.entity.Notification;
 import com.smartboarding.smartboarding_api.domain.notification.port.in.ListNotificationsUseCase;
 import com.smartboarding.smartboarding_api.domain.notification.port.in.PublishNotificationUseCase;
+import com.smartboarding.smartboarding_api.domain.membership.entity.RouteMember;
+import com.smartboarding.smartboarding_api.domain.membership.port.out.RouteMemberRepositoryPort;
 import com.smartboarding.smartboarding_api.domain.notification.port.out.NotificationRepositoryPort;
 import com.smartboarding.smartboarding_api.domain.user.entity.Role;
 import com.smartboarding.smartboarding_api.domain.user.entity.User;
@@ -32,20 +32,20 @@ public class NotificationUseCaseImpl implements SendBroadcastUseCase, SendToUser
     private final DeviceTokenRepositoryPort deviceTokenRepository;
     private final NotificationRepositoryPort notificationRepository;
     private final UserRepositoryPort userRepository;
-    private final InstitutionRepositoryPort institutionRepository;
+    private final RouteMemberRepositoryPort routeMemberRepository;
     private final Clock clock;
 
     public NotificationUseCaseImpl(FcmPort fcmPort,
                                    DeviceTokenRepositoryPort deviceTokenRepository,
                                    NotificationRepositoryPort notificationRepository,
                                    UserRepositoryPort userRepository,
-                                   InstitutionRepositoryPort institutionRepository,
+                                   RouteMemberRepositoryPort routeMemberRepository,
                                    Clock clock) {
         this.fcmPort = fcmPort;
         this.deviceTokenRepository = deviceTokenRepository;
         this.notificationRepository = notificationRepository;
         this.userRepository = userRepository;
-        this.institutionRepository = institutionRepository;
+        this.routeMemberRepository = routeMemberRepository;
         this.clock = clock;
     }
 
@@ -91,11 +91,13 @@ public class NotificationUseCaseImpl implements SendBroadcastUseCase, SendToUser
         if (requester.getRole() != Role.STUDENT) {
             return notificationRepository.findAll();
         }
-        UUID routeId = requester.getInstitutionId() == null
-                ? null
-                : institutionRepository.findById(requester.getInstitutionId())
-                        .map(Institution::getRouteId).orElse(null);
-        return notificationRepository.findVisible(routeId, LocalDateTime.now(clock));
+        // O aluno ve os avisos de TODAS as rotas dele, mais os gerais. Ate a V22
+        // isso vinha da instituicao (RN15); agora vem do vinculo criado pelo
+        // codigo da rota.
+        List<UUID> routeIds = routeMemberRepository.findAllByUserId(requesterId).stream()
+                .map(RouteMember::getRouteId)
+                .toList();
+        return notificationRepository.findVisible(routeIds, LocalDateTime.now(clock));
     }
 
     @Override

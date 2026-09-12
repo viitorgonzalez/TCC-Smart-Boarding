@@ -18,7 +18,12 @@ public class NotificationRepositoryAdapter implements NotificationRepositoryPort
     }
 
     @Override public Notification save(Notification notification) { return jpa.save(notification); }
-    @Override public List<Notification> findVisible(UUID routeId, LocalDateTime now) { return jpa.findVisible(routeId, now); }
+    @Override
+    public List<Notification> findVisible(java.util.Collection<UUID> routeIds, LocalDateTime now) {
+        return routeIds.isEmpty()
+                ? jpa.findVisibleGeneralOnly(now)
+                : jpa.findVisibleForRoutes(routeIds, now);
+    }
     @Override public List<Notification> findAll() { return jpa.findAllByOrderByCreatedAtDesc(); }
     @Override public void deleteAllById(List<UUID> ids) { jpa.deleteAllById(ids); }
 }

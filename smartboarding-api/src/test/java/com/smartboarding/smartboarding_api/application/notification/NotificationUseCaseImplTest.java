@@ -1,7 +1,8 @@
 package com.smartboarding.smartboarding_api.application.notification;
 
 import com.smartboarding.smartboarding_api.domain.institution.entity.Institution;
-import com.smartboarding.smartboarding_api.domain.institution.port.out.InstitutionRepositoryPort;
+import com.smartboarding.smartboarding_api.domain.membership.entity.RouteMember;
+import com.smartboarding.smartboarding_api.domain.membership.port.out.RouteMemberRepositoryPort;
 import com.smartboarding.smartboarding_api.domain.notification.entity.Notification;
 import com.smartboarding.smartboarding_api.domain.notification.port.out.DeviceTokenRepositoryPort;
 import com.smartboarding.smartboarding_api.domain.notification.port.out.FcmPort;
@@ -38,12 +39,12 @@ class NotificationUseCaseImplTest {
     @Mock DeviceTokenRepositoryPort deviceTokenRepository;
     @Mock NotificationRepositoryPort notificationRepository;
     @Mock UserRepositoryPort userRepository;
-    @Mock InstitutionRepositoryPort institutionRepository;
+    @Mock RouteMemberRepositoryPort routeMemberRepository;
 
     private NotificationUseCaseImpl useCase() {
         var clock = Clock.fixed(NOW.atZone(ZoneId.systemDefault()).toInstant(), ZoneId.systemDefault());
         return new NotificationUseCaseImpl(fcmPort, deviceTokenRepository,
-                notificationRepository, userRepository, institutionRepository, clock);
+                notificationRepository, userRepository, routeMemberRepository, clock);
     }
 
     @Test
@@ -84,22 +85,40 @@ class NotificationUseCaseImplTest {
     }
 
     @Test
-    void alunoVeGeraisEOsDaRotaDaSuaInstituicao() {
+    void alunoVeGeraisEOsDasRotasDele() {
         var studentId = UUID.randomUUID();
-        var institutionId = UUID.randomUUID();
         var routeId = UUID.randomUUID();
         when(userRepository.findById(studentId)).thenReturn(Optional.of(User.builder()
-                .id(studentId).role(Role.STUDENT).institutionId(institutionId).build()));
-        when(institutionRepository.findById(institutionId)).thenReturn(Optional.of(
-                Institution.builder().id(institutionId).routeId(routeId).build()));
-        when(notificationRepository.findVisible(routeId, NOW)).thenReturn(List.of(
+                .id(studentId).role(Role.STUDENT).build()));
+        when(routeMemberRepository.findAllByUserId(studentId)).thenReturn(List.of(
+                RouteMember.builder().userId(studentId).routeId(routeId).build()));
+        when(notificationRepository.findVisible(List.of(routeId), NOW)).thenReturn(List.of(
                 Notification.builder().title("Geral").build()));
 
         var result = useCase().listFor(studentId);
 
         assertThat(result).hasSize(1);
-        verify(notificationRepository).findVisible(routeId, NOW);
+        verify(notificationRepository).findVisible(List.of(routeId), NOW);
         verify(notificationRepository, never()).findAll();
+    }
+
+    /// O aluno pode estar em mais de uma rota, e precisa ver o aviso de todas --
+    /// perder o aviso de uma delas e perder a informacao que o faz nao aparecer
+    /// no ponto.
+    @Test
+    void alunoEmDuasRotasVeOsAvisosDasDuas() {
+        var studentId = UUID.randomUUID();
+        var rotaA = UUID.randomUUID();
+        var rotaB = UUID.randomUUID();
+        when(userRepository.findById(studentId)).thenReturn(Optional.of(User.builder()
+                .id(studentId).role(Role.STUDENT).build()));
+        when(routeMemberRepository.findAllByUserId(studentId)).thenReturn(List.of(
+                RouteMember.builder().userId(studentId).routeId(rotaA).build(),
+                RouteMember.builder().userId(studentId).routeId(rotaB).build()));
+
+        useCase().listFor(studentId);
+
+        verify(notificationRepository).findVisible(List.of(rotaA, rotaB), NOW);
     }
 
     @Test
@@ -170,29 +189,27 @@ class NotificationUseCaseImplTest {
     }
 
     @Test
-    void alunoSemInstituicaoRecebeSoOsAvisosGerais() {
+    void alunoSemRotaNenhumaRecebeSoOsAvisosGerais() {
         UUID studentId = UUID.randomUUID();
         when(userRepository.findById(studentId)).thenReturn(Optional.of(
                 User.builder().id(studentId).role(Role.STUDENT).build()));
 
         useCase().listFor(studentId);
 
-        verify(notificationRepository).findVisible(null, NOW);
+        verify(notificationRepository).findVisible(List.of(), NOW);
     }
 
     @Test
     void alunoRecebeOsAvisosDaRotaDaSuaInstituicao() {
         UUID studentId = UUID.randomUUID();
-        UUID institutionId = UUID.randomUUID();
         UUID routeId = UUID.randomUUID();
         when(userRepository.findById(studentId)).thenReturn(Optional.of(
-                User.builder().id(studentId).role(Role.STUDENT)
-                        .institutionId(institutionId).build()));
-        when(institutionRepository.findById(institutionId)).thenReturn(Optional.of(
-                Institution.builder().id(institutionId).routeId(routeId).build()));
+                User.builder().id(studentId).role(Role.STUDENT).build()));
+        when(routeMemberRepository.findAllByUserId(studentId)).thenReturn(List.of(
+                RouteMember.builder().userId(studentId).routeId(routeId).build()));
 
         useCase().listFor(studentId);
 
-        verify(notificationRepository).findVisible(routeId, NOW);
+        verify(notificationRepository).findVisible(List.of(routeId), NOW);
     }
 }
