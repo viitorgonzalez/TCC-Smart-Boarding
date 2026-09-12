@@ -180,3 +180,72 @@ class EnrollSheetState extends State<EnrollSheet> {
     );
   }
 }
+
+/// Confirmação final da inclusão tardia. Existe separada do EnrollSheet porque
+/// a ação é irreversível pelo lado do aluno: a advertência entra no histórico
+/// dele e sair de lá exige o admin apagar à mão.
+Future<bool> confirmEnroll(
+  BuildContext context,
+  UserModel student,
+  EnrollDecision decision,
+) async {
+  final ok = await showDialog<bool>(
+    context: context,
+    builder: (ctx) => AlertDialog(
+      title: Text('Incluir ${student.fullName}?'),
+      content: Column(
+        mainAxisSize: MainAxisSize.min,
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          const Text('O aluno entra na lista mesmo fora do horário.'),
+          const SizedBox(height: 12),
+          Row(
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              Icon(
+                decision.issueWarning
+                    ? Icons.warning_amber_rounded
+                    : Icons.info_outline,
+                size: 20,
+                color: decision.issueWarning
+                    ? AppColors.danger
+                    : AppColors.textSecondary,
+              ),
+              const SizedBox(width: 8),
+              Expanded(
+                child: Text(
+                  decision.issueWarning
+                      ? 'Uma advertência vai para o histórico do aluno.'
+                      : 'Nenhuma advertência será gerada.',
+                  style: TextStyle(
+                    fontWeight: decision.issueWarning
+                        ? FontWeight.w600
+                        : FontWeight.normal,
+                  ),
+                ),
+              ),
+            ],
+          ),
+          if (decision.issueWarning && decision.reason != null) ...[
+            const SizedBox(height: 10),
+            Text(
+              'Motivo: ${decision.reason}',
+              style: const TextStyle(color: AppColors.textSecondary),
+            ),
+          ],
+        ],
+      ),
+      actions: [
+        TextButton(
+          onPressed: () => Navigator.pop(ctx, false),
+          child: const Text('Cancelar'),
+        ),
+        FilledButton(
+          onPressed: () => Navigator.pop(ctx, true),
+          child: const Text('Confirmar'),
+        ),
+      ],
+    ),
+  );
+  return ok ?? false;
+}

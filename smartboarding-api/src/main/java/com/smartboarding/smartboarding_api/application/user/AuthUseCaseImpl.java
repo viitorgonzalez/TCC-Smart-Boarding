@@ -3,6 +3,7 @@ package com.smartboarding.smartboarding_api.application.user;
 import com.smartboarding.smartboarding_api.domain.user.entity.Role;
 import com.smartboarding.smartboarding_api.domain.user.entity.User;
 import com.smartboarding.smartboarding_api.domain.user.port.in.LoginUseCase;
+import com.smartboarding.smartboarding_api.domain.user.port.in.IssueTokenUseCase;
 import com.smartboarding.smartboarding_api.domain.user.port.in.RegisterUseCase;
 import com.smartboarding.smartboarding_api.domain.user.port.out.UserRepositoryPort;
 import com.smartboarding.smartboarding_api.shared.exception.BadRequestException;
@@ -23,7 +24,8 @@ import java.util.stream.Collectors;
 
 @Slf4j
 @Service
-public class AuthUseCaseImpl implements LoginUseCase, RegisterUseCase, UserDetailsService {
+public class AuthUseCaseImpl implements LoginUseCase, RegisterUseCase, IssueTokenUseCase,
+        UserDetailsService {
 
     private static final long EXPIRY_SECONDS = 3600L;
     private static final String ISSUER = "smartboarding-api";
@@ -49,9 +51,16 @@ public class AuthUseCaseImpl implements LoginUseCase, RegisterUseCase, UserDetai
             throw new UnauthorizedException("Credenciais inválidas");
         }
 
+        // Mensagem diferente de credencial errada de propósito: quem foi
+        // desativado precisa saber que o problema não é a senha, senão fica
+        // tentando redefinir uma senha que já está certa.
+        if (!user.isActive()) {
+            throw new UnauthorizedException("Conta desativada. Procure o administrador.");
+        }
+
         String token = generateToken(user);
         log.info("Login realizado: {}", maskEmail(email));
-        return new AuthToken(token, user.getFullName(), user.getRole().name());
+        return new AuthToken(token, user.getFullName(), user.getRole().name(), user.getEmail());
     }
 
     @Override
@@ -81,6 +90,15 @@ public class AuthUseCaseImpl implements LoginUseCase, RegisterUseCase, UserDetai
     public UserDetails loadUserByUsername(String email) throws UsernameNotFoundException {
         return userRepository.findByEmail(email)
                 .orElseThrow(() -> new UsernameNotFoundException("Usuário não encontrado: " + email));
+    }
+
+    /// Reaproveita a mesma emissao do login por senha: o caminho de entrada nao
+    /// muda o que a sessao e, e duplicar a geracao criaria dois formatos de
+    /// token pra manter em sincronia.
+    @Override
+    public AuthToken issueFor(User user) {
+        return new AuthToken(generateToken(user), user.getFullName(), user.getRole().name(),
+                user.getEmail());
     }
 
     private String generateToken(User user) {

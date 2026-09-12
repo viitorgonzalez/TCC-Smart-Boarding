@@ -136,4 +136,73 @@ class InstitutionUseCaseImplTest {
 
         verify(repository).deleteById(id);
     }
+
+    private Institution armazenada() {
+        var institution = Institution.builder().id(java.util.UUID.randomUUID())
+                .name("Unifor").address("Av. Washington Soares, 1321")
+                .latitude(-3.76).longitude(-38.48).build();
+        when(repository.findById(institution.getId())).thenReturn(java.util.Optional.of(institution));
+        when(repository.save(institution)).thenReturn(institution);
+        return institution;
+    }
+
+    @Test
+    void editarTrocaNomeEnderecoECoordenadas() {
+        var useCase = new InstitutionUseCaseImpl(repository, routeRepository, userRepository);
+        var institution = armazenada();
+
+        var result = useCase.update(institution.getId(), "  UECE  ",
+                "  Av. Silas Munguba, 1700  ", -3.79, -38.55);
+
+        assertThat(result.getName()).isEqualTo("UECE");
+        assertThat(result.getAddress()).isEqualTo("Av. Silas Munguba, 1700");
+        assertThat(result.getLatitude()).isEqualTo(-3.79);
+        assertThat(result.getLongitude()).isEqualTo(-38.55);
+    }
+
+    /// Campo nulo preserva o atual: PATCH parcial não pode zerar o que não veio
+    /// no corpo do request.
+    @Test
+    void editarComCamposNulosPreservaOAtual() {
+        var useCase = new InstitutionUseCaseImpl(repository, routeRepository, userRepository);
+        var institution = armazenada();
+
+        var result = useCase.update(institution.getId(), null, null, null, null);
+
+        assertThat(result.getName()).isEqualTo("Unifor");
+        assertThat(result.getAddress()).isEqualTo("Av. Washington Soares, 1321");
+        assertThat(result.getLatitude()).isEqualTo(-3.76);
+    }
+
+    @Test
+    void nomeEmBrancoNaoApagaONomeAtual() {
+        var useCase = new InstitutionUseCaseImpl(repository, routeRepository, userRepository);
+        var institution = armazenada();
+
+        var result = useCase.update(institution.getId(), "   ", null, null, null);
+
+        assertThat(result.getName()).isEqualTo("Unifor");
+    }
+
+    /// Endereço em branco é intenção de limpar — vira null, não string vazia.
+    @Test
+    void enderecoEmBrancoLimpaOCampo() {
+        var useCase = new InstitutionUseCaseImpl(repository, routeRepository, userRepository);
+        var institution = armazenada();
+
+        var result = useCase.update(institution.getId(), null, "   ", null, null);
+
+        assertThat(result.getAddress()).isNull();
+    }
+
+    @Test
+    void editarInstituicaoInexistenteEstoura() {
+        var useCase = new InstitutionUseCaseImpl(repository, routeRepository, userRepository);
+        var id = java.util.UUID.randomUUID();
+        when(repository.findById(id)).thenReturn(java.util.Optional.empty());
+
+        org.assertj.core.api.Assertions.assertThatThrownBy(
+                        () -> useCase.update(id, "X", null, null, null))
+                .isInstanceOf(com.smartboarding.smartboarding_api.shared.exception.NotFoundException.class);
+    }
 }

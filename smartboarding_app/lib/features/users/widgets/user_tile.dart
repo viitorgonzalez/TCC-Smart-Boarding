@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import '../../../core/widgets/student_sheet.dart';
 import '../models/user_model.dart';
 import 'role_meta.dart';
 
@@ -13,6 +14,9 @@ class UserTile extends StatelessWidget {
     return Card(
       margin: const EdgeInsets.only(bottom: 8),
       child: ListTile(
+        // Abrir a ficha e a unica forma de ver instituicao e contato: a linha da
+        // lista so cabe nome e e-mail.
+        onTap: () => showStudentProfile(context, user.id),
         leading: CircleAvatar(
           backgroundColor: cs.surfaceContainerHighest,
           child: Icon(meta.icon, color: cs.onSurfaceVariant, size: 20),

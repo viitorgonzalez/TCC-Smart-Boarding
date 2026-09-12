@@ -37,6 +37,26 @@
 
 <!-- Screenshot/GIF pra mudança de tela; saída de teste ou log pra backend. Remova se não se aplica. -->
 
+## Cobertura
+
+<!-- Delta contra a base do PR. Sem baseline ainda? Deixe em branco e note isso — essa PR vira a baseline. -->
+
+| Tipo | Antes | Depois | Delta |
+|---|---|---|---|
+| Unit (API) | | | |
+| Unit (app) | | | |
+| Integration | | | |
+| E2E | | | |
+
+<details>
+<summary>Linhas alteradas por arquivo (<code>git diff --stat main...HEAD</code>)</summary>
+
+```
+<!-- cole a saída aqui -->
+```
+
+</details>
+
 ## Checklist
 
 - [ ] `./mvnw verify` verde (se mexeu na API)
@@ -46,6 +66,8 @@
 - [ ] Migration nova em vez de editar `V*.sql` já aplicada
 - [ ] Spec (`smartboarding_app/docs/spec.md`) atualizada quando a regra de negócio mudou
 - [ ] Base do PR é `main`
+- [ ] Passei pelo [`REVIEW-CHECKLIST.md`](../../docs/REVIEW-CHECKLIST.md) do harness (race condition, IDOR, transação, N+1, resource leak...)
+- [ ] Nenhum arquivo tocado passa de 300 linhas (ou está no `.aiignore`/justificado acima)
 
 ## Issues relacionadas
 

@@ -1,7 +1,7 @@
 # Spec — Usuários
 
 > Tela: `UserManagementScreen` (só listagem) · Acesso: 🧑‍💼 · Provider: `UserProvider`
-> Base: [`../PAGES.md`](../PAGES.md), [`../spec.md`](../spec.md) §2.
+> Base: [`../PAGES.md`](../../PAGES.md), [`../spec.md`](../../spec.md) §2.
 
 ## Objetivo
 

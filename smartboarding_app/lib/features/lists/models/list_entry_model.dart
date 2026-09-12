@@ -2,7 +2,10 @@ class ListEntry {
   final String id;
   final String userId;
   final String fullName;
-  final String email;
+
+  /// Nulo quando quem pediu a lista nao e admin: o aluno ve quem embarca junto,
+  /// mas nao o contato de ninguem.
+  final String? email;
   final String? tripType;
   final String createdAt;
   final String? institutionName;
@@ -11,7 +14,7 @@ class ListEntry {
     required this.id,
     required this.userId,
     required this.fullName,
-    required this.email,
+    this.email,
     this.tripType,
     required this.createdAt,
     this.institutionName,
@@ -22,7 +25,7 @@ class ListEntry {
       id: json['id'] as String,
       userId: json['userId'] as String,
       fullName: json['fullName'] as String,
-      email: json['email'] as String,
+      email: json['email'] as String?,
       tripType: json['tripType'] as String?,
       createdAt: json['createdAt'] as String,
       institutionName: json['institutionName'] as String?,

@@ -1,7 +1,7 @@
 # Spec — Relatórios
 
 > Telas: `ReportsListScreen`, `ReportDetailScreen` · Acesso: 🎓 (7 dias) / 🧑‍💼 (completo)
-> Provider: `ReportProvider` · Base: [`../PAGES.md`](../PAGES.md), [`../spec.md`](../spec.md) §3.5.
+> Provider: `ReportProvider` · Base: [`../PAGES.md`](../../PAGES.md), [`../spec.md`](../../spec.md) §3.5.
 
 ## Objetivo
 

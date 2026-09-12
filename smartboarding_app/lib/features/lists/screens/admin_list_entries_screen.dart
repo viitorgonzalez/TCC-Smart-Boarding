@@ -9,6 +9,7 @@ import '../../../core/widgets/empty_state.dart';
 import '../../../core/widgets/initials_avatar.dart';
 import '../../../core/theme/app_theme.dart';
 import '../../../core/widgets/snackbar_utils.dart';
+import '../../../core/widgets/student_sheet.dart';
 import '../../../core/widgets/trip_type_chip.dart';
 import '../../users/models/user_model.dart';
 import '../../users/services/user_service.dart';
@@ -130,12 +131,14 @@ class _EntriesView extends StatelessWidget {
                               ? entries[i].fullName[0].toUpperCase()
                               : '?',
                         ),
+                        onTap: () =>
+                            showStudentProfile(context, entries[i].userId),
                         title: Text(entries[i].fullName),
                         isThreeLine: true,
                         subtitle: Column(
                           crossAxisAlignment: CrossAxisAlignment.start,
                           children: [
-                            Text(entries[i].email),
+                            Text(entries[i].email ?? '—'),
                             Text(
                               'Entrou às ${formatTime(entries[i].createdAt)}',
                             ),
@@ -185,7 +188,10 @@ Future<void> _addStudent(
     backgroundColor: AppColors.surface,
     builder: (_) => EnrollSheet(student: students),
   );
-  if (decision == null) return;
+  if (decision == null || !context.mounted) return;
+
+  if (!await confirmEnroll(context, students, decision)) return;
+  if (!context.mounted) return;
 
   try {
     await ListService().addEntryAsAdmin(

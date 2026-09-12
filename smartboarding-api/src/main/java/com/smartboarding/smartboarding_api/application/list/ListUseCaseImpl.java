@@ -1,7 +1,7 @@
 package com.smartboarding.smartboarding_api.application.list;
 
-import com.smartboarding.smartboarding_api.domain.institution.port.out.InstitutionRepositoryPort;
-import com.smartboarding.smartboarding_api.domain.institution.entity.Institution;
+import com.smartboarding.smartboarding_api.domain.membership.entity.RouteMember;
+import com.smartboarding.smartboarding_api.domain.membership.port.out.RouteMemberRepositoryPort;
 import com.smartboarding.smartboarding_api.domain.list.entity.DailyList;
 import com.smartboarding.smartboarding_api.domain.list.entity.ListEntry;
 import com.smartboarding.smartboarding_api.domain.list.entity.ListStatus;
@@ -26,7 +26,9 @@ import java.time.LocalDate;
 import java.time.LocalTime;
 import java.util.List;
 import java.util.Optional;
+import java.util.Set;
 import java.util.UUID;
+import java.util.stream.Collectors;
 
 @Slf4j
 @Service
@@ -36,20 +38,20 @@ public class ListUseCaseImpl implements FindListUseCase, AddEntryUseCase, Remove
     private final ListEntryRepositoryPort listEntryRepository;
     private final UserRepositoryPort userRepository;
     private final SendToUserUseCase sendToUserUseCase;
-    private final InstitutionRepositoryPort institutionRepository;
+    private final RouteMemberRepositoryPort routeMemberRepository;
     private final Clock clock;
 
     public ListUseCaseImpl(DailyListRepositoryPort dailyListRepository,
                            ListEntryRepositoryPort listEntryRepository,
                            UserRepositoryPort userRepository,
                            SendToUserUseCase sendToUserUseCase,
-                           InstitutionRepositoryPort institutionRepository,
+                           RouteMemberRepositoryPort routeMemberRepository,
                            Clock clock) {
         this.dailyListRepository = dailyListRepository;
         this.listEntryRepository = listEntryRepository;
         this.userRepository = userRepository;
         this.sendToUserUseCase = sendToUserUseCase;
-        this.institutionRepository = institutionRepository;
+        this.routeMemberRepository = routeMemberRepository;
         this.clock = clock;
     }
 
@@ -59,10 +61,9 @@ public class ListUseCaseImpl implements FindListUseCase, AddEntryUseCase, Remove
         if (user.getRole() != Role.STUDENT) {
             return;
         }
-        UUID routeId = routeOf(user);
-        if (routeId == null || !routeId.equals(list.getRoute().getId())) {
+        if (!routesOf(user.getId()).contains(list.getRoute().getId())) {
             throw new BadRequestException("ROUTE_NOT_ALLOWED",
-                    "Esta lista não é da rota da sua instituição.");
+                    "Você não faz parte da rota dessa lista.");
         }
     }
 
@@ -95,14 +96,14 @@ public class ListUseCaseImpl implements FindListUseCase, AddEntryUseCase, Remove
             return today;
         }
 
-        UUID routeId = routeOf(requester);
-        if (routeId == null) {
-            // Sem instituição ou sem rota vinculada não há o que mostrar; devolver
-            // tudo deixaria o aluno entrar em transporte que não é o dele.
+        Set<UUID> routes = routesOf(requesterId);
+        if (routes.isEmpty()) {
+            // Conta nova sem código usado ainda. Devolver tudo deixaria o aluno
+            // entrar em transporte que não é o dele.
             return List.of();
         }
         return today.stream()
-                .filter(list -> routeId.equals(list.getRoute().getId()))
+                .filter(list -> routes.contains(list.getRoute().getId()))
                 .toList();
     }
 
@@ -113,14 +114,13 @@ public class ListUseCaseImpl implements FindListUseCase, AddEntryUseCase, Remove
                 userId, LocalDate.now(clock).minusMonths(months));
     }
 
-    /// Rota do aluno = rota da instituição escolhida no cadastro (RN15).
-    private UUID routeOf(User student) {
-        if (student.getInstitutionId() == null) {
-            return null;
-        }
-        return institutionRepository.findById(student.getInstitutionId())
-                .map(Institution::getRouteId)
-                .orElse(null);
+    /// As rotas do aluno vêm do vínculo criado ao usar o código da rota. Até a
+    /// V22 isso era derivado da instituição (RN15); agora a instituição é só
+    /// informação, e o aluno pode estar em mais de uma rota.
+    private Set<UUID> routesOf(UUID userId) {
+        return routeMemberRepository.findAllByUserId(userId).stream()
+                .map(RouteMember::getRouteId)
+                .collect(Collectors.toSet());
     }
 
     @Override

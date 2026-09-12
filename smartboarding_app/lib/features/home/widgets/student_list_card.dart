@@ -31,13 +31,8 @@ class StudentListCard extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final list = item.list;
-    // A lista só vira CLOSED na próxima varredura (até 5 min depois do horário).
-    // Sem olhar o relógio, o botão de entrar fica vivo nessa janela e o toque
-    // morre em 400 LIST_CLOSED. Horário desconhecido não é horário vencido.
     final hasCloseTime = parseTimeOfDay(list.closeTime) != null;
-    final acceptingChanges =
-        list.isOpen &&
-        (!hasCloseTime || timeUntilListClose(list.closeTime) != null);
+    final acceptingChanges = list.acceptsChanges;
 
     return AppCard(
       child: Column(

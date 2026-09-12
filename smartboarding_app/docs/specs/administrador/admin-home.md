@@ -1,7 +1,7 @@
 # Spec — Painel do Admin
 
 > Tela: `AdminHomeScreen` · Acesso: 🧑‍💼
-> Base: [`../PAGES.md`](../PAGES.md), [`../spec.md`](../spec.md) §2.
+> Base: [`../PAGES.md`](../../PAGES.md), [`../spec.md`](../../spec.md) §2.
 
 ## Objetivo
 
@@ -9,7 +9,9 @@ Dashboard com atalhos pras áreas de gestão do admin.
 
 ## Dados & contrato
 
-- Contagem de pendências: `GET /api/registration/pending` (tamanho da lista, pro badge).
+- Números do topo: `GET /api/admin/stats` → `{activeStudents, routesInUse, occupancyPercent}`.
+- Pedidos de alteração de perfil aguardando revisão: `GET /api/profile-requests`
+  (tamanho da lista, pro badge).
 
 ## Layout / seções
 

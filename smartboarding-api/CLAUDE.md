@@ -38,10 +38,12 @@ cp .env.example .env
 
 # 4. Rodar testes
 ./mvnw test      # unit — rápido, sem Docker
-./mvnw verify     # unit + integration — sobe Postgres via Testcontainers, precisa de Docker
+./mvnw verify     # unit + integration + GATE de cobertura — sobe Postgres via Testcontainers, precisa de Docker
 
 # 5. Cobertura (unit)
 ./mvnw test && open target/site/jacoco/index.html   # (ou xdg-open no Linux)
+# O `verify` REPROVA abaixo de 90% em application.* e 70% no resto.
+# Entidade, DTO e config ficam fora do gate (record/Lombok sem ramo).
 ```
 
 A API sobe em `http://localhost:8080`. Flyway aplica as migrations automaticamente.
@@ -57,7 +59,8 @@ flutter pub get
 # Rodar no emulador/dispositivo
 # ⚠️ a base URL vem de --dart-define; em device físico use o IP da LAN,
 #    localhost não resolve pro seu host.
-flutter run --dart-define=API_BASE_URL=http://<ip-da-lan>:8080
+flutter run --dart-define=API_BASE_URL=http://<ip-da-lan>:8080 \
+            --dart-define=GOOGLE_WEB_CLIENT_ID=<id>.apps.googleusercontent.com
 
 # Build APK
 flutter build apk --release

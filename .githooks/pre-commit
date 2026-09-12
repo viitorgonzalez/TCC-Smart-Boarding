@@ -20,7 +20,13 @@ pattern='(?i)[a-z0-9_]*(secret|password|senha|token|api[_-]?key|access[_-]?key)[
 # `final _passwordCtrl = TextEditingController();` é lido como segredo.
 call_assign='[:=]\s*[A-Za-z_][A-Za-z0-9_.<>]*\s*\('
 
-hit=$(echo "$diff" | grep -P '^\+' | grep -viP '\$\{|env\.|getenv|System\.getenv|process\.env|--dart-define' | grep -viP "$call_assign" | grep -P "$pattern" || true)
+# Atribuicao de identificador terminada em ';' e codigo, nao literal. Campo de
+# construtor cujo nome carrega "password"/"token" e recebe outro identificador
+# longo casava com o padrao sem ser segredo nenhum. Arquivo .env nao termina em
+# ';', entao segredo em literal continua sendo pego.
+ident_assign='[:=]\s*[A-Za-z_][A-Za-z0-9_.]*\s*;\s*$'
+
+hit=$(echo "$diff" | grep -P '^\+' | grep -viP '\$\{|env\.|getenv|System\.getenv|process\.env|--dart-define' | grep -viP "$call_assign" | grep -viP "$ident_assign" | grep -P "$pattern" || true)
 
 if [ -n "$hit" ]; then
   echo "pre-commit: possível segredo hardcoded no diff:" >&2

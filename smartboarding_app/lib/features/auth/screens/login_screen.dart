@@ -1,11 +1,14 @@
 import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
+import '../../../core/errors/app_exception.dart';
 import '../../../core/providers/auth_provider.dart';
+import '../../../core/constants/auth_constants.dart';
 import '../../../core/theme/app_theme.dart';
 import '../../../core/widgets/app_text_field.dart';
 import '../../../core/widgets/loading_filled_button.dart';
 import '../../../core/widgets/snackbar_utils.dart';
-import '../../registration/screens/verify_invite_code_screen.dart';
+import 'forgot_password_screen.dart';
+import 'signup_screen.dart';
 
 class LoginScreen extends StatefulWidget {
   const LoginScreen({super.key});
@@ -26,6 +29,19 @@ class _LoginScreenState extends State<LoginScreen> {
     _emailCtrl.dispose();
     _passCtrl.dispose();
     super.dispose();
+  }
+
+  Future<void> _entrarComGoogle() async {
+    setState(() => _loading = true);
+    try {
+      // false = o usuario fechou a escolha de conta. Nao e erro: mostrar
+      // mensagem vermelha por desistencia irrita sem informar nada.
+      await context.read<AuthProvider>().signInWithGoogle();
+    } catch (e) {
+      if (mounted) showErrorSnackBar(context, AppException.fromError(e));
+    } finally {
+      if (mounted) setState(() => _loading = false);
+    }
   }
 
   Future<void> _submit() async {
@@ -57,28 +73,18 @@ class _LoginScreenState extends State<LoginScreen> {
             child: Column(
               crossAxisAlignment: CrossAxisAlignment.stretch,
               children: [
+                // A logo ja carrega o wordmark: repetir "Smart Boarding" em
+                // texto logo abaixo duplicaria o nome na mesma dobra.
                 Center(
-                  child: Container(
-                    width: 120,
-                    height: 120,
-                    decoration: const BoxDecoration(
-                      color: AppColors.deepTeal,
-                      shape: BoxShape.circle,
-                    ),
-                    child: const Icon(
-                      Icons.directions_bus_rounded,
-                      size: 56,
-                      color: Colors.white,
-                    ),
+                  child: Image.asset(
+                    'assets/images/logo.png',
+                    // Limitado pela largura da tela, nao por um numero fixo:
+                    // em aparelho estreito um valor cravado estoura a margem.
+                    width: MediaQuery.sizeOf(context).width * 0.72,
+                    semanticLabel: 'Smart Boarding',
                   ),
                 ),
-                const SizedBox(height: 20),
-                Text(
-                  'Smart Boarding',
-                  textAlign: TextAlign.center,
-                  style: Theme.of(context).textTheme.displaySmall,
-                ),
-                const SizedBox(height: 10),
+                const SizedBox(height: 12),
                 Text(
                   'Bem-vindo de volta! Entre para conferir seu transporte.',
                   textAlign: TextAlign.center,
@@ -89,6 +95,7 @@ class _LoginScreenState extends State<LoginScreen> {
                 const SizedBox(height: 32),
                 AppTextField(
                   key: const Key('login_email_field'),
+                  autofocus: true,
                   label: 'Email',
                   controller: _emailCtrl,
                   icon: Icons.mail_outline,
@@ -126,16 +133,58 @@ class _LoginScreenState extends State<LoginScreen> {
                 const SizedBox(height: 8),
                 TextButton(
                   onPressed: () => Navigator.of(context).push(
-                    MaterialPageRoute(
-                      builder: (_) => const VerifyInviteCodeScreen(),
-                    ),
+                    MaterialPageRoute(builder: (_) => const SignupScreen()),
                   ),
                   child: const Text(
-                    'Tenho um convite',
+                    'Criar conta',
                     style: TextStyle(
                       color: AppColors.deepTeal,
                       fontWeight: FontWeight.w700,
                     ),
+                  ),
+                ),
+                if (googleSignInEnabled) ...[
+                  const SizedBox(height: 20),
+                  Row(
+                    children: [
+                      const Expanded(child: Divider()),
+                      Padding(
+                        padding: const EdgeInsets.symmetric(horizontal: 12),
+                        child: Text(
+                          'ou',
+                          style: TextStyle(color: AppColors.textSecondary),
+                        ),
+                      ),
+                      const Expanded(child: Divider()),
+                    ],
+                  ),
+                  const SizedBox(height: 20),
+                  SizedBox(
+                    height: 52,
+                    child: OutlinedButton.icon(
+                      key: const Key('login_google_button'),
+                      onPressed: _loading ? null : _entrarComGoogle,
+                      icon: const Icon(Icons.g_mobiledata, size: 28),
+                      label: const Text('Entrar com Google'),
+                      style: OutlinedButton.styleFrom(
+                        foregroundColor: AppColors.charcoal,
+                        side: const BorderSide(color: AppColors.stroke),
+                        backgroundColor: Colors.white,
+                      ),
+                    ),
+                  ),
+                ],
+                const SizedBox(height: 12),
+                TextButton(
+                  key: const Key('login_forgot_password'),
+                  onPressed: () => Navigator.of(context).push(
+                    MaterialPageRoute(
+                      builder: (_) => const ForgotPasswordScreen(),
+                    ),
+                  ),
+                  child: const Text(
+                    'Esqueci minha senha',
+                    style: TextStyle(color: AppColors.textSecondary),
                   ),
                 ),
               ],

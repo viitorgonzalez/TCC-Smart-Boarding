@@ -30,14 +30,17 @@ public class SecurityConfig {
                 .sessionManagement(session -> session.sessionCreationPolicy(SessionCreationPolicy.STATELESS))
                 .authorizeHttpRequests(auth -> auth
                         .requestMatchers(HttpMethod.POST, "/api/auth/login").permitAll()
+                        // RN22: quem esqueceu a senha nao esta autenticado -- por
+                        // definicao, estes dois precisam ser publicos.
+                        // Cadastro proprio: quem chega aqui ainda nao tem conta.
+                        .requestMatchers(HttpMethod.POST, "/api/auth/signup").permitAll()
+                        // Entrar com Google e caminho de entrada, como o login.
+                        .requestMatchers(HttpMethod.POST, "/api/auth/google").permitAll()
+                        .requestMatchers(HttpMethod.POST, "/api/auth/forgot-password").permitAll()
+                        .requestMatchers(HttpMethod.POST, "/api/auth/reset-password").permitAll()
                         .requestMatchers(HttpMethod.GET, "/api/routes").permitAll()
                         .requestMatchers(HttpMethod.GET, "/api/routes/{id}").permitAll()
                         .requestMatchers(HttpMethod.GET, "/api/institutions").permitAll()
-                        .requestMatchers(HttpMethod.GET, "/api/registration/invite/{token}").permitAll()
-                        .requestMatchers(HttpMethod.POST, "/api/registration/{token}/submit").permitAll()
-                        .requestMatchers(HttpMethod.POST, "/api/registration/verify-code").permitAll()
-                        .requestMatchers(HttpMethod.POST, "/api/registration/resend-code").permitAll()
-                        .requestMatchers(HttpMethod.GET, "/register/{token}").permitAll()
                         .requestMatchers(HttpMethod.POST, "/api/auth/register").hasRole("ADMIN")
                         .requestMatchers(HttpMethod.GET, "/api/users/**").hasRole("ADMIN")
                         .requestMatchers(HttpMethod.POST, "/api/routes").hasRole("ADMIN")
@@ -46,6 +49,24 @@ public class SecurityConfig {
                         // e qualquer aluno poderia criar parada.
                         .requestMatchers(HttpMethod.POST, "/api/routes/*/stops").hasRole("ADMIN")
                         .requestMatchers(HttpMethod.PATCH, "/api/routes/*/stops/**").hasRole("ADMIN")
+                        // Gerar, listar e revogar codigo e do admin. Sem estas
+                        // linhas o caminho cairia no anyRequest().authenticated()
+                        // e um aluno emitiria codigo pra propria rota.
+                        .requestMatchers("/api/routes/*/invite-codes/**").hasRole("ADMIN")
+                        .requestMatchers("/api/routes/*/invite-codes").hasRole("ADMIN")
+                        // Usar o codigo e do aluno logado, sobre as rotas DELE.
+                        // O proprio perfil e do usuario logado; a fila de
+                        // solicitacoes e do admin.
+                        .requestMatchers(HttpMethod.GET, "/api/me").authenticated()
+                        .requestMatchers(HttpMethod.POST, "/api/me/password").authenticated()
+                        .requestMatchers("/api/me/institutions/**").authenticated()
+                        .requestMatchers("/api/me/institutions").authenticated()
+                        .requestMatchers("/api/me/profile-requests/**").authenticated()
+                        .requestMatchers("/api/me/profile-requests").authenticated()
+                        .requestMatchers("/api/profile-requests/**").hasRole("ADMIN")
+                        .requestMatchers("/api/profile-requests").hasRole("ADMIN")
+                        .requestMatchers("/api/me/routes/**").authenticated()
+                        .requestMatchers("/api/me/routes").authenticated()
                         .requestMatchers(HttpMethod.GET, "/api/routes/*/vehicles").hasRole("ADMIN")
                         .requestMatchers(HttpMethod.POST, "/api/routes/*/vehicles").hasRole("ADMIN")
                         .requestMatchers(HttpMethod.DELETE, "/api/routes/*/stops/**").hasRole("ADMIN")
@@ -56,10 +77,6 @@ public class SecurityConfig {
                         .requestMatchers(HttpMethod.POST, "/api/institutions").hasRole("ADMIN")
                         .requestMatchers(HttpMethod.PATCH, "/api/institutions/**").hasRole("ADMIN")
                         .requestMatchers(HttpMethod.DELETE, "/api/institutions/**").hasRole("ADMIN")
-                        .requestMatchers(HttpMethod.POST, "/api/registration/invite").hasRole("ADMIN")
-                        .requestMatchers(HttpMethod.GET, "/api/registration/pending").hasRole("ADMIN")
-                        .requestMatchers(HttpMethod.POST, "/api/registration/{id}/approve").hasRole("ADMIN")
-                        .requestMatchers(HttpMethod.POST, "/api/registration/{id}/reject").hasRole("ADMIN")
                         // Ver quem está na lista: qualquer usuário autenticado (aluno inclusive)
                         .requestMatchers(HttpMethod.GET, "/api/lists/{id}/entries").authenticated()
                         // Gestão de listas é do admin. Padrões exatos: entrar e
@@ -71,6 +88,10 @@ public class SecurityConfig {
                         // O aluno vê só as próprias advertências (/me); o resto é do admin.
                         .requestMatchers(HttpMethod.GET, "/api/warnings/me").authenticated()
                         .requestMatchers("/api/warnings/**").hasRole("ADMIN")
+                        // RN23: conduzir trajeto e acao de admin, nao de aluno.
+                        .requestMatchers("/api/trip/**").hasRole("ADMIN")
+                        .requestMatchers(HttpMethod.GET, "/api/users/{id}/profile").hasRole("ADMIN")
+                        .requestMatchers(HttpMethod.PATCH, "/api/users/{id}/status").hasRole("ADMIN")
                         .requestMatchers(HttpMethod.GET, "/api/lists").hasRole("ADMIN")
                         .requestMatchers(HttpMethod.POST, "/api/lists").hasRole("ADMIN")
                         .requestMatchers(HttpMethod.PATCH, "/api/lists/{id}").hasRole("ADMIN")

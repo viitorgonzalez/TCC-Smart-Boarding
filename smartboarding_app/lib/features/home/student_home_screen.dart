@@ -7,6 +7,11 @@ import '../../core/widgets/app_card.dart';
 import '../../core/widgets/app_header.dart';
 import '../../core/widgets/feature_card.dart';
 import '../lists/providers/student_list_provider.dart';
+import '../membership/providers/membership_provider.dart';
+import '../membership/screens/join_route_screen.dart';
+import '../profile/screens/profile_screen.dart';
+import '../membership/widgets/no_route_card.dart';
+import '../membership/widgets/route_selector.dart';
 import '../notifications/screens/notifications_inbox_screen.dart';
 import '../reports/screens/my_attendance_screen.dart';
 import '../warnings/screens/warnings_screen.dart';
@@ -58,10 +63,32 @@ class StudentHomeScreen extends StatelessWidget {
                 ),
               ),
             ),
-            trailing: HeaderIconButton(
-              icon: Icons.logout,
-              tooltip: 'Sair',
-              onPressed: auth.logout,
+            trailing: Row(
+              mainAxisSize: MainAxisSize.min,
+              children: [
+                // Fixa, no modelo do Classroom: entrar em mais uma rota e acao
+                // normal, nao estado de excecao.
+                HeaderIconButton(
+                  key: const Key('student_home_join_route'),
+                  icon: Icons.add,
+                  tooltip: 'Entrar com código',
+                  onPressed: () => Navigator.of(context).push(
+                    MaterialPageRoute(builder: (_) => const JoinRouteScreen()),
+                  ),
+                ),
+                HeaderIconButton(
+                  icon: Icons.person_outline,
+                  tooltip: 'Meu perfil',
+                  onPressed: () => Navigator.of(context).push(
+                    MaterialPageRoute(builder: (_) => const ProfileScreen()),
+                  ),
+                ),
+                HeaderIconButton(
+                  icon: Icons.logout,
+                  tooltip: 'Sair',
+                  onPressed: auth.logout,
+                ),
+              ],
             ),
           ),
           Expanded(
@@ -70,8 +97,16 @@ class StudentHomeScreen extends StatelessWidget {
               child: ListView(
                 padding: const EdgeInsets.all(20),
                 children: [
-                  const _TodayStatus(),
-                  const SizedBox(height: 24),
+                  // Sem rota nenhuma nao ha lista, aviso nem trajeto: mostrar o
+                  // status do dia aqui seria anunciar vazio sem dizer por que.
+                  if (context.watch<MembershipProvider>().hasNoRoute) ...[
+                    const NoRouteCard(),
+                    const SizedBox(height: 24),
+                  ] else ...[
+                    const RouteSelector(),
+                    const _TodayStatus(),
+                    const SizedBox(height: 24),
+                  ],
                   const SectionTitle('O que você pode fazer'),
                   const SizedBox(height: 12),
                   GridView.count(
@@ -152,6 +187,17 @@ class _TodayStatus extends StatelessWidget {
             value.first.list.routeName,
             AppColors.positiveFg,
           ),
+          // Lista fechada e sem inscricao: nao ha o que o aluno fazer, entao
+          // "ainda nao entrou" so sugere uma acao que nao existe mais. O caso
+          // vem ANTES do generico porque o generico casa com tudo.
+          AsyncData(:final value)
+              when value.every((i) => !i.list.acceptsChanges) =>
+            (
+              Icons.lock_clock,
+              'Lista fechada',
+              value.first.list.routeName,
+              AppColors.textSecondary,
+            ),
           AsyncData(:final value) => (
             Icons.info_outline,
             'Você ainda não entrou',

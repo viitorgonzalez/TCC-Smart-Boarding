@@ -5,5 +5,6 @@ import com.smartboarding.smartboarding_api.domain.route.entity.Route;
 import java.util.UUID;
 
 public interface UpdateRouteUseCase {
-    Route execute(UUID id, Route route);
+    /// [isActive] nulo mantém o estado atual — o PATCH é parcial.
+    Route execute(UUID id, Route route, Boolean isActive);
 }

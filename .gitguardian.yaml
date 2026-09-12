@@ -1,0 +1,31 @@
+# Fixture de teste fora do scan de segredo.
+#
+# A varredura do PR #10 levantou 28 "segredos", todos senha de fixture em teste
+# ("sb@2026", "minhaSenha1") -- corpo de requisicao, nenhuma abre nada. Check com
+# 28 falsos positivos a cada push nao e lido, e aí o achado real passa junto.
+#
+# ignored_paths evita deteccao NOVA; o que ja virou incidente no dashboard
+# continua contando ate ser resolvido la. Foi por isso que a exclusao derrubou
+# de 28 pra 5, mas os 5 restantes -- todos fixture, nos mesmos caminhos --
+# precisaram ser marcados como falso positivo um a um.
+# Producao, config e .example seguem varridos, e sobre o que ficou de fora o hook
+# .githooks/pre-commit continua valendo.
+#
+# ATENCAO: isto vale pro ggshield (CLI). O check "GitGuardian Security Checks"
+# do PR e server-side e le a exclusao do dashboard, nao deste arquivo.
+version: 2
+
+secret:
+  ignored_paths:
+    - "smartboarding-api/src/test/**"
+    - "smartboarding_app/test/**"
+    - "smartboarding_app/integration_test/**"
+    # Seed de desenvolvimento: 13 hashes bcrypt das contas de demonstracao,
+    # criadas pela propria migration. Nao abrem nada fora da maquina de quem
+    # roda o compose. Arquivo unico de proposito -- migration e exatamente
+    # onde alguem poderia colar credencial de producao sem querer.
+    - "smartboarding-api/src/main/resources/db/migration/V2__seed_data.sql"
+    # Lockfile: os sha256 sao digest publico de pacote do pub.dev, nao segredo.
+    # Sem excluir, todo `flutter pub upgrade` acusa um punhado de "segredos"
+    # novos -- e o check volta a ser ruido a cada atualizacao de dependencia.
+    - "smartboarding_app/pubspec.lock"

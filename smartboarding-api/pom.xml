@@ -97,6 +97,13 @@
 			<artifactId>spring-boot-starter-webmvc-test</artifactId>
 			<scope>test</scope>
 		</dependency>
+		<!-- @WithMockUser e os pos-processadores de request. Sem isto o
+		     @WebMvcTest so consegue exercitar endpoint publico. -->
+		<dependency>
+			<groupId>org.springframework.security</groupId>
+			<artifactId>spring-security-test</artifactId>
+			<scope>test</scope>
+		</dependency>
 		<dependency>
 			<groupId>org.projectlombok</groupId>
 			<artifactId>lombok</artifactId>
@@ -199,6 +206,69 @@
 						<goals>
 							<goal>report</goal>
 						</goals>
+					</execution>
+					<!-- Dois patamares porque o risco e diferente: errar na regra de
+					     negocio corrompe dado, errar no adapter costuma quebrar alto e
+					     na hora. Entidade, DTO e config ficam fora: sao record/Lombok
+					     sem ramo, e perseguir numero ali produz teste que nao protege
+					     nada e so infla a metrica. -->
+					<execution>
+						<id>check-regra-de-negocio</id>
+						<phase>verify</phase>
+						<goals>
+							<goal>check</goal>
+						</goals>
+						<configuration>
+							<haltOnFailure>true</haltOnFailure>
+							<!-- O filtro fica aqui, na execution: includes/excludes dentro
+							     de um <rule> BUNDLE casam com o NOME do bundle, nao com as
+							     classes, e a regra passa a nao valer nada. Confirmado
+							     subindo o minimo pra 0.999 e vendo o build passar. -->
+							<includes>
+								<include>**/application/**</include>
+							</includes>
+							<rules>
+								<rule>
+									<element>BUNDLE</element>
+									<limits>
+										<limit>
+											<counter>LINE</counter>
+											<value>COVEREDRATIO</value>
+											<minimum>0.90</minimum>
+										</limit>
+									</limits>
+								</rule>
+							</rules>
+						</configuration>
+					</execution>
+					<execution>
+						<id>check-restante</id>
+						<phase>verify</phase>
+						<goals>
+							<goal>check</goal>
+						</goals>
+						<configuration>
+							<haltOnFailure>true</haltOnFailure>
+							<excludes>
+								<exclude>**/application/**</exclude>
+								<exclude>**/dto/**</exclude>
+								<exclude>**/entity/**</exclude>
+								<exclude>**/infrastructure/config/**</exclude>
+								<exclude>**/SmartboardingApiApplication.*</exclude>
+							</excludes>
+							<rules>
+								<rule>
+									<element>BUNDLE</element>
+									<limits>
+										<limit>
+											<counter>LINE</counter>
+											<value>COVEREDRATIO</value>
+											<minimum>0.70</minimum>
+										</limit>
+									</limits>
+								</rule>
+							</rules>
+						</configuration>
 					</execution>
 				</executions>
 			</plugin>

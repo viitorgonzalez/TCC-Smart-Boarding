@@ -19,8 +19,8 @@ aviso automático de saída do ônibus. Sujeito a erro e não escala.
 
 1. Lista diária com abertura/fechamento automáticos por horário (backend).
 2. Contagem de inscritos em tempo real, sem digitação manual.
-3. Cadastro do aluno por convite, sem depender do admin digitar cada conta.
-4. Rota resolvida automaticamente pela instituição do aluno, com mapa dos pontos.
+3. Autocadastro do aluno, sem depender do admin digitar cada conta.
+4. Acesso à rota por código distribuído pelo admin, com mapa dos pontos.
 5. Notificações push nos momentos certos: lista aberta, lista fechada, trajeto, mudança de regra
    de rota, e envio manual do admin.
 
@@ -35,11 +35,11 @@ aviso automático de saída do ônibus. Sujeito a erro e não escala.
 
 | Papel | Quem é | Pode fazer |
 |---|---|---|
-| `STUDENT` | Aluno que usa o transporte | Autocadastro via convite, ver a lista do dia da própria rota, entrar/sair da lista, registrar device token, ver notificações, ver relatórios dos últimos 7 dias, "lembrar de mim" no login |
-| `ADMIN` | Gestão do transporte (inclui quem dirige) | Gerar convite, aprovar/negar cadastros, gerenciar rotas/instituições/veículos/paradas, ver relatórios completos, enviar notificação (com imagem), ações de trajeto |
+| `STUDENT` | Aluno que usa o transporte | Autocadastro, entrar na rota com código, ver a lista do dia das próprias rotas, entrar/sair da lista, registrar device token, ver notificações, ver relatórios dos últimos 7 dias |
+| `ADMIN` | Gestão do transporte (inclui quem dirige) | Gerar e revogar código de rota, aprovar/negar pedidos de alteração de perfil, gerenciar rotas/instituições/veículos/paradas, ver relatórios completos, enviar notificação (com imagem), ações de trajeto |
 
-Conta de `STUDENT` nasce só pelo fluxo de convite (§3.1) — o admin não cadastra aluno
-manualmente. `ADMIN` pode criar outro `ADMIN` diretamente, sem convite.
+Conta de `STUDENT` nasce pelo autocadastro (§3.1) — o admin não cadastra aluno
+manualmente. `ADMIN` pode criar outro `ADMIN` diretamente.
 
 ---
 
@@ -47,14 +47,20 @@ manualmente. `ADMIN` pode criar outro `ADMIN` diretamente, sem convite.
 
 Espelham `smartboarding-api/docs/spec.md` §4 — aqui, só o que muda na experiência do app.
 
-### 3.1 Cadastro
+### 3.1 Cadastro e entrada na rota
 
-- Aluno recebe e-mail com um App Link/Universal Link. Com o app instalado, abre direto na tela
-  de cadastro, pré-preenchida com o e-mail do convite; sem o app, cai numa página web pedindo
-  pra instalar. O aluno escolhe a instituição (dropdown das cadastradas) e submete.
-- Cadastro fica "aguardando aprovação" até o admin decidir. Login antes da aprovação mostra
-  mensagem dedicada, não erro genérico de credencial. Se negado, o aluno pode reenviar os dados
-  pelo mesmo link, enquanto o token não expirar.
+Detalhe completo em [`specs/autenticacao/signup-e-entrada-na-rota.md`](./specs/autenticacao/signup-e-entrada-na-rota.md).
+
+- O aluno cria a conta sozinho, com nome, e-mail e senha — ou entra com Google. A conta
+  nasce **sem rota**: existir no sistema e pertencer a uma rota são etapas separadas.
+- Antes de entrar numa rota ele precisa declarar ao menos uma **instituição** no perfil.
+  Sem isso a API recusa com `PROFILE_INCOMPLETE` — a instituição é o que diz onde ele
+  desce e em que contagem entra.
+- O acesso vem de um **código de rota** que o admin gera e distribui, no modelo do
+  Classroom. O código tem validade e pode ser revogado, e o aluno pode estar em mais de
+  uma rota.
+- Quem entrou pelo Google pode criar uma senha local depois e passa a ter os dois
+  caminhos de entrada.
 
 ### 3.2 Rota e instituição
 
@@ -100,10 +106,13 @@ fechada, porque o embarque físico acontece depois do fechamento.
   administrador", não o erro genérico de credencial/permissão. `expiryDate = null` (comum em
   `ADMIN`) nunca expira.
 
-### 3.7 Sessão longa
+### 3.7 Sessão
 
-- Checkbox "Lembrar de mim" no login. Quando marcado, o app guarda um refresh token (7 dias) e
-  renova o JWT automaticamente antes de expirar, sem pedir login de novo dentro da janela.
+- O JWT vale **1 hora** e não há refresh token: expirou, entra de novo. "Lembrar de
+  mim" e renovação automática foram desenhados e **nunca implementados** — se voltarem
+  à mesa, entram como trabalho novo, não como algo a consertar.
+- Conta desativada pelo admin não entra, nem por senha nem pelo Google. O token já
+  emitido continua válido até expirar.
 
 ### 3.8 Trajeto
 
@@ -121,19 +130,31 @@ fechada, porque o embarque físico acontece depois do fechamento.
 ```
 lib/
 ├── core/
-│   ├── theme/app_theme.dart          # paleta (§4.5)
+│   ├── constants/                    # api_constants, auth_constants
+│   ├── errors/app_exception.dart
+│   ├── models/
 │   ├── providers/auth_provider.dart
 │   ├── services/
-│   │   ├── dio_client.dart           # Dio + interceptor JWT (+ refresh automático)
-│   │   ├── storage_service.dart      # JWT + refresh token + role + nome
-│   │   └── notification_service.dart # FCM + flutter_local_notifications
-│   └── widgets/                      # loading/erro/empty state compartilhados
+│   │   ├── dio_client.dart           # Dio + interceptor de JWT e de erro
+│   │   ├── storage_service.dart      # JWT + papel + nome + e-mail
+│   │   └── notification_service.dart # FCM (desligado até configurar o Firebase)
+│   ├── theme/app_theme.dart          # paleta (§4.5)
+│   ├── utils/async_value.dart        # AsyncLoading | AsyncData | AsyncError
+│   └── widgets/                      # card, header, botões, estados compartilhados
 ├── features/
-│   ├── auth/            # login, registro por convite, esqueci/redefinir senha
-│   ├── student/          # lista do dia, mapa, entrar/sair
-│   ├── notifications/    # inbox (aluno+admin) + envio (admin, FAB)
-│   └── admin/             # rotas, instituições, veículos, paradas, relatórios,
-│                          # aprovações de cadastro, trajeto
+│   ├── auth/            # login, cadastro, Google, esqueci/redefinir senha
+│   ├── membership/      # entrar na rota por código, sair, seletor de rota
+│   ├── profile/         # perfil, instituições do aluno, pedido de alteração
+│   ├── home/            # painel do aluno e painel do admin
+│   ├── lists/           # lista do dia, inscritos
+│   ├── routes/          # rotas, paradas, veículos
+│   ├── institutions/    # catálogo de instituições
+│   ├── trip/            # conduzir trajeto (ida e volta)
+│   ├── users/           # usuários, ficha do aluno, ativar/desativar
+│   ├── notifications/   # inbox (aluno+admin) + envio (admin)
+│   ├── reports/         # relatórios e histórico de presença
+│   ├── warnings/        # advertências
+│   └── admin/           # estatísticas do painel
 └── main.dart
 test/
 ├── unit/      # providers/services
@@ -162,8 +183,9 @@ docs/
 
 ### 4.4 Navegação
 
-- `Navigator` 1.0 com rotas nomeadas simples — sem `go_router`. `/register/:token` recebe a
-  entrada do App Link (§3.1).
+- `Navigator` 1.0, sem `go_router` — o app não tem deep link. Telas abrem por
+  `Navigator.push`, e o push nasce no Navigator: provider criado na tela que empurra
+  **não** chega na tela empurrada, tem que ser repassado explicitamente.
 
 ### 4.5 Design system — tokens e componentes
 
@@ -218,8 +240,7 @@ agrupada), `showConfirmDeleteDialog` (confirmação destrutiva).
 
 ### 4.6 Armazenamento local
 
-- `SharedPreferences` via `StorageService`: JWT, refresh token, role, nome completo. Nunca
-  armazenar senha.
+- `SharedPreferences` via `StorageService`: JWT, papel, nome e e-mail. Nunca armazenar senha.
 
 ### 4.7 Ambientes / Base URL
 
@@ -264,7 +285,7 @@ mensagens em foreground via `flutter_local_notifications`, trata background/term
 - **Quality gate de tamanho de arquivo** — nenhum arquivo `.dart` de produção (`lib/`) tocado num
   PR passa de 300 linhas.
 - Sem comentários no código, exceto pra explicar correção de bug muito específico.
-- Toda integração nova (Resend, R2, refresh token, Google Maps) precisa estar funcionando de
+- Toda integração nova (Resend, R2, Google Sign-In, Google Maps) precisa estar funcionando de
   verdade antes de a task ser considerada pronta — não só mockada localmente (`main` é prod).
 
 ---
@@ -275,7 +296,7 @@ mensagens em foreground via `flutter_local_notifications`, trata background/term
 |---|---|---|
 | Sem Mac disponível para build/teste iOS local | Não dá pra validar iOS localmente | CI com runner macOS antes da entrega final, ou aceitar como risco conhecido |
 | Cota gratuita do Google Maps Platform não é ilimitada | Uso real pode gerar custo se crescer | Validar consumo estimado; monitorar |
-| Resend, Cloudflare R2 e refresh token sem histórico de uso no projeto | Falha de config só aparece em produção se não testado de ponta a ponta | Validar contra os serviços reais antes de mergear (§7) |
+| Resend, Cloudflare R2 e Google Sign-In sem histórico de uso no projeto | Falha de config só aparece em produção se não testado de ponta a ponta | Validar contra os serviços reais antes de mergear (§7) |
 
 ---
 
@@ -283,8 +304,8 @@ mensagens em foreground via `flutter_local_notifications`, trata background/term
 
 - Não hardcodar senha em nenhum lugar do client.
 - Não adicionar `go_router`, BLoC ou Riverpod sem necessidade concreta que justifique a troca.
-- Não deixar o admin criar `STUDENT` manualmente — conta de aluno nasce só por convite (§3.1).
+- Não deixar o admin criar `STUDENT` manualmente — conta de aluno nasce por autocadastro (§3.1).
 - Não recriar uma tela/papel de motorista separado — trajeto é do `ADMIN` (§3.8).
 - Não bloquear a notificação de trajeto por status de lista fechada (§3.4).
 - Não passar de 300 linhas por arquivo `.dart` tocado num PR (§7).
-- Não mergear integração externa (Resend/R2/refresh token/Maps) só testada localmente/mockada.
+- Não mergear integração externa (Resend/R2/Google/Maps) só testada localmente/mockada.

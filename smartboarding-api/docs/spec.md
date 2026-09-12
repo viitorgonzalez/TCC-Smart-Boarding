@@ -19,8 +19,8 @@ automático de saída do ônibus. Sujeito a erro (duplicatas, fechamento atrasad
 
 - Persistir e servir listas diárias de embarque com abertura/fechamento automáticos por horário.
 - Contar inscritos em tempo real, sem digitação manual.
-- Resolver a rota de cada aluno automaticamente a partir da instituição vinculada.
-- Gerenciar o fluxo de cadastro por convite, com aprovação do admin.
+- Dar ao aluno as rotas de que ele participa, pelo vínculo criado com o código.
+- Gerenciar o código de rota que o admin distribui: gerar, revogar, expirar.
 - Propor o veículo adequado no fechamento da lista, a partir da capacidade cadastrada.
 - Disparar notificações push (FCM) nos momentos certos, e dar ao admin os endpoints de ação
   manual (trajeto, notificação livre).
@@ -43,7 +43,7 @@ Fonte de verdade: `SecurityConfig.java` (`infrastructure/config/`).
 | Papel | Pode | Não pode |
 |---|---|---|
 | **Público** (sem token) | Login, consultar rotas, consultar/submeter convite de cadastro, recuperação de senha | Tudo o resto |
-| **`STUDENT`** | Ver a lista do dia da própria rota (derivada da instituição), entrar/sair da própria inscrição, ver detalhe de rota (com mapa/paradas), registrar/remover o próprio device token, ver notificações (histórico), ver relatórios dos últimos 7 dias | Gerenciar rotas/instituições/veículos, aprovar cadastros, enviar notificações, ver relatórios além de 7 dias, ações de trajeto |
+| **`STUDENT`** | Criar a própria conta e entrar em rota(s) por código, ver a lista do dia das próprias rotas, entrar/sair da própria inscrição, ver detalhe de rota (com mapa/paradas), registrar/remover o próprio device token, ver notificações (histórico), ver relatórios dos últimos 7 dias | Gerenciar rotas/instituições/veículos, gerar código de rota, aprovar alteração de perfil, enviar notificações, ver relatórios além de 7 dias, ações de trajeto |
 | **`ADMIN`** | Tudo: CRUD de rotas/instituições/veículos/paradas, aprovar/negar cadastros pendentes, gerar convite, criar outro ADMIN, listar usuários, ver relatórios completos, enviar notificações (com imagem), ações de trajeto (iniciar/checkpoint/finalizar) | — |
 
 `/api/lists/{id}/entries` (entrar/sair da lista) libera qualquer papel autenticado, não só
@@ -77,7 +77,7 @@ com.smartboarding.smartboarding_api/
 ```
 
 Contextos (`<contexto>`): `user`, `route`, `institution`, `vehicle`, `stop`, `list`, `report`,
-`notification`, `registration`.
+`notification`, `membership`.
 
 ### 3.2 Persistência
 
@@ -86,7 +86,8 @@ Contextos (`<contexto>`): `user`, `route`, `institution`, `vehicle`, `stop`, `li
   sempre uma migration nova.
 - Tabelas: `users`, `routes`, `institutions`, `vehicles`, `stops`, `daily_lists`, `list_entries`
   (com `trip_type`), `reports` (com `proposed_vehicles`), `device_tokens`, `notifications`,
-  `registration_requests`, `refresh_tokens`, `password_reset_tokens`. Todas com PK `UUID`.
+  `route_invite_codes`, `route_members`, `user_institutions`, `password_reset_requests`.
+  Todas com PK `UUID`.
 
 ### 3.3 Autenticação e sessão
 
@@ -94,9 +95,9 @@ Contextos (`<contexto>`): `user`, `route`, `institution`, `vehicle`, `stop`, `li
   `smartboarding-api`. Claim `scope` carrega o papel do usuário, prefixado `ROLE_` na conversão
   pra `hasRole(...)`.
 - Senha: BCrypt.
-- Sessão longa: login com `rememberMe: true` também emite um refresh token (opaco, armazenado
-  hasheado), válido por 7 dias. `POST /api/auth/refresh` troca um refresh token válido por um
-  novo JWT de 1h. Sem `rememberMe`, nenhum refresh token é emitido.
+- **Não há refresh token.** Expirou o JWT, entra de novo. O mecanismo de sessão longa
+  (`rememberMe` + `POST /api/auth/refresh`) foi desenhado e nunca implementado — não
+  existe endpoint, tabela nem coluna.
 - Sessão stateless, CSRF desabilitado (API pura, sem cookie).
 
 ### 3.4 Envelope de resposta
@@ -126,22 +127,21 @@ Contextos (`<contexto>`): `user`, `route`, `institution`, `vehicle`, `stop`, `li
 
 ## 4. Regras de Negócio
 
-### 4.1 Cadastro — convite e aprovação
+### 4.1 Cadastro — autocadastro e código de rota
 
-- **RN13** — Aluno se cadastra por convite, não por autocadastro livre. `ADMIN` gera o convite
-  (`POST /api/registration/invite`, só e-mail) — sistema cria um pedido de cadastro com token
-  único e envia e-mail (via Resend) com um **Android App Link / iOS Universal Link**
-  (`https://<domínio>/register/{token}`, não um esquema customizado). Com o app instalado, o
-  link abre direto na tela de cadastro; sem o app, cai numa página web mínima do próprio backend
-  pedindo pra instalar o app.
-  - Token de convite válido por 7 dias, renovável pelo admin reenviando o convite.
-  - Aluno preenche os dados (incluindo a instituição, escolhida entre as cadastradas) e submete
-    — isso não cria a conta ainda, só marca o pedido como enviado, aguardando revisão.
-  - `POST /api/auth/register` existe só pra `ADMIN` criar outro `ADMIN` diretamente, sem convite
-    — não aceita `role=STUDENT` nem instituição.
-- **RN14** — `ADMIN` lista os pedidos pendentes (`GET /api/registration/pending`) e aprova (cria
-  a conta de fato) ou nega. Negar não invalida o token: enquanto ele não expirou, o aluno pode
-  reenviar os dados e gerar uma nova avaliação.
+- **RN13** — Aluno se cadastra sozinho (`POST /api/auth/signup`, só nome, e-mail e senha) e já
+  recebe a sessão. A conta nasce **sem rota**: existir no sistema e pertencer a uma rota são
+  coisas separadas.
+  - `POST /api/auth/register` existe só pra `ADMIN` criar outro `ADMIN` — não aceita
+    `role=STUDENT`.
+  - `POST /api/auth/google` entra pelo Google; quem entrou assim pode definir uma senha local
+    depois (`POST /api/me/password`) e passa a ter os dois caminhos.
+- **RN14** — O acesso à rota vem de um **código** que o `ADMIN` gera
+  (`POST /api/routes/{routeId}/invite-codes`) e distribui. O aluno entra com ele
+  (`POST /api/me/routes`), e pode pertencer a mais de uma rota.
+  - Código tem validade (`ROUTE_INVITE_VALIDITY_DAYS`, default 30 dias) e pode ser revogado.
+  - Entrar exige perfil com instituição definida — sem isso a API recusa com
+    `PROFILE_INCOMPLETE`.
 
 ### 4.2 Instituições e rotas
 
@@ -149,8 +149,9 @@ Contextos (`<contexto>`): `user`, `route`, `institution`, `vehicle`, `stop`, `li
   (`isActive=false`).
 - **RN15** — `Institution` (nome, endereço, latitude/longitude) é cadastrada pelo `ADMIN` e
   vinculada a **exatamente uma** rota ativa por vez — vincular a uma instituição já vinculada a
-  outra rota ativa retorna conflito. A rota de um aluno é sempre **derivada** da instituição
-  escolhida no cadastro — o aluno nunca escolhe rota diretamente. Desativar uma rota desvincula
+  outra rota ativa retorna conflito. A instituição diz **onde o aluno desce** e em que
+  contagem ele entra na lista; ela **não** determina mais a rota dele — isso passou a ser o
+  vínculo de `route_members` (RN14). Desativar uma rota desvincula
   automaticamente todas as instituições ligadas a ela, que ficam livres pra serem vinculadas a
   outra rota depois.
 - **RN18** — `Route.openTime` e `Route.closeTime` são editáveis pelo `ADMIN`, mas só pelo endpoint
@@ -237,7 +238,12 @@ Contextos (`<contexto>`): `user`, `route`, `institution`, `vehicle`, `stop`, `li
 ### 4.7 Trajeto
 
 - **RN23** — Ações de trajeto (iniciar, checkpoint num ponto principal, finalizar) são
-  exclusivas do `ADMIN` — não existe um papel de motorista separado. Checkpoint só é aceito em
+  exclusivas do `ADMIN` — não existe um papel de motorista separado. Um trajeto por lista do dia:
+  o estado mora em `daily_lists.trip_started_at`/`trip_finished_at` e cada chegada vira uma linha
+  em `trip_checkpoints`, com `UNIQUE (lista, parada)` — o checkpoint é **idempotente**, tocar duas
+  vezes não gera segunda chegada nem segundo aviso. Ponto principal é `stops.is_main_point`. Cada
+  ação **persiste** o aviso além de disparar o push: push não deixa registro, e sem isso o aluno
+  não veria nada. Checkpoint só é aceito em
   pontos marcados como principais (rodoviária + instituições da rota) — paradas comuns não geram
   checkpoint, só aparecem no mapa. Cada ação de trajeto dispara notificação FCM aos inscritos
   ativos da lista do dia, independente do `status` da lista (funciona mesmo com a lista já
@@ -246,11 +252,15 @@ Contextos (`<contexto>`): `user`, `route`, `institution`, `vehicle`, `stop`, `li
 ### 4.8 Sessão e segurança
 
 - **RN10** — E-mail de usuário é único. Senha mínima de 6 caracteres.
-- **RN21** — Sessão longa: ver mecanismo em §3.3. Refresh token só é emitido quando o login pede
-  `rememberMe: true`.
-- **RN22** — Recuperação de senha: `POST /api/auth/forgot-password` sempre responde
-  `{success:true}`, mesmo se o e-mail não existir (não revela quais e-mails são cadastrados).
-  `POST /api/auth/reset-password` troca a senha e invalida o token usado.
+- **RN21** — Sessão longa: **não implementada**. Fica registrada como decisão adiada, não
+  como comportamento existente (§3.3).
+- **RN22** — Recuperação de senha por **código de 6 dígitos** enviado por e-mail (não link: App
+  Link exige domínio publicado e verificado, pendência de deploy — mesmo motivo do convite).
+  `POST /api/auth/forgot-password` sempre responde `{success:true}`, mesmo se o e-mail não existir
+  (não revela quais e-mails são cadastrados). `POST /api/auth/reset-password {email, code,
+  newPassword}` troca a senha e queima o código. O código é hasheado no banco, vale por
+  `app.password-reset.code-ttl-minutes`, é de uso único, tem limite de tentativas e emitir um novo
+  invalida os anteriores.
 
 ---
 
@@ -259,9 +269,15 @@ Contextos (`<contexto>`): `user`, `route`, `institution`, `vehicle`, `stop`, `li
 | Entidade | Contexto | Campos principais |
 |---|---|---|
 | `User` | `user` | `id`, `email`, `password` (hash), `role` (`ADMIN`\|`STUDENT`), `fullName`, `course?`, `institution?`, `phone?`, `address?`, `birthDate?`, `expiryDate?` |
-| `RefreshToken` | `user` | `id`, `userId`, `tokenHash`, `expiresAt` |
-| `PasswordResetToken` | `user` | `id`, `userId`, `tokenHash`, `expiresAt` |
-| `RegistrationRequest` | `registration` | `id`, `email`, `token`, `status` (`PENDING`\|`SUBMITTED`\|`APPROVED`\|`REJECTED`), `expiresAt`, dados submetidos (mesmos campos opcionais de `User` + `institutionId`) |
+| `PasswordResetRequest` | `passwordreset` | `id`, `userId`, `codeHash`, `expiresAt`, `attempts`, `usedAt?` |
+| `ProfileUpdateRequest` | `profile` | `id`, `userId`, campos pedidos (`fullName?`, `phone?`, `address?`, `course?`, `institutionId?`, `birthDate?`), `status`, `rejectionReason?`, `reviewedBy?`, `reviewedAt?` |
+| `ScheduledNotification` | `notification` | `id`, `routeId`, `title`, `body`, `frequency`, `sendAt`, `dayOfWeek?`, `durationHours?`, `lastSentAt?` |
+| `TripCheckpoint` | `trip` | `id`, `dailyListId`, `stopId`, `leg`, `reachedAt` — único por (lista, parada, perna) |
+| `UserStatusLog` | `user` | `id`, `userId`, `adminId`, `action`, `createdAt` — trilha de quem ativou/desativou |
+| `Warning` | `warning` | `id`, `user`, `dailyList`, `reason`, `issuedBy`, `createdAt` |
+| `RouteInviteCode` | `membership` | `id`, `routeId`, `code`, `expiresAt`, `revokedAt?`, `createdBy` |
+| `RouteMember` | `membership` | `id`, `userId`, `routeId`, `joinedAt` — único por par |
+| `UserInstitution` | `membership` | `id`, `userId`, `institutionId` — único por par |
 | `Route` | `route` | `id`, `name`, `description?`, `isActive`, `closeTime` |
 | `Institution` | `institution` | `id`, `name`, `address`, `latitude`, `longitude`, `routeId?` |
 | `Vehicle` | `vehicle` | `id`, `routeId`, `type`, `capacity` |
@@ -281,17 +297,19 @@ Contextos (`<contexto>`): `user`, `route`, `institution`, `vehicle`, `stop`, `li
 
 | Método | Path | Acesso | Request | Response | Erros |
 |---|---|---|---|---|---|
-| POST | `/api/auth/login` | Público | `{email, password, rememberMe?}` | `{token, fullName, role, refreshToken?}` | `401` credenciais inválidas, `401 ACCOUNT_EXPIRED` |
-| POST | `/api/auth/refresh` | Público (com refresh token) | `{refreshToken}` | `{token}` | `401` token inválido/expirado |
+| POST | `/api/auth/login` | Público | `{email, password}` | `{token, fullName, role, email}` | `401` credenciais inválidas, `401` conta desativada |
 | POST | `/api/auth/register` | ADMIN | `{email, password≥6, fullName}` | `UserResponse` (role sempre ADMIN) | `409 EMAIL_ALREADY_EXISTS`, `400 VALIDATION_ERROR` |
 | POST | `/api/auth/forgot-password` | Público | `{email}` | `{success:true}` (sempre) | — |
-| POST | `/api/auth/reset-password` | Público | `{token, newPassword}` | `{success:true}` | `400` token inválido/expirado |
-| POST | `/api/registration/invite` | ADMIN | `{email}` | `{id, token, expiresAt}` | — |
-| GET | `/api/registration/invite/{token}` | Público | — | dados do convite | `404` |
-| POST | `/api/registration/{token}/submit` | Público | `{fullName, password, institutionId, course?, phone?, address?, birthDate?}` | `{status: "SUBMITTED"}` | `400`, `404` |
-| GET | `/api/registration/pending` | ADMIN | — | `RegistrationRequest[]` | — |
-| POST | `/api/registration/{id}/approve` | ADMIN | — | `UserResponse` | `404` |
-| POST | `/api/registration/{id}/reject` | ADMIN | — | `{success:true}` | `404` |
+| POST | `/api/auth/reset-password` | Público | `{email, code, newPassword}` | `{success:true}` | `400` `INVALID_CODE` / `CODE_EXPIRED` / `TOO_MANY_ATTEMPTS` |
+| POST | `/api/auth/signup` | Público | `{fullName, email, password}` | `{token, fullName, role, email}` | `400`, `409` |
+| POST | `/api/auth/google` | Público | `{idToken}` | `{token, fullName, role, email}` | `401` |
+| POST | `/api/routes/{routeId}/invite-codes` | ADMIN | `{expiresAt?}` | `{id, code, expiresAt}` | `404` |
+| DELETE | `/api/routes/{routeId}/invite-codes/{codeId}` | ADMIN | — | `{success:true}` | `404` |
+| GET | `/api/me/routes` | Autenticado | — | `RouteResponse[]` | — |
+| POST | `/api/me/routes` | Autenticado | `{code}` | `RouteResponse` | `400` (`PROFILE_INCOMPLETE`), `404`, `410` |
+| DELETE | `/api/me/routes/{routeId}` | Autenticado | — | `{success:true}` | `404` |
+| GET | `/api/me` | Autenticado | — | `{id, fullName, email, role, hasPassword, hasGoogle}` | — |
+| POST | `/api/me/password` | Autenticado | `{password}` | `{success:true}` | `400`, `409` |
 | GET | `/api/users` / `/api/users/{id}` | ADMIN | — | `UserResponse[]` / `UserResponse` | `404` |
 | POST | `/api/routes` | ADMIN | `{name, description?}` | `RouteResponse` | `409` nome duplicado |
 | GET | `/api/routes` | Público | — | `RouteResponse[]` (só ativas) | — |
@@ -407,10 +425,12 @@ comportamento.
 
 ### Implementado
 
-- **RN15 — rota derivada da instituição.** `institutions.route_id` e `users.institution_id`
-  (a coluna de texto `users.institution` foi substituída pela referência). Uma rota atende
-  **várias** instituições: em Formiga, IFMG e UNIFOR-MG dividem o mesmo transporte e a mesma
-  lista. `GET /api/lists/today` filtra pela rota derivada quando o solicitante é `STUDENT`, e
+- **RN15 — instituição como destino, não como rota.** `institutions.route_id` diz quais
+  instituições uma rota atende; `user_institutions` diz as do aluno (pode ter várias), e
+  `users.institution_id` guarda a principal, derivada dali por um único escritor. Uma rota
+  atende **várias** instituições: em Formiga, IFMG e UNIFOR-MG dividem o mesmo transporte e a
+  mesma lista, com o ônibus passando numa e depois na outra (RN23). A rota do aluno vem de
+  `route_members`, não da instituição. `GET /api/lists/today` filtra pelas rotas do aluno, e
   `POST /entries` recusa lista de outra rota (`400 ROUTE_NOT_ALLOWED`) — filtrar só na listagem
   deixaria a API aceitando um POST direto.
 - **RN16 — veículo proposto.** Algoritmo guloso em `VehicleAllocator`, aplicado no fechamento e

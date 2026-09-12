@@ -5,11 +5,14 @@ import com.smartboarding.smartboarding_api.shared.exception.ConflictException;
 import com.smartboarding.smartboarding_api.shared.exception.NotFoundException;
 import com.smartboarding.smartboarding_api.shared.exception.UnauthorizedException;
 import lombok.extern.slf4j.Slf4j;
+import org.springframework.dao.DataIntegrityViolationException;
 import org.springframework.http.ResponseEntity;
 import org.springframework.web.bind.MethodArgumentNotValidException;
 import org.springframework.web.bind.annotation.ControllerAdvice;
 import org.springframework.web.bind.annotation.ExceptionHandler;
 import org.springframework.web.HttpRequestMethodNotSupportedException;
+import org.springframework.web.bind.MissingServletRequestParameterException;
+import org.springframework.web.method.annotation.MethodArgumentTypeMismatchException;
 
 import java.util.Map;
 
@@ -55,6 +58,37 @@ public class GlobalExceptionHandler {
         return ResponseEntity.status(405).body(Map.of(
                 "code", "METHOD_NOT_ALLOWED",
                 "error", "Método " + ex.getMethod() + " não é suportado nesse endpoint."));
+    }
+
+    // Mesma razao do handler acima: pedido malformado do cliente caia onde cair
+    // no handler generico vira 500, e o app passa a exibir "erro no servidor"
+    // pra um request que o proprio cliente montou errado.
+    @ExceptionHandler(MissingServletRequestParameterException.class)
+    public ResponseEntity<Map<String, String>> handleMissingParam(
+            MissingServletRequestParameterException ex) {
+        return ResponseEntity.status(400).body(Map.of(
+                "code", "VALIDATION_ERROR",
+                "error", "Parâmetro obrigatório ausente: " + ex.getParameterName()));
+    }
+
+    @ExceptionHandler(MethodArgumentTypeMismatchException.class)
+    public ResponseEntity<Map<String, String>> handleTypeMismatch(
+            MethodArgumentTypeMismatchException ex) {
+        return ResponseEntity.status(400).body(Map.of(
+                "code", "VALIDATION_ERROR",
+                "error", "Valor inválido para o parâmetro: " + ex.getName()));
+    }
+
+    /// Toda escrita duplicada cai aqui. Os use cases checam antes de gravar pra
+    /// dar mensagem boa, mas entre a checagem e o insert cabe outra requisição --
+    /// duplo toque no botão basta. Quem realmente garante é a constraint UNIQUE;
+    /// sem este handler ela virava 500 num caso que é 409.
+    @ExceptionHandler(DataIntegrityViolationException.class)
+    public ResponseEntity<Map<String, String>> handleDuplicate(DataIntegrityViolationException ex) {
+        log.warn("Violação de integridade: {}", ex.getMostSpecificCause().getMessage());
+        return ResponseEntity.status(409).body(Map.of(
+                "code", "ALREADY_EXISTS",
+                "error", "Esse registro já existe."));
     }
 
     @ExceptionHandler(Exception.class)
