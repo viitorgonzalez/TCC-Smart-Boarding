@@ -14,13 +14,11 @@ import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.boot.webmvc.test.autoconfigure.WebMvcTest;
-import org.springframework.http.HttpHeaders;
 import org.springframework.http.MediaType;
 import org.springframework.test.context.bean.override.mockito.MockitoBean;
 import org.springframework.security.oauth2.jwt.Jwt;
 import org.springframework.test.web.servlet.MockMvc;
 
-import java.time.Instant;
 import java.util.List;
 import java.util.Optional;
 import java.util.UUID;
@@ -342,33 +340,19 @@ class UserControllerTest extends WebMvcTestSupport {
     // pelo converter do SecurityConfig (os post-processors põem authority
     // direto no contexto e nunca o exercitam).
 
-    private static final String BEARER_ANTIGO = "carimbado-antes-do-rebaixamento";
-
-    private static Jwt tokenDizendoAdmin(String email) {
-        Instant agora = Instant.now();
-        return Jwt.withTokenValue(BEARER_ANTIGO)
-                .header("alg", "HS256")
-                .subject(email)
-                .claim("scope", "ADMIN")
-                .issuedAt(agora)
-                .expiresAt(agora.plusSeconds(3600))
-                .build();
-    }
-
-    private org.springframework.test.web.servlet.request.MockHttpServletRequestBuilder comTokenAntigo(
-            org.springframework.test.web.servlet.request.MockHttpServletRequestBuilder request) {
-        return request.header(HttpHeaders.AUTHORIZATION, "Bearer " + BEARER_ANTIGO);
+    private static Jwt tokenComScopeAdmin(String email) {
+        return tokenComScope(email, "ADMIN");
     }
 
     @Test
     void rebaixadoNoBancoNaoSePromoveDeVoltaComOTokenAntigo() throws Exception {
-        when(jwtDecoder.decode(BEARER_ANTIGO))
-                .thenReturn(tokenDizendoAdmin("naiara@admin.com"));
+        when(jwtDecoder.decode(BEARER_REAL))
+                .thenReturn(tokenComScopeAdmin("naiara@admin.com"));
         when(userDetailsService.loadUserByUsername("naiara@admin.com")).thenReturn(
                 User.builder().id(ADMIN_ID).email("naiara@admin.com").fullName("Naiara")
                         .role(Role.STUDENT).isActive(true).build());
 
-        mvc.perform(comTokenAntigo(patch("/api/users/{id}/role", ADMIN_ID))
+        mvc.perform(comBearerReal(patch("/api/users/{id}/role", ADMIN_ID))
                         .contentType(MediaType.APPLICATION_JSON)
                         .content("""
                                 {"role":"ADMIN"}"""))
@@ -377,30 +361,50 @@ class UserControllerTest extends WebMvcTestSupport {
         verify(manageUserStatusUseCase, never()).setRole(any(), any(), any());
     }
 
-    /// Desativar admin é recusado hoje, mas o mesmo mecanismo vale pra qualquer
-    /// conta: desativada, o token que sobrou para de abrir rota de admin.
+    /// 401, não 403: conta desativada não fica autenticada sem papel — ela para
+    /// de autenticar. A diferença não é cosmética. Autoridade vazia ainda
+    /// satisfaz `anyRequest().authenticated()`, e por isso o 403 aqui só
+    /// aparecia porque /api/users exige ADMIN; nos endpoints que pedem apenas
+    /// autenticação a mesma conta seguia passando. Recusando no converter, o
+    /// filtro do resource server encerra antes da autorização, pra qualquer rota.
     @Test
     void contaDesativadaPerdeOAcessoAntesDoTokenExpirar() throws Exception {
-        when(jwtDecoder.decode(BEARER_ANTIGO))
-                .thenReturn(tokenDizendoAdmin("naiara@admin.com"));
+        when(jwtDecoder.decode(BEARER_REAL))
+                .thenReturn(tokenComScopeAdmin("naiara@admin.com"));
         when(userDetailsService.loadUserByUsername("naiara@admin.com")).thenReturn(
                 User.builder().id(ADMIN_ID).email("naiara@admin.com").fullName("Naiara")
                         .role(Role.ADMIN).isActive(false).build());
 
-        mvc.perform(comTokenAntigo(get("/api/users"))).andExpect(status().isForbidden());
+        mvc.perform(comBearerReal(get("/api/users"))).andExpect(status().isUnauthorized());
 
         verify(findUserUseCase, never()).findAll();
     }
 
     @Test
-    void contaApagadaNaoCarregaAutoridadeNenhuma() throws Exception {
-        when(jwtDecoder.decode(BEARER_ANTIGO))
-                .thenReturn(tokenDizendoAdmin("fantasma@admin.com"));
+    void contaApagadaNaoAutenticaMais() throws Exception {
+        when(jwtDecoder.decode(BEARER_REAL))
+                .thenReturn(tokenComScopeAdmin("fantasma@admin.com"));
         when(userDetailsService.loadUserByUsername("fantasma@admin.com")).thenThrow(
                 new org.springframework.security.core.userdetails.UsernameNotFoundException(
                         "Usuário não encontrado: fantasma@admin.com"));
 
-        mvc.perform(comTokenAntigo(get("/api/users"))).andExpect(status().isForbidden());
+        mvc.perform(comBearerReal(get("/api/users"))).andExpect(status().isUnauthorized());
+
+        verify(findUserUseCase, never()).findAll();
+    }
+
+    /// Banco fora não pode virar 500 cru em toda requisição autenticada — nem
+    /// virar acesso liberado. 503 e não 401 de propósito: o app manda o usuário
+    /// refazer login no 401, e refazer login com o banco fora não resolve nada.
+    @Test
+    void falhaDeBancoFechaOAcessoSemVirar500() throws Exception {
+        when(jwtDecoder.decode(BEARER_REAL))
+                .thenReturn(tokenComScopeAdmin("naiara@admin.com"));
+        when(userDetailsService.loadUserByUsername("naiara@admin.com")).thenThrow(
+                new org.springframework.dao.QueryTimeoutException("pool esgotado"));
+
+        mvc.perform(comBearerReal(get("/api/users")))
+                .andExpect(status().isServiceUnavailable());
 
         verify(findUserUseCase, never()).findAll();
     }
@@ -410,13 +414,13 @@ class UserControllerTest extends WebMvcTestSupport {
     /// tudo deixaria a suíte verde.
     @Test
     void adminDeVerdadeNoBancoSegueEntrandoPeloTokenReal() throws Exception {
-        when(jwtDecoder.decode(BEARER_ANTIGO))
-                .thenReturn(tokenDizendoAdmin("naiara@admin.com"));
+        when(jwtDecoder.decode(BEARER_REAL))
+                .thenReturn(tokenComScopeAdmin("naiara@admin.com"));
         when(userDetailsService.loadUserByUsername("naiara@admin.com")).thenReturn(
                 User.builder().id(ADMIN_ID).email("naiara@admin.com").fullName("Naiara")
                         .role(Role.ADMIN).isActive(true).build());
         when(findUserUseCase.findAll()).thenReturn(List.of(aluno));
 
-        mvc.perform(comTokenAntigo(get("/api/users"))).andExpect(status().isOk());
+        mvc.perform(comBearerReal(get("/api/users"))).andExpect(status().isOk());
     }
 }

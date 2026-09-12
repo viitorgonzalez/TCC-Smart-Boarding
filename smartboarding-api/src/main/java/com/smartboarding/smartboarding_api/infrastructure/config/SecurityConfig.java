@@ -1,8 +1,10 @@
 package com.smartboarding.smartboarding_api.infrastructure.config;
 
+import lombok.extern.slf4j.Slf4j;
 import org.springframework.context.annotation.Bean;
 import org.springframework.context.annotation.Configuration;
 import org.springframework.http.HttpMethod;
+import org.springframework.http.HttpStatus;
 import org.springframework.security.authentication.AuthenticationManager;
 import org.springframework.security.config.Customizer;
 import org.springframework.security.config.annotation.authentication.configuration.AuthenticationConfiguration;
@@ -17,6 +19,10 @@ import org.springframework.security.core.userdetails.UserDetailsService;
 import org.springframework.security.core.userdetails.UsernameNotFoundException;
 import org.springframework.security.crypto.bcrypt.BCryptPasswordEncoder;
 import org.springframework.security.crypto.password.PasswordEncoder;
+import org.springframework.security.oauth2.core.OAuth2AuthenticationException;
+import org.springframework.security.oauth2.core.OAuth2ErrorCodes;
+import org.springframework.security.oauth2.server.resource.BearerTokenError;
+import org.springframework.security.oauth2.server.resource.InvalidBearerTokenException;
 import org.springframework.security.oauth2.server.resource.authentication.JwtAuthenticationConverter;
 import org.springframework.security.web.SecurityFilterChain;
 
@@ -26,6 +32,7 @@ import java.util.List;
 @Configuration
 @EnableWebSecurity
 @EnableMethodSecurity
+@Slf4j
 public class SecurityConfig {
 
     @Bean
@@ -131,16 +138,37 @@ public class SecurityConfig {
         return converter;
     }
 
-    /// Conta apagada ou desativada nao recebe autoridade nenhuma: o mesmo
-    /// motivo fecha a janela entre desativar e o token expirar.
+    /// Conta apagada ou desativada para de autenticar, nao so de ter papel.
+    /// Ficar sem autoridade nenhuma nao basta: autoridade vazia ainda satisfaz
+    /// o anyRequest().authenticated(), entao o aluno desativado seguia entrando
+    /// na lista do dia e pegando rota nova ate o token expirar -- justamente o
+    /// abuso que desativar deveria conter. Falhando aqui, o filtro do resource
+    /// server encerra em 401 antes de qualquer regra de autorizacao rodar.
+    ///
+    /// As mensagens sao ASCII de proposito: elas viajam no cabecalho
+    /// WWW-Authenticate, e BearerTokenError recusa caractere fora do RFC 6750.
     private static Collection<GrantedAuthority> currentAuthorities(
             UserDetailsService userDetailsService, String email) {
+        UserDetails user;
         try {
-            UserDetails user = userDetailsService.loadUserByUsername(email);
-            return user.isEnabled() ? List.copyOf(user.getAuthorities()) : List.of();
+            user = userDetailsService.loadUserByUsername(email);
         } catch (UsernameNotFoundException e) {
-            return List.of();
+            throw new InvalidBearerTokenException("Account no longer exists.");
+        } catch (RuntimeException e) {
+            // Banco fora atinge toda requisicao autenticada, e aqui e fora do
+            // alcance do @ControllerAdvice: sem este catch cada uma delas vira
+            // 500 cru. Fecha de proposito -- indisponibilidade nunca pode virar
+            // permissao. Uma linha por requisicao, sem stack, senao a queda do
+            // banco enterra o log que explica a queda.
+            log.error("Nao foi possivel carregar o usuario do token: {}", e.toString());
+            throw new OAuth2AuthenticationException(new BearerTokenError(
+                    OAuth2ErrorCodes.SERVER_ERROR, HttpStatus.SERVICE_UNAVAILABLE,
+                    "Cannot verify the access token right now.", null));
         }
+        if (!user.isEnabled()) {
+            throw new InvalidBearerTokenException("Account is not active.");
+        }
+        return List.copyOf(user.getAuthorities());
     }
 
     @Bean

@@ -3,12 +3,16 @@ package com.smartboarding.smartboarding_api.infrastructure.web;
 import com.smartboarding.smartboarding_api.infrastructure.config.SecurityConfig;
 import com.smartboarding.smartboarding_api.infrastructure.web.common.GlobalExceptionHandler;
 import org.springframework.context.annotation.Import;
+import org.springframework.http.HttpHeaders;
 import org.springframework.security.core.authority.SimpleGrantedAuthority;
 import org.springframework.security.core.userdetails.UserDetailsService;
+import org.springframework.security.oauth2.jwt.Jwt;
 import org.springframework.security.oauth2.jwt.JwtDecoder;
 import org.springframework.test.context.bean.override.mockito.MockitoBean;
+import org.springframework.test.web.servlet.request.MockHttpServletRequestBuilder;
 import org.springframework.test.web.servlet.request.RequestPostProcessor;
 
+import java.time.Instant;
 import java.util.UUID;
 
 import static org.springframework.security.test.web.servlet.request.SecurityMockMvcRequestPostProcessors.jwt;
@@ -50,5 +54,27 @@ public abstract class WebMvcTestSupport {
 
     protected static RequestPostProcessor admin() {
         return as(ADMIN_ID, "naiara@admin.com", "ADMIN");
+    }
+
+    /// Um Bearer de verdade: o único caminho que atravessa o converter do
+    /// SecurityConfig e, por consequência, a checagem de conta viva no banco.
+    /// Quem usa precisa stubar `jwtDecoder` e `userDetailsService`.
+    protected static final String BEARER_REAL = "carimbado-antes-da-mudanca-no-banco";
+
+    /// O "scope" carimbado no login é informação, não autoridade: o teste manda
+    /// o papel mais alto de propósito pra provar que o banco é quem decide.
+    protected static Jwt tokenComScope(String email, String role) {
+        Instant agora = Instant.now();
+        return Jwt.withTokenValue(BEARER_REAL)
+                .header("alg", "HS256")
+                .subject(email)
+                .claim("scope", role)
+                .issuedAt(agora)
+                .expiresAt(agora.plusSeconds(3600))
+                .build();
+    }
+
+    protected static MockHttpServletRequestBuilder comBearerReal(MockHttpServletRequestBuilder request) {
+        return request.header(HttpHeaders.AUTHORIZATION, "Bearer " + BEARER_REAL);
     }
 }

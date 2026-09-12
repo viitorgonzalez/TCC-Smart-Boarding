@@ -16,6 +16,7 @@ import com.smartboarding.smartboarding_api.domain.list.port.out.ListEntryReposit
 import com.smartboarding.smartboarding_api.domain.report.port.out.ReportRepositoryPort;
 import com.smartboarding.smartboarding_api.domain.route.entity.Route;
 import com.smartboarding.smartboarding_api.domain.stop.port.in.ManageStopsUseCase;
+import com.smartboarding.smartboarding_api.domain.user.entity.Role;
 import com.smartboarding.smartboarding_api.domain.user.entity.User;
 import com.smartboarding.smartboarding_api.domain.user.port.out.UserRepositoryPort;
 import com.smartboarding.smartboarding_api.domain.vehicle.port.out.VehicleRepositoryPort;
@@ -449,5 +450,58 @@ class ListControllerTest extends WebMvcTestSupport {
                                 {"routeId":"bbbbbbbb-0000-0000-0000-000000000001","date":"2026-09-10"}"""))
                 .andExpect(status().isConflict())
                 .andExpect(jsonPath("$.code").value("LIST_ALREADY_EXISTS"));
+    }
+
+    // ─── Desativar precisa fechar a lista, não só o painel do admin ──────────
+    //
+    // Entrar na lista cai em `anyRequest().authenticated()`, e autoridade vazia
+    // satisfaz isso. Enquanto conta desativada apenas perdia o papel, o aluno
+    // banido seguia entrando na lista do dia pela hora que faltava do token —
+    // exatamente o abuso que desativar existe pra conter. Estes testes mandam
+    // Bearer de verdade: é o único caminho que passa pelo converter (os
+    // post-processors põem authority direto no contexto e nunca o exercitam).
+
+    /// A inscrição fica stubada nos dois casos de propósito: com o aluno
+    /// desativado, o teste precisa reprovar em 201 — a prova de que ele entrava
+    /// na lista — e não num erro acidental de mock não configurado.
+    private void alunoNoBanco(boolean ativo) {
+        when(jwtDecoder.decode(BEARER_REAL))
+                .thenReturn(tokenComScope("fernanda@edu.unifor.br", "STUDENT"));
+        when(userDetailsService.loadUserByUsername("fernanda@edu.unifor.br")).thenReturn(
+                User.builder().id(STUDENT_ID).email("fernanda@edu.unifor.br")
+                        .fullName("Fernanda Lima").role(Role.STUDENT).isActive(ativo).build());
+        when(addEntryUseCase.add(STUDENT_ID, LIST_ID, TripType.ROUND_TRIP)).thenReturn(inscricao());
+    }
+
+    @Test
+    void alunoDesativadoNaoEntraNaListaDoDia() throws Exception {
+        alunoNoBanco(false);
+
+        mvc.perform(comBearerReal(post("/api/lists/{id}/entries", LIST_ID)))
+                .andExpect(status().isUnauthorized());
+
+        verify(addEntryUseCase, never()).add(any(), any(), any());
+    }
+
+    @Test
+    void alunoDesativadoNaoLeAListaDeHoje() throws Exception {
+        alunoNoBanco(false);
+
+        mvc.perform(comBearerReal(get("/api/lists/today")))
+                .andExpect(status().isUnauthorized());
+
+        verify(findListUseCase, never()).findTodayLists(any());
+    }
+
+    /// O contraponto: sem ele, um converter que recusasse todo mundo deixaria os
+    /// dois testes acima verdes.
+    @Test
+    void alunoAtivoSegueEntrandoPeloTokenReal() throws Exception {
+        alunoNoBanco(true);
+
+        mvc.perform(comBearerReal(post("/api/lists/{id}/entries", LIST_ID)))
+                .andExpect(status().isCreated());
+
+        verify(addEntryUseCase).add(STUDENT_ID, LIST_ID, TripType.ROUND_TRIP);
     }
 }
