@@ -36,30 +36,42 @@ void main() {
     addTearDown(tester.view.reset);
 
     final http = await installFakeHttp(token: 'jwt-de-teste');
-    http.on('GET', '/api/users', body: {
-      'data': [
-        {
-          'id': aluno.id,
-          'fullName': aluno.fullName,
-          'email': aluno.email,
-          'role': aluno.role,
-        },
-      ],
-    });
-    http.on('GET', '/api/users/admins/count', body: {
-      'data': {'count': 2},
-    });
-    http.on('GET', '/api/users/aluno-1/profile', body: {
-      'data': {
-        'id': 'aluno-1',
-        'fullName': 'Ana Oliveira',
-        'email': 'ana@edu.unifor.br',
-        'isActive': true,
-        'role': 'STUDENT',
-        'recentAttendance': [],
-        'statusHistory': [],
+    http.on(
+      'GET',
+      '/api/users',
+      body: {
+        'data': [
+          {
+            'id': aluno.id,
+            'fullName': aluno.fullName,
+            'email': aluno.email,
+            'role': aluno.role,
+          },
+        ],
       },
-    });
+    );
+    http.on(
+      'GET',
+      '/api/users/admins/count',
+      body: {
+        'data': {'count': 2},
+      },
+    );
+    http.on(
+      'GET',
+      '/api/users/aluno-1/profile',
+      body: {
+        'data': {
+          'id': 'aluno-1',
+          'fullName': 'Ana Oliveira',
+          'email': 'ana@edu.unifor.br',
+          'isActive': true,
+          'role': 'STUDENT',
+          'recentAttendance': [],
+          'statusHistory': [],
+        },
+      },
+    );
 
     await tester.pumpWidget(
       MultiProvider(
@@ -93,17 +105,21 @@ void main() {
   testWidgets('promover pela ficha recarrega a lista de trás', (tester) async {
     final provider = UserProvider(UserService());
     final http = await montarLista(tester, provider);
-    http.on('PATCH', '/api/users/aluno-1/role', body: {
-      'data': {
-        'id': 'aluno-1',
-        'fullName': 'Ana Oliveira',
-        'email': 'ana@edu.unifor.br',
-        'isActive': true,
-        'role': 'ADMIN',
-        'recentAttendance': [],
-        'statusHistory': [],
+    http.on(
+      'PATCH',
+      '/api/users/aluno-1/role',
+      body: {
+        'data': {
+          'id': 'aluno-1',
+          'fullName': 'Ana Oliveira',
+          'email': 'ana@edu.unifor.br',
+          'isActive': true,
+          'role': 'ADMIN',
+          'recentAttendance': [],
+          'statusHistory': [],
+        },
       },
-    });
+    );
 
     await abrirFicha(tester);
     await tester.tap(find.byKey(const Key('profile_role_action')));

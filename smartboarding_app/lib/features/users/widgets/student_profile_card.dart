@@ -21,11 +21,7 @@ class StudentProfileSheet extends StatefulWidget {
   /// precisa recarregar pra não seguir mostrando o dado antigo.
   final VoidCallback? onChanged;
 
-  const StudentProfileSheet({
-    super.key,
-    required this.userId,
-    this.onChanged,
-  });
+  const StudentProfileSheet({super.key, required this.userId, this.onChanged});
 
   @override
   State<StudentProfileSheet> createState() => StudentProfileSheetState();

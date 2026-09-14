@@ -400,7 +400,9 @@ void main() {
       'GET',
       '/api/users/admins/count',
       status: status,
-      body: {'data': {'count': admins}},
+      body: {
+        'data': {'count': admins},
+      },
     );
 
     await tester.pumpWidget(
@@ -469,10 +471,7 @@ void main() {
   ) async {
     final http = await abrirFicha(tester, admins: 2);
 
-    expect(
-      http.requests.map((r) => r.path),
-      isNot(contains('/api/users')),
-    );
+    expect(http.requests.map((r) => r.path), isNot(contains('/api/users')));
     expect(
       http.requests.map((r) => r.path),
       contains('/api/users/admins/count'),
@@ -523,9 +522,17 @@ void main() {
       admins: 2,
       onChanged: () => avisou = true,
     );
-    http.on('PATCH', '/api/users/admin-1/role', status: 400, body: {
-      'error': {'code': 'LAST_ADMIN', 'message': 'Este é o único administrador.'},
-    });
+    http.on(
+      'PATCH',
+      '/api/users/admin-1/role',
+      status: 400,
+      body: {
+        'error': {
+          'code': 'LAST_ADMIN',
+          'message': 'Este é o único administrador.',
+        },
+      },
+    );
 
     await tester.tap(find.byKey(const Key('profile_role_action')));
     await pumpUntil(
