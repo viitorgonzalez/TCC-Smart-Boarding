@@ -142,6 +142,21 @@ void main() {
       expect(await UserService().getUsers(), isEmpty);
     });
 
+    /// A ficha do usuário só precisa do número. Baixar /api/users pra contar
+    /// levaria e-mail, telefone, endereço e nascimento de toda a base no fio.
+    test('getAdminCount pede só a contagem', () async {
+      http.on(
+        'GET',
+        '/api/users/admins/count',
+        body: {
+          'data': {'count': 3},
+        },
+      );
+
+      expect(await UserService().getAdminCount(), 3);
+      expect(http.requests.single.path, '/api/users/admins/count');
+    });
+
     test('getProfile parseia o perfil breve', () async {
       http.always(
         body: {
@@ -149,6 +164,7 @@ void main() {
             'id': 'aluno-1',
             'fullName': 'Fernanda Lima',
             'isActive': true,
+            'role': 'STUDENT',
             'recentAttendance': ['2026-09-09'],
             'statusHistory': [],
           },
@@ -170,6 +186,7 @@ void main() {
               'id': 'aluno-1',
               'fullName': 'Fernanda Lima',
               'isActive': false,
+              'role': 'STUDENT',
             },
           },
         );
@@ -181,24 +198,6 @@ void main() {
         expect(http.requests.single.method, 'PATCH');
       },
     );
-
-    test('register manda os quatro campos', () async {
-      http.on('POST', '/api/auth/register', body: {'data': {}});
-
-      await UserService().register(
-        fullName: 'Novo Admin',
-        email: 'novo@admin.com',
-        password: 'senha123',
-        role: 'ADMIN',
-      );
-
-      expect(http.requests.single.data, {
-        'fullName': 'Novo Admin',
-        'email': 'novo@admin.com',
-        'password': 'senha123',
-        'role': 'ADMIN',
-      });
-    });
   });
 
   /// O JWT guardado tem que viajar em toda requisição — sem isso o app logado

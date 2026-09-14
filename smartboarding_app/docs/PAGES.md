@@ -44,7 +44,7 @@
 | Rotas e listas | 🧑‍💼 | CRUD de rota + lista do dia, avisos automáticos, instituições, veículos e paradas | `CRUD /api/routes`, `/api/institutions`, `/api/routes/{id}/vehicles`, `/api/routes/{id}/stops`, `/api/lists`, `/api/notifications/scheduled` | [`route-management.md`](./specs/administrador/route-management.md) |
 | Relatórios (admin) | 🧑‍💼 | Histórico completo, paginado, com veículo proposto | `GET /api/reports`, `GET /api/reports/{id}` | [`reports.md`](./specs/relatorios/reports.md) |
 | Trajeto | 🧑‍💼 | Iniciar/checkpoint/finalizar o trajeto do dia | `GET /api/trip/{listId}`, `POST .../{start,checkpoint/{stopId},finish}` | [`trip.md`](./specs/administrador/trip.md) |
-| Usuários | 🧑‍💼 | Listagem de contas, ficha completa do aluno, ativar/desativar | `GET /api/users`, `GET /api/users/{id}/profile`, `PATCH /api/users/{id}/status` | [`users-list.md`](./specs/administrador/users-list.md) |
+| Usuários | 🧑‍💼 | Listagem de contas, ficha completa do aluno, ativar/desativar, promover/rebaixar papel | `GET /api/users`, `GET /api/users/{id}/profile`, `PATCH /api/users/{id}/status`, `PATCH /api/users/{id}/role` | [`users-list.md`](./specs/administrador/users-list.md) |
 | Instituições | 🧑‍💼 | Catálogo de instituições; a rota só escolhe quais atende | `CRUD /api/institutions` | — |
 | Inscritos da lista | 🧑‍💼 | Quem está na lista do dia; inclusão manual com advertência | `GET`\|`POST /api/lists/{id}/entries` | — |
 | Paradas da rota | 🧑‍💼 | Ordenar, mover e inserir parada no mapa | `CRUD /api/routes/{id}/stops` | — |

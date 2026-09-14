@@ -39,7 +39,9 @@ aviso automático de saída do ônibus. Sujeito a erro e não escala.
 | `ADMIN` | Gestão do transporte (inclui quem dirige) | Gerar e revogar código de rota, aprovar/negar pedidos de alteração de perfil, gerenciar rotas/instituições/veículos/paradas, ver relatórios completos, enviar notificação (com imagem), ações de trajeto |
 
 Conta de `STUDENT` nasce pelo autocadastro (§3.1) — o admin não cadastra aluno
-manualmente. `ADMIN` pode criar outro `ADMIN` diretamente.
+manualmente. Ninguém cria conta de `ADMIN`: acesso administrativo é concedido sobre uma
+conta existente, na ficha do usuário (promover/rebaixar papel) — ver
+`smartboarding-api/docs/spec.md` RN27.
 
 ---
 
@@ -112,7 +114,9 @@ fechada, porque o embarque físico acontece depois do fechamento.
   mim" e renovação automática foram desenhados e **nunca implementados** — se voltarem
   à mesa, entram como trabalho novo, não como algo a consertar.
 - Conta desativada pelo admin não entra, nem por senha nem pelo Google. O token já
-  emitido continua válido até expirar.
+  emitido também para de valer na requisição seguinte: o backend lê o papel e o estado da
+  conta no banco a cada chamada, não da claim do token — senão rebaixar ou desativar só
+  faria efeito até uma hora depois.
 
 ### 3.8 Trajeto
 

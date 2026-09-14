@@ -23,6 +23,17 @@ public class UserRepositoryAdapter implements UserRepositoryPort {
     @Override public User save(User user) { return jpa.save(user); }
     @Override public boolean existsByEmail(String email) { return jpa.existsByEmail(email); }
     @Override public long countActiveStudents() { return jpa.countActiveStudents(); }
+
+    @Override
+    public void lockAdminRoleChanges() {
+        jpa.lockAdminRoleChanges();
+    }
+
+    @Override
+    public long countAdmins() {
+        return jpa.countAdmins();
+    }
+
     @Override public long countByInstitutionId(UUID institutionId) { return jpa.countByInstitutionId(institutionId); }
     @Override public java.util.List<User> findByRouteId(UUID routeId) { return jpa.findByRouteId(routeId); }
 

@@ -16,6 +16,7 @@ import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.boot.webmvc.test.autoconfigure.WebMvcTest;
 import org.springframework.http.MediaType;
 import org.springframework.test.context.bean.override.mockito.MockitoBean;
+import org.springframework.security.oauth2.jwt.Jwt;
 import org.springframework.test.web.servlet.MockMvc;
 
 import java.util.List;
@@ -263,5 +264,163 @@ class UserControllerTest extends WebMvcTestSupport {
                 .andExpect(status().isOk())
                 .andExpect(jsonPath("$.data.statusHistory[0].action").value("ACTIVATED"))
                 .andExpect(jsonPath("$.data.statusHistory[0].adminName").doesNotExist());
+    }
+
+    @Test
+    void promoverDevolve200EChamaOUseCaseComOAdminDoToken() throws Exception {
+        when(manageUserStatusUseCase.setRole(any(), any(), any())).thenAnswer(i ->
+                com.smartboarding.smartboarding_api.domain.user.entity.User.builder()
+                        .id(i.getArgument(0)).fullName("Ana Oliveira").isActive(true)
+                        .role(com.smartboarding.smartboarding_api.domain.user.entity.Role.ADMIN)
+                        .build());
+
+        mvc.perform(patch("/api/users/{id}/role", STUDENT_ID).with(admin())
+                        .contentType(MediaType.APPLICATION_JSON)
+                        .content("""
+                                {"role":"ADMIN"}"""))
+                .andExpect(status().isOk());
+
+        verify(manageUserStatusUseCase).setRole(STUDENT_ID,
+                com.smartboarding.smartboarding_api.domain.user.entity.Role.ADMIN, ADMIN_ID);
+    }
+
+    /// Aluno mexendo em papel seria escalada de privilegio pela porta da frente.
+    @Test
+    void alunoNaoPodeMexerEmPapel() throws Exception {
+        mvc.perform(patch("/api/users/{id}/role", STUDENT_ID).with(student())
+                        .contentType(MediaType.APPLICATION_JSON)
+                        .content("""
+                                {"role":"ADMIN"}"""))
+                .andExpect(status().isForbidden());
+
+        verify(manageUserStatusUseCase, org.mockito.Mockito.never())
+                .setRole(any(), any(), any());
+    }
+
+    @Test
+    void papelInvalidoERecusadoAntesDoUseCase() throws Exception {
+        mvc.perform(patch("/api/users/{id}/role", STUDENT_ID).with(admin())
+                        .contentType(MediaType.APPLICATION_JSON)
+                        .content("""
+                                {"role":"SUPERUSER"}"""))
+                .andExpect(status().isBadRequest());
+
+        verify(manageUserStatusUseCase, org.mockito.Mockito.never())
+                .setRole(any(), any(), any());
+    }
+
+    /// A folha do usuário chama isto pra saber se está olhando o último admin.
+    /// Antes ela baixava /api/users inteiro e contava no cliente — o contato de
+    /// toda a base no fio pra chegar num número.
+    @Test
+    void contagemDeAdminsDevolveSoONumero() throws Exception {
+        when(findUserUseCase.countAdmins()).thenReturn(2L);
+
+        mvc.perform(get("/api/users/admins/count").with(admin()))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.data.count").value(2));
+
+        verify(findUserUseCase, never()).findAll();
+    }
+
+    @Test
+    void alunoNaoLeAContagemDeAdmins() throws Exception {
+        mvc.perform(get("/api/users/admins/count").with(student()))
+                .andExpect(status().isForbidden());
+
+        verify(findUserUseCase, never()).countAdmins();
+    }
+
+    // ─── Revogação imediata: a autoridade vem do banco, não da claim ─────────
+    //
+    // A claim "scope" é carimbada no login e vale 1h. Enquanto ela mandava, o
+    // admin rebaixado continuava admin até o token expirar — e nesse intervalo
+    // chamava PATCH /api/users/{ele}/role e se promovia de volta. Os testes
+    // abaixo mandam Bearer de verdade de propósito: é o único caminho que passa
+    // pelo converter do SecurityConfig (os post-processors põem authority
+    // direto no contexto e nunca o exercitam).
+
+    private static Jwt tokenComScopeAdmin(String email) {
+        return tokenComScope(email, "ADMIN");
+    }
+
+    @Test
+    void rebaixadoNoBancoNaoSePromoveDeVoltaComOTokenAntigo() throws Exception {
+        when(jwtDecoder.decode(BEARER_REAL))
+                .thenReturn(tokenComScopeAdmin("naiara@admin.com"));
+        when(userDetailsService.loadUserByUsername("naiara@admin.com")).thenReturn(
+                User.builder().id(ADMIN_ID).email("naiara@admin.com").fullName("Naiara")
+                        .role(Role.STUDENT).isActive(true).build());
+
+        mvc.perform(comBearerReal(patch("/api/users/{id}/role", ADMIN_ID))
+                        .contentType(MediaType.APPLICATION_JSON)
+                        .content("""
+                                {"role":"ADMIN"}"""))
+                .andExpect(status().isForbidden());
+
+        verify(manageUserStatusUseCase, never()).setRole(any(), any(), any());
+    }
+
+    /// 401, não 403: conta desativada não fica autenticada sem papel — ela para
+    /// de autenticar. A diferença não é cosmética. Autoridade vazia ainda
+    /// satisfaz `anyRequest().authenticated()`, e por isso o 403 aqui só
+    /// aparecia porque /api/users exige ADMIN; nos endpoints que pedem apenas
+    /// autenticação a mesma conta seguia passando. Recusando no converter, o
+    /// filtro do resource server encerra antes da autorização, pra qualquer rota.
+    @Test
+    void contaDesativadaPerdeOAcessoAntesDoTokenExpirar() throws Exception {
+        when(jwtDecoder.decode(BEARER_REAL))
+                .thenReturn(tokenComScopeAdmin("naiara@admin.com"));
+        when(userDetailsService.loadUserByUsername("naiara@admin.com")).thenReturn(
+                User.builder().id(ADMIN_ID).email("naiara@admin.com").fullName("Naiara")
+                        .role(Role.ADMIN).isActive(false).build());
+
+        mvc.perform(comBearerReal(get("/api/users"))).andExpect(status().isUnauthorized());
+
+        verify(findUserUseCase, never()).findAll();
+    }
+
+    @Test
+    void contaApagadaNaoAutenticaMais() throws Exception {
+        when(jwtDecoder.decode(BEARER_REAL))
+                .thenReturn(tokenComScopeAdmin("fantasma@admin.com"));
+        when(userDetailsService.loadUserByUsername("fantasma@admin.com")).thenThrow(
+                new org.springframework.security.core.userdetails.UsernameNotFoundException(
+                        "Usuário não encontrado: fantasma@admin.com"));
+
+        mvc.perform(comBearerReal(get("/api/users"))).andExpect(status().isUnauthorized());
+
+        verify(findUserUseCase, never()).findAll();
+    }
+
+    /// Banco fora não pode virar 500 cru em toda requisição autenticada — nem
+    /// virar acesso liberado. 503 e não 401 de propósito: o app manda o usuário
+    /// refazer login no 401, e refazer login com o banco fora não resolve nada.
+    @Test
+    void falhaDeBancoFechaOAcessoSemVirar500() throws Exception {
+        when(jwtDecoder.decode(BEARER_REAL))
+                .thenReturn(tokenComScopeAdmin("naiara@admin.com"));
+        when(userDetailsService.loadUserByUsername("naiara@admin.com")).thenThrow(
+                new org.springframework.dao.QueryTimeoutException("pool esgotado"));
+
+        mvc.perform(comBearerReal(get("/api/users")))
+                .andExpect(status().isServiceUnavailable());
+
+        verify(findUserUseCase, never()).findAll();
+    }
+
+    /// O contraponto dos três acima: o mesmo caminho de Bearer real, com o papel
+    /// do banco batendo, continua passando. Sem ele, um converter que negasse
+    /// tudo deixaria a suíte verde.
+    @Test
+    void adminDeVerdadeNoBancoSegueEntrandoPeloTokenReal() throws Exception {
+        when(jwtDecoder.decode(BEARER_REAL))
+                .thenReturn(tokenComScopeAdmin("naiara@admin.com"));
+        when(userDetailsService.loadUserByUsername("naiara@admin.com")).thenReturn(
+                User.builder().id(ADMIN_ID).email("naiara@admin.com").fullName("Naiara")
+                        .role(Role.ADMIN).isActive(true).build());
+        when(findUserUseCase.findAll()).thenReturn(List.of(aluno));
+
+        mvc.perform(comBearerReal(get("/api/users"))).andExpect(status().isOk());
     }
 }

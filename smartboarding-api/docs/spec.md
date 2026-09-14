@@ -44,7 +44,7 @@ Fonte de verdade: `SecurityConfig.java` (`infrastructure/config/`).
 |---|---|---|
 | **Público** (sem token) | Login, consultar rotas, consultar/submeter convite de cadastro, recuperação de senha | Tudo o resto |
 | **`STUDENT`** | Criar a própria conta e entrar em rota(s) por código, ver a lista do dia das próprias rotas, entrar/sair da própria inscrição, ver detalhe de rota (com mapa/paradas), registrar/remover o próprio device token, ver notificações (histórico), ver relatórios dos últimos 7 dias | Gerenciar rotas/instituições/veículos, gerar código de rota, aprovar alteração de perfil, enviar notificações, ver relatórios além de 7 dias, ações de trajeto |
-| **`ADMIN`** | Tudo: CRUD de rotas/instituições/veículos/paradas, aprovar/negar cadastros pendentes, gerar convite, criar outro ADMIN, listar usuários, ver relatórios completos, enviar notificações (com imagem), ações de trajeto (iniciar/checkpoint/finalizar) | — |
+| **`ADMIN`** | Tudo: CRUD de rotas/instituições/veículos/paradas, aprovar/negar cadastros pendentes, gerar convite, promover/rebaixar o papel de uma conta existente, listar usuários, ver relatórios completos, enviar notificações (com imagem), ações de trajeto (iniciar/checkpoint/finalizar) | — |
 
 `/api/lists/{id}/entries` (entrar/sair da lista) libera qualquer papel autenticado, não só
 `STUDENT` — comportamento intencional (admin também pode embarcar).
@@ -130,12 +130,36 @@ Contextos (`<contexto>`): `user`, `route`, `institution`, `vehicle`, `stop`, `li
 ### 4.1 Cadastro — autocadastro e código de rota
 
 - **RN13** — Aluno se cadastra sozinho (`POST /api/auth/signup`, só nome, e-mail e senha) e já
-  recebe a sessão. A conta nasce **sem rota**: existir no sistema e pertencer a uma rota são
-  coisas separadas.
-  - `POST /api/auth/register` existe só pra `ADMIN` criar outro `ADMIN` — não aceita
-    `role=STUDENT`.
+  recebe a sessão. A conta nasce **sem rota** e com papel `STUDENT`.
+  - **Ninguém cria conta de administrador.** Acesso administrativo é concedido sobre uma conta
+    que a própria pessoa criou, por `PATCH /api/users/{id}/role` — ver RN27.
   - `POST /api/auth/google` entra pelo Google; quem entrou assim pode definir uma senha local
     depois (`POST /api/me/password`) e passa a ter os dois caminhos.
+- **RN27** — Papel administrativo é **concessão**, não cadastro. Um `ADMIN` promove ou rebaixa
+  uma conta existente. Quatro travas: não rebaixa a si mesmo, não rebaixa o último admin, não
+  promove conta desativada, e declarar o papel que já vale é no-op (não é erro). Toda mudança
+  entra no `user_status_log` com quem concedeu. Remover um admin são duas ações deliberadas:
+  rebaixar e depois desativar.
+  - **A mudança vale na requisição seguinte.** A autoridade de cada requisição é resolvida
+    lendo o papel no banco, não a claim `scope` do JWT — ela é carimbada no login e vive 1h.
+    Enquanto a claim mandava, o rebaixado seguia admin até o token expirar, e nesse intervalo
+    se promovia de volta. Conta desativada ou apagada também perde acesso na hora.
+- **RN28** — Primeiro admin de um ambiente novo: quem se cadastrar com o e-mail de
+  `BOOTSTRAP_ADMIN_EMAIL` nasce `ADMIN`, **e só enquanto o sistema tiver zero admins**. A
+  variável concede o papel a uma conta que a pessoa criou; não cria conta.
+  - Vale para os **dois** caminhos que criam conta: `POST /api/auth/signup` e o primeiro
+    `POST /api/auth/google`. Valendo só num deles, o operador que escolhesse o outro nasceria
+    `STUDENT` e queimaria a janela em silêncio — o caminho restante recusaria por
+    `EMAIL_ALREADY_EXISTS` e não sobraria admin pra promovê-lo.
+  - A comparação é **exata**, não *case-insensitive*: a unicidade de `email` no Postgres é
+    case-sensitive e nada normaliza o valor, então casar sem diferenciar caixa deixaria
+    `CHEFE@x` e `chefe@x` serem contas distintas satisfazendo a **mesma** janela.
+  - **Risco operacional aceito:** o cadastro não verifica posse de e-mail em lugar nenhum do
+    sistema, então `BOOTSTRAP_ADMIN_EMAIL` é, na prática, uma corrida — quem souber a string e
+    se cadastrar primeiro vira admin. A unicidade de e-mail garante que só *um* vence, mas não
+    garante *quem*. Não é defeito de implementação, é inerente ao desenho aprovado; a mitigação
+    é operacional: tratar a variável como segredo de curta duração e completar o cadastro do
+    primeiro admin logo após o deploy, não dias depois.
 - **RN14** — O acesso à rota vem de um **código** que o `ADMIN` gera
   (`POST /api/routes/{routeId}/invite-codes`) e distribui. O aluno entra com ele
   (`POST /api/me/routes`), e pode pertencer a mais de uma rota.
@@ -298,7 +322,6 @@ Contextos (`<contexto>`): `user`, `route`, `institution`, `vehicle`, `stop`, `li
 | Método | Path | Acesso | Request | Response | Erros |
 |---|---|---|---|---|---|
 | POST | `/api/auth/login` | Público | `{email, password}` | `{token, fullName, role, email}` | `401` credenciais inválidas, `401` conta desativada |
-| POST | `/api/auth/register` | ADMIN | `{email, password≥6, fullName}` | `UserResponse` (role sempre ADMIN) | `409 EMAIL_ALREADY_EXISTS`, `400 VALIDATION_ERROR` |
 | POST | `/api/auth/forgot-password` | Público | `{email}` | `{success:true}` (sempre) | — |
 | POST | `/api/auth/reset-password` | Público | `{email, code, newPassword}` | `{success:true}` | `400` `INVALID_CODE` / `CODE_EXPIRED` / `TOO_MANY_ATTEMPTS` |
 | POST | `/api/auth/signup` | Público | `{fullName, email, password}` | `{token, fullName, role, email}` | `400`, `409` |
@@ -311,6 +334,8 @@ Contextos (`<contexto>`): `user`, `route`, `institution`, `vehicle`, `stop`, `li
 | GET | `/api/me` | Autenticado | — | `{id, fullName, email, role, hasPassword, hasGoogle}` | — |
 | POST | `/api/me/password` | Autenticado | `{password}` | `{success:true}` | `400`, `409` |
 | GET | `/api/users` / `/api/users/{id}` | ADMIN | — | `UserResponse[]` / `UserResponse` | `404` |
+| GET | `/api/users/admins/count` | ADMIN | — | `{count}` | — |
+| PATCH | `/api/users/{id}/role` | ADMIN | `{role: "ADMIN"\|"STUDENT"}` | `StudentProfileResponse` | `400 CANNOT_DEMOTE_SELF`, `400 LAST_ADMIN`, `400 INACTIVE_ACCOUNT`, `404` |
 | POST | `/api/routes` | ADMIN | `{name, description?}` | `RouteResponse` | `409` nome duplicado |
 | GET | `/api/routes` | Público | — | `RouteResponse[]` (só ativas) | — |
 | GET | `/api/routes/{id}` | Público | — | `RouteResponse` | `404` |
@@ -408,8 +433,8 @@ Contextos (`<contexto>`): `user`, `route`, `institution`, `vehicle`, `stop`, `li
 - Não assumir que `POST /api/lists/{id}/entries` retorna conflito pra reinscrição — é reativação
   idempotente (§4.4).
 - Não recriar um papel de motorista separado — trajeto é ação do `ADMIN` (§4.7).
-- Não deixar `POST /api/auth/register` aceitar `role=STUDENT` ou instituição — aluno nasce só
-  pelo fluxo de convite (§4.1).
+- Não reintroduzir criação direta de conta admin — acesso administrativo é sempre concessão
+  sobre uma conta que a própria pessoa já criou, nunca cadastro (§4.1, RN27).
 - Não deixar `STUDENT` acessar relatório fora da janela de 7 dias (§4.5).
 - Não vincular uma instituição a mais de uma rota ativa (§4.2).
 - Não passar de 300 linhas por arquivo `.java` tocado num PR (§9).

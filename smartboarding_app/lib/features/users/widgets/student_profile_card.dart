@@ -1,5 +1,7 @@
 import 'package:flutter/material.dart';
+import 'package:provider/provider.dart';
 import '../../../core/errors/app_exception.dart';
+import '../../../core/providers/auth_provider.dart';
 import '../../../core/theme/app_theme.dart';
 import '../../../core/utils/date_format.dart';
 import '../../../core/widgets/initials_avatar.dart';
@@ -15,21 +17,37 @@ import 'profile_info_rows.dart';
 class StudentProfileSheet extends StatefulWidget {
   final String userId;
 
-  const StudentProfileSheet({super.key, required this.userId});
+  /// Avisa quem abriu a folha que status ou papel mudaram — a lista de trás
+  /// precisa recarregar pra não seguir mostrando o dado antigo.
+  final VoidCallback? onChanged;
+
+  const StudentProfileSheet({super.key, required this.userId, this.onChanged});
 
   @override
-  State<StudentProfileSheet> createState() => _StudentProfileSheetState();
+  State<StudentProfileSheet> createState() => StudentProfileSheetState();
 }
 
-class _StudentProfileSheetState extends State<StudentProfileSheet> {
+class StudentProfileSheetState extends State<StudentProfileSheet> {
   final _service = UserService();
   StudentProfile? _profile;
   bool _busy = false;
+  // null = ainda nao sabemos (carregando ou a busca falhou). Enquanto for
+  // null, a trava do ultimo admin fica de fora -- desabilitar sem dado seria
+  // pior que deixar o backend recusar, que e o comportamento de hoje.
+  int? _adminCount;
+
+  /// Resolve quando as duas buscas do initState (perfil e contagem de admins)
+  /// terminam -- sucesso ou falha, já que as duas tratam o próprio erro
+  /// internamente e nunca relançam. Existe só pro teste aguardar a ficha
+  /// carregar por condição, não por uma duração chutada -- ver
+  /// student_profile_card_test.dart.
+  @visibleForTesting
+  late final Future<void> carregado;
 
   @override
   void initState() {
     super.initState();
-    _load();
+    carregado = Future.wait([_load(), _loadAdminCount()]);
   }
 
   Future<void> _load() async {
@@ -41,10 +59,23 @@ class _StudentProfileSheetState extends State<StudentProfileSheet> {
     }
   }
 
+  /// Fica em silencio no erro: essa contagem so serve pra UI evitar um toque
+  /// que o backend ia recusar de qualquer forma, entao uma falha aqui nao pode
+  /// virar outro alerta pro admin.
+  Future<void> _loadAdminCount() async {
+    try {
+      final count = await _service.getAdminCount();
+      if (mounted) setState(() => _adminCount = count);
+    } catch (_) {
+      // _adminCount continua null de proposito.
+    }
+  }
+
   Future<void> _toggle(bool active) async {
     setState(() => _busy = true);
     try {
       final p = await _service.setActive(widget.userId, active);
+      widget.onChanged?.call();
       if (!mounted) return;
       setState(() => _profile = p);
       showSuccessSnackBar(
@@ -58,18 +89,66 @@ class _StudentProfileSheetState extends State<StudentProfileSheet> {
     }
   }
 
+  Future<void> _toggleRole() async {
+    final atual = _profile;
+    if (atual == null) return;
+    final novoPapel = atual.role == 'ADMIN' ? 'STUDENT' : 'ADMIN';
+    setState(() => _busy = true);
+    try {
+      final p = await _service.setRole(widget.userId, novoPapel);
+      widget.onChanged?.call();
+      if (!mounted) return;
+      setState(() => _profile = p);
+      showSuccessSnackBar(
+        context,
+        novoPapel == 'ADMIN'
+            ? 'Acesso de administrador concedido'
+            : 'Acesso de administrador removido',
+      );
+      // A contagem muda pra todo mundo depois de promover/rebaixar -- reflete
+      // aqui pra travar de novo se esta virou a ultima conta admin.
+      await _loadAdminCount();
+    } catch (e) {
+      if (mounted) showErrorSnackBar(context, AppException.fromError(e));
+    } finally {
+      if (mounted) setState(() => _busy = false);
+    }
+  }
+
   @override
   Widget build(BuildContext context) {
     final profile = _profile;
-    return Padding(
-      padding: const EdgeInsets.fromLTRB(20, 0, 20, 24),
-      child: profile == null
-          ? const LoadingCard()
-          : StudentProfileBody(
-              profile: profile,
-              busy: _busy,
-              onToggle: _toggle,
-            ),
+    // Identifica a propria conta pelo e-mail: e a mesma chave que o resto do
+    // app usa pra "sou eu" (StudentListProvider.setUserEmail em main.dart) --
+    // o token de sessao nunca carregou um id de usuario.
+    final meuEmail = context.watch<AuthProvider>().token?.email;
+    final ehAPropriaConta = profile != null && profile.email == meuEmail;
+    // null (ainda carregando/falhou) nao trava por engano -- só com contagem
+    // confirmada de exatamente 1 admin (esta conta) a trava entra.
+    final ehUltimoAdmin =
+        profile != null &&
+        profile.role == 'ADMIN' &&
+        _adminCount != null &&
+        _adminCount! <= 1;
+    // Fechar no meio do PATCH faria a folha sumir antes de o `onChanged`
+    // disparar, e a lista de tras ficaria mostrando o papel antigo de uma conta
+    // que ja mudou. Segurar durante a requisicao e mais honesto que aceitar o
+    // fechamento e devolver um resultado desatualizado.
+    return PopScope(
+      canPop: !_busy,
+      child: Padding(
+        padding: const EdgeInsets.fromLTRB(20, 0, 20, 24),
+        child: profile == null
+            ? const LoadingCard()
+            : StudentProfileBody(
+                profile: profile,
+                busy: _busy,
+                onToggle: _toggle,
+                onToggleRole: _toggleRole,
+                ehAPropriaConta: ehAPropriaConta,
+                ehUltimoAdmin: ehUltimoAdmin,
+              ),
+      ),
     );
   }
 }
@@ -79,17 +158,24 @@ class StudentProfileBody extends StatelessWidget {
   final StudentProfile profile;
   final bool busy;
   final ValueChanged<bool> onToggle;
+  final VoidCallback onToggleRole;
+  final bool ehAPropriaConta;
+  final bool ehUltimoAdmin;
 
   const StudentProfileBody({
     super.key,
     required this.profile,
     required this.onToggle,
+    required this.onToggleRole,
+    required this.ehAPropriaConta,
+    required this.ehUltimoAdmin,
     this.busy = false,
   });
 
   @override
   Widget build(BuildContext context) {
     final theme = Theme.of(context);
+    final cannotDeactivate = profile.role == 'ADMIN' && profile.isActive;
     return Column(
       mainAxisSize: MainAxisSize.min,
       crossAxisAlignment: CrossAxisAlignment.stretch,
@@ -130,15 +216,39 @@ class StudentProfileBody extends StatelessWidget {
         ),
         const SizedBox(height: 16),
         ProfileInfoRows(profile: profile),
+        // Mesma trava do backend (CANNOT_DEACTIVATE_ADMIN), na interface: o
+        // primeiro toque errado trancaria quem administra o sistema pra fora
+        // dele. Só o sentido "desativar" é barrado -- reativar um admin
+        // inativo continua valendo, e é o que o backend também aceita.
         SwitchListTile(
+          key: const Key('profile_active_switch'),
           contentPadding: EdgeInsets.zero,
           value: profile.isActive,
-          onChanged: busy ? null : onToggle,
+          onChanged: busy || cannotDeactivate ? null : onToggle,
           title: const Text('Conta ativa'),
-          subtitle: const Text(
-            'A mudança fica registrada com seu nome e a hora.',
+          subtitle: Text(
+            cannotDeactivate
+                ? 'Remova o acesso de administrador antes de desativar.'
+                : 'A mudança fica registrada com seu nome e a hora.',
           ),
         ),
+        if (!ehAPropriaConta)
+          ListTile(
+            key: const Key('profile_role_action'),
+            contentPadding: EdgeInsets.zero,
+            leading: const Icon(Icons.shield_outlined),
+            title: Text(
+              profile.role == 'ADMIN'
+                  ? 'Remover acesso de administrador'
+                  : 'Tornar administrador',
+            ),
+            subtitle: const Text('Fica registrado com seu nome e a hora.'),
+            enabled:
+                !busy &&
+                (profile.role == 'ADMIN' || profile.isActive) &&
+                !ehUltimoAdmin,
+            onTap: busy ? null : onToggleRole,
+          ),
         const Divider(),
         Text('Idas recentes', style: theme.textTheme.titleSmall),
         const SizedBox(height: 6),

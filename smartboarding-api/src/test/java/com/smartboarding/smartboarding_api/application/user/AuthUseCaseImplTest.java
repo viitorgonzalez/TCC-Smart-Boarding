@@ -3,8 +3,6 @@ package com.smartboarding.smartboarding_api.application.user;
 import com.smartboarding.smartboarding_api.domain.user.entity.Role;
 import com.smartboarding.smartboarding_api.domain.user.entity.User;
 import com.smartboarding.smartboarding_api.domain.user.port.out.UserRepositoryPort;
-import com.smartboarding.smartboarding_api.shared.exception.BadRequestException;
-import com.smartboarding.smartboarding_api.shared.exception.ConflictException;
 import com.smartboarding.smartboarding_api.shared.exception.UnauthorizedException;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.extension.ExtendWith;
@@ -64,41 +62,6 @@ class AuthUseCaseImplTest {
     }
 
     @Test
-    void registrarAdminFuncionaNormalmente() {
-        var useCase = useCase();
-        var admin = User.builder().email("novo@admin.com").fullName("Novo Admin").role(Role.ADMIN).build();
-        when(userRepository.existsByEmail("novo@admin.com")).thenReturn(false);
-        when(passwordEncoder.encode("senha123")).thenReturn("hash");
-        when(userRepository.save(any())).thenAnswer(inv -> inv.getArgument(0));
-
-        var saved = useCase.execute(admin, "senha123");
-
-        assertThat(saved.getRole()).isEqualTo(Role.ADMIN);
-        assertThat(saved.getPassword()).isEqualTo("hash");
-    }
-
-    @Test
-    void registrarAlunoDiretoLancaExcecao() {
-        var useCase = useCase();
-        var student = User.builder().email("aluno@edu.com").fullName("Aluno").role(Role.STUDENT).build();
-
-        assertThatThrownBy(() -> useCase.execute(student, "senha123"))
-                .isInstanceOf(BadRequestException.class);
-        verify(userRepository, never()).save(any());
-        verify(passwordEncoder, never()).encode(anyString());
-    }
-
-    @Test
-    void registrarSemPapelLancaExcecao() {
-        var useCase = useCase();
-        var semPapel = User.builder().email("x@y.com").fullName("Sem Papel").build();
-
-        assertThatThrownBy(() -> useCase.execute(semPapel, "senha123"))
-                .isInstanceOf(BadRequestException.class);
-        verify(userRepository, never()).save(any());
-    }
-
-    @Test
     void loginValidoDevolveTokenNomeEPapel() {
         var user = contaAtiva("fernanda@edu.unifor.br", Role.STUDENT);
         when(userRepository.findByEmail(user.getEmail())).thenReturn(Optional.of(user));
@@ -151,18 +114,6 @@ class AuthUseCaseImplTest {
         assertThat(porSenha).isInstanceOf(UnauthorizedException.class);
         assertThat(porEmail.getMessage()).isEqualTo(porSenha.getMessage());
         verify(jwtEncoder, never()).encode(any());
-    }
-
-    @Test
-    void emailJaCadastradoNaoCriaSegundaConta() {
-        var novo = contaAtiva("naiara@admin.com", Role.ADMIN);
-        when(userRepository.existsByEmail(novo.getEmail())).thenReturn(true);
-
-        assertThatThrownBy(() -> useCase().execute(novo, "senha123"))
-                .isInstanceOf(ConflictException.class)
-                .hasMessageContaining(novo.getEmail());
-
-        verify(userRepository, never()).save(any());
     }
 
     @Test

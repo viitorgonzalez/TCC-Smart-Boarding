@@ -71,6 +71,14 @@ Spec nova vai **neste repo**, não no harness — contrato em `../personal-harne
 - **Papéis:** `ADMIN`, `STUDENT` (ações de trajeto são do `ADMIN` — sem papel de motorista separado)
 - **Estado no app:** Provider exclusivamente — sem BLoC, sem Riverpod
 - **Segredos:** `.env` a partir de `.env.example` — nunca commitados. Override pessoal de config: `application-local.properties` (gitignored por convenção do repo). Hook local anti-hardcode: `git config core.hooksPath .githooks` (bloqueia commit com secret/token/senha literal — motivo em `.githooks/pre-commit`).
-- **Perfis Spring:** `local` (default) e `prod` (`SPRING_PROFILES_ACTIVE=prod` — desliga SQL no log, `ddl-auto=validate`, esconde stacktrace, limita o pool).
+- **Perfis Spring:** `local` (default, override pessoal gitignored), `dev` (config de
+  desenvolvimento compartilhada e versionada — traz o dado de demonstração de `db/seed`) e `prod`
+  (`SPRING_PROFILES_ACTIVE=prod` — desliga SQL no log, `ddl-auto=validate`, esconde stacktrace,
+  limita o pool). O `run-local.sh` ativa `local,dev`.
+- **A configuração base é segura por omissão.** `application.properties` carrega só
+  `db/migration`; o seed entra apenas pelo perfil `dev`. Isso é de propósito: as contas do seed
+  têm a senha publicada no próprio arquivo, e um deploy que esqueça `SPRING_PROFILES_ACTIVE` não
+  pode ganhar administrador de credencial conhecida por descuido. Banco sem o perfil `dev` sobe
+  vazio — que é exatamente o que produção faz.
 - **Deploy:** ainda não há ambiente publicado, mas a API já está preparada: `Dockerfile` multi-stage (JRE + usuário sem privilégio), host/porta do banco externalizados (`DB_HOST`/`DB_PORT`, ou `SPRING_DATASOURCE_URL` inteiro) e `PORT` respeitado. Variáveis necessárias em `.env.prod.example`.
 - Commit/branch/PR: ver `../personal-harness/docs/CONVENTIONS.md`

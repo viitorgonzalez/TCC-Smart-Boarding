@@ -1,6 +1,5 @@
 package com.smartboarding.smartboarding_api.application.user;
 
-import com.smartboarding.smartboarding_api.domain.user.entity.Role;
 import com.smartboarding.smartboarding_api.domain.user.entity.User;
 import com.smartboarding.smartboarding_api.domain.user.port.in.SignupUseCase;
 import com.smartboarding.smartboarding_api.domain.user.port.out.UserRepositoryPort;
@@ -16,19 +15,23 @@ public class SignupUseCaseImpl implements SignupUseCase {
 
     private final UserRepositoryPort userRepository;
     private final PasswordEncoder passwordEncoder;
+    private final BootstrapAdminPolicy bootstrapAdminPolicy;
 
-    public SignupUseCaseImpl(UserRepositoryPort userRepository, PasswordEncoder passwordEncoder) {
+    public SignupUseCaseImpl(UserRepositoryPort userRepository,
+                             PasswordEncoder passwordEncoder,
+                             BootstrapAdminPolicy bootstrapAdminPolicy) {
         this.userRepository = userRepository;
         this.passwordEncoder = passwordEncoder;
+        this.bootstrapAdminPolicy = bootstrapAdminPolicy;
     }
 
     @Override
     @Transactional
     public User signup(User user, String rawPassword) {
-        // O papel é cravado aqui, não vem do request: aceitar o que o cliente
+        // O papel e cravado aqui, nao vem do request: aceitar o que o cliente
         // mandar deixaria qualquer um criar conta de admin por este endpoint,
-        // que é público.
-        user.setRole(Role.STUDENT);
+        // que e publico. A unica excecao e o bootstrap da RN28.
+        user.setRole(bootstrapAdminPolicy.roleForNewAccount(user.getEmail()));
 
         // Login e recuperação de senha respondem igual havendo conta ou não, pra
         // não revelar quais e-mails existem. Aqui é o oposto de propósito: quem

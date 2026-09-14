@@ -1,5 +1,18 @@
 -- Dado semente consolidado (antigas V2, V8, V9 e V11).
 --
+-- ATENCAO: DESENVOLVIMENTO E DEMONSTRACAO APENAS. Este arquivo NAO fica em
+-- db/migration justamente pra nao rodar em producao: as contas abaixo tem senha
+-- publicada logo adiante neste cabecalho, e um ambiente real que as criasse
+-- subiria com administradores de credencial conhecida.
+--
+-- Quem carrega isto e o spring.flyway.locations do perfil padrao, que inclui
+-- db/seed. O perfil prod resolve so db/migration.
+--
+-- Se um banco que JA aplicou esta migration for apontado por um ambiente prod,
+-- o Flyway vai recusar o boot ("applied migration not resolved locally"). Isso
+-- e desejado, nao um problema a contornar: significa que aquele banco carrega
+-- as contas de demonstracao e nao deveria virar producao.
+--
 -- Cobre: contas de todos os papeis + dados de demonstracao suficientes pra
 -- todas as telas terem conteudo (rotas ativas/inativa, lista do dia aberta com
 -- inscritos, listas fechadas com relatorio).

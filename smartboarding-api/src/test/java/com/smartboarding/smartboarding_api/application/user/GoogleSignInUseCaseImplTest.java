@@ -37,11 +37,18 @@ class GoogleSignInUseCaseImplTest {
 
     @BeforeEach
     void setUp() {
-        useCase = new GoogleSignInUseCaseImpl(verifier, userRepository);
+        useCase = comBootstrap("");
         when(userRepository.save(any())).thenAnswer(i -> i.getArgument(0));
         when(userRepository.findByGoogleId(any())).thenReturn(Optional.empty());
         when(userRepository.findByEmail(any())).thenReturn(Optional.empty());
         contaGoogle(true);
+    }
+
+    /// Política de verdade, não mock: o que estes testes precisam provar é o
+    /// papel com que a conta nasce, e um mock só provaria que houve repasse.
+    private GoogleSignInUseCaseImpl comBootstrap(String bootstrapAdminEmail) {
+        return new GoogleSignInUseCaseImpl(verifier, userRepository,
+                new BootstrapAdminPolicy(userRepository, bootstrapAdminEmail));
     }
 
     private void contaGoogle(boolean verificado) {
@@ -122,6 +129,56 @@ class GoogleSignInUseCaseImplTest {
     @Test
     void contaCriadaPeloGoogleEsempreStudent() {
         assertThat(useCase.signIn("token").getRole()).isEqualTo(Role.STUDENT);
+    }
+
+    /// "Entrar com Google" e caminho tao provavel quanto o cadastro pro operador
+    /// de um ambiente novo. Cravando STUDENT aqui, ele nasceria aluno, o cadastro
+    /// posterior com o mesmo e-mail bateria em EMAIL_ALREADY_EXISTS e nao haveria
+    /// admin nenhum pra promove-lo -- so editando o banco.
+    @Test
+    void primeiroLoginComOEmailDeBootstrapNasceAdmin() {
+        when(userRepository.countAdmins()).thenReturn(0L);
+
+        assertThat(comBootstrap(EMAIL).signIn("token").getRole()).isEqualTo(Role.ADMIN);
+    }
+
+    /// Mesma janela do cadastro: existindo admin, a variavel nao faz mais nada.
+    @Test
+    void comAdminExistenteOLoginPeloGoogleNaoConcedeNada() {
+        when(userRepository.countAdmins()).thenReturn(1L);
+
+        assertThat(comBootstrap(EMAIL).signIn("token").getRole()).isEqualTo(Role.STUDENT);
+    }
+
+    @Test
+    void outroEmailNoGoogleNaoVirapAdminNemComZeroAdmins() {
+        when(userRepository.countAdmins()).thenReturn(0L);
+
+        assertThat(comBootstrap("chefe@prefeitura.gov.br").signIn("token").getRole())
+                .isEqualTo(Role.STUDENT);
+    }
+
+    /// Mesmo motivo do cadastro: a unicidade de e-mail no Postgres e
+    /// case-sensitive, entao casar sem caixa deixaria duas contas distintas
+    /// satisfazerem a mesma janela.
+    @Test
+    void grafiaComOutraCaixaNaoCasaNoCaminhoDoGoogle() {
+        when(userRepository.countAdmins()).thenReturn(0L);
+
+        assertThat(comBootstrap(EMAIL.toUpperCase()).signIn("token").getRole())
+                .isEqualTo(Role.STUDENT);
+    }
+
+    /// A conta ja existia: o bootstrap concede papel a conta NOVA, e vincular ao
+    /// Google nao e criar. Promover aqui daria admin a quem so entrou de novo.
+    @Test
+    void vincularContaExistenteNaoConcedeAdminPeloBootstrap() {
+        when(userRepository.countAdmins()).thenReturn(0L);
+        when(userRepository.findByEmail(EMAIL)).thenReturn(Optional.of(
+                User.builder().id(UUID.randomUUID()).email(EMAIL).role(Role.STUDENT)
+                        .password("$2a$10$hash").fullName("Fernanda Lima").build()));
+
+        assertThat(comBootstrap(EMAIL).signIn("token").getRole()).isEqualTo(Role.STUDENT);
     }
 
     /// O Google so prova QUEM e a pessoa. Sem esta checagem, entrar pelo Google

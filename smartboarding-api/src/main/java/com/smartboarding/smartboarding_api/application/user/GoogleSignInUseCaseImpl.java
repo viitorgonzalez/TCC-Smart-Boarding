@@ -1,6 +1,5 @@
 package com.smartboarding.smartboarding_api.application.user;
 
-import com.smartboarding.smartboarding_api.domain.user.entity.Role;
 import com.smartboarding.smartboarding_api.domain.user.entity.User;
 import com.smartboarding.smartboarding_api.domain.user.port.in.GoogleSignInUseCase;
 import com.smartboarding.smartboarding_api.domain.user.port.out.GoogleTokenVerifierPort;
@@ -18,11 +17,14 @@ public class GoogleSignInUseCaseImpl implements GoogleSignInUseCase {
 
     private final GoogleTokenVerifierPort verifier;
     private final UserRepositoryPort userRepository;
+    private final BootstrapAdminPolicy bootstrapAdminPolicy;
 
     public GoogleSignInUseCaseImpl(GoogleTokenVerifierPort verifier,
-                                   UserRepositoryPort userRepository) {
+                                   UserRepositoryPort userRepository,
+                                   BootstrapAdminPolicy bootstrapAdminPolicy) {
         this.verifier = verifier;
         this.userRepository = userRepository;
+        this.bootstrapAdminPolicy = bootstrapAdminPolicy;
     }
 
     @Override
@@ -61,7 +63,13 @@ public class GoogleSignInUseCaseImpl implements GoogleSignInUseCase {
                 .fullName(conta.fullName())
                 .googleId(conta.googleId())
                 // Sem senha local: ele define uma depois, se quiser.
-                .role(Role.STUDENT)
+                //
+                // O bootstrap da RN28 vale aqui tambem: "Entrar com Google" e um
+                // caminho tao provavel quanto o cadastro pro operador de um
+                // ambiente novo, e cravar STUDENT queimaria a janela em silencio
+                // -- o cadastro seguinte com o mesmo e-mail bateria em
+                // EMAIL_ALREADY_EXISTS e nao sobraria admin pra promove-lo.
+                .role(bootstrapAdminPolicy.roleForNewAccount(conta.email()))
                 .isActive(true)
                 .build());
         log.info("Conta criada pelo Google: {}", maskEmail(conta.email()));

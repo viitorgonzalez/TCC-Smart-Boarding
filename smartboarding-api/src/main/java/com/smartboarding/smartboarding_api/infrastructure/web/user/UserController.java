@@ -8,7 +8,9 @@ import com.smartboarding.smartboarding_api.domain.user.entity.UserStatusLog;
 import com.smartboarding.smartboarding_api.domain.user.port.in.FindUserUseCase;
 import com.smartboarding.smartboarding_api.domain.user.port.in.ManageUserStatusUseCase;
 import com.smartboarding.smartboarding_api.domain.user.port.out.UserRepositoryPort;
+import com.smartboarding.smartboarding_api.infrastructure.web.user.dto.AdminCountResponse;
 import com.smartboarding.smartboarding_api.infrastructure.web.user.dto.StudentProfileResponse;
+import com.smartboarding.smartboarding_api.infrastructure.web.user.dto.UpdateUserRoleRequest;
 import com.smartboarding.smartboarding_api.infrastructure.web.user.dto.UpdateUserStatusRequest;
 import com.smartboarding.smartboarding_api.infrastructure.web.user.dto.UserResponse;
 import com.smartboarding.smartboarding_api.shared.exception.UnauthorizedException;
@@ -74,6 +76,14 @@ public class UserController {
         return ResponseEntity.ok(ApiResponse.data(users));
     }
 
+    /// Caminho de duas partes de propósito: um só segmento colidiria com
+    /// /api/users/{id}, que espera um UUID.
+    @GetMapping("/admins/count")
+    public ResponseEntity<ApiResponse<AdminCountResponse>> countAdmins() {
+        return ResponseEntity.ok(ApiResponse.data(
+                new AdminCountResponse(findUserUseCase.countAdmins())));
+    }
+
     @GetMapping("/{id}")
     public ResponseEntity<ApiResponse<UserResponse>> findById(@PathVariable UUID id) {
         User user = findUserUseCase.findById(id);
@@ -92,6 +102,17 @@ public class UserController {
             @RequestBody @Valid UpdateUserStatusRequest request,
             Authentication auth) {
         User saved = manageUserStatusUseCase.setActive(id, request.active(), adminId(auth));
+        return ResponseEntity.ok(ApiResponse.data(profileOf(saved)));
+    }
+
+    /// Concede ou retira acesso administrativo. Não cria conta: a conta já é da
+    /// pessoa, e o que muda aqui é só o papel dela.
+    @PatchMapping("/{id}/role")
+    public ResponseEntity<ApiResponse<StudentProfileResponse>> setRole(
+            @PathVariable UUID id,
+            @RequestBody @Valid UpdateUserRoleRequest request,
+            Authentication auth) {
+        User saved = manageUserStatusUseCase.setRole(id, request.role(), adminId(auth));
         return ResponseEntity.ok(ApiResponse.data(profileOf(saved)));
     }
 
@@ -125,7 +146,7 @@ public class UserController {
                 user.getId(), user.getFullName(), user.getEmail(),
                 user.getPhone(), user.getAddress(), user.getBirthDate(),
                 user.getCourse(), institutionNames().get(user.getInstitutionId()),
-                user.isActive(), attendance, changes);
+                user.isActive(), user.getRole().name(), attendance, changes);
     }
 
     private UUID adminId(Authentication auth) {

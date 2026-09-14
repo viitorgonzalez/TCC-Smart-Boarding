@@ -5,7 +5,6 @@ import com.smartboarding.smartboarding_api.domain.user.entity.User;
 import com.smartboarding.smartboarding_api.domain.user.port.in.LoginUseCase;
 import com.smartboarding.smartboarding_api.domain.passwordreset.port.in.RequestPasswordResetUseCase;
 import com.smartboarding.smartboarding_api.domain.passwordreset.port.in.ResetPasswordUseCase;
-import com.smartboarding.smartboarding_api.domain.user.port.in.RegisterUseCase;
 import com.smartboarding.smartboarding_api.domain.user.port.in.GoogleSignInUseCase;
 import com.smartboarding.smartboarding_api.domain.user.port.in.IssueTokenUseCase;
 import com.smartboarding.smartboarding_api.domain.user.port.in.SignupUseCase;
@@ -13,10 +12,8 @@ import com.smartboarding.smartboarding_api.infrastructure.web.user.dto.ForgotPas
 import com.smartboarding.smartboarding_api.infrastructure.web.user.dto.LoginRequest;
 import com.smartboarding.smartboarding_api.infrastructure.web.user.dto.LoginResponse;
 import com.smartboarding.smartboarding_api.infrastructure.web.user.dto.GoogleSignInRequest;
-import com.smartboarding.smartboarding_api.infrastructure.web.user.dto.RegisterRequest;
 import com.smartboarding.smartboarding_api.infrastructure.web.user.dto.SignupRequest;
 import com.smartboarding.smartboarding_api.infrastructure.web.user.dto.ResetPasswordRequest;
-import com.smartboarding.smartboarding_api.infrastructure.web.user.dto.UserResponse;
 import com.smartboarding.smartboarding_api.shared.web.ApiResponse;
 import jakarta.validation.Valid;
 import org.springframework.http.HttpStatus;
@@ -31,7 +28,6 @@ import org.springframework.web.bind.annotation.RestController;
 public class AuthController {
 
     private final LoginUseCase loginUseCase;
-    private final RegisterUseCase registerUseCase;
     private final RequestPasswordResetUseCase requestPasswordResetUseCase;
     private final ResetPasswordUseCase resetPasswordUseCase;
     private final SignupUseCase signupUseCase;
@@ -39,14 +35,12 @@ public class AuthController {
     private final IssueTokenUseCase issueTokenUseCase;
 
     public AuthController(LoginUseCase loginUseCase,
-                          RegisterUseCase registerUseCase,
                           RequestPasswordResetUseCase requestPasswordResetUseCase,
                           ResetPasswordUseCase resetPasswordUseCase,
                           SignupUseCase signupUseCase,
                           GoogleSignInUseCase googleSignInUseCase,
                           IssueTokenUseCase issueTokenUseCase) {
         this.loginUseCase = loginUseCase;
-        this.registerUseCase = registerUseCase;
         this.requestPasswordResetUseCase = requestPasswordResetUseCase;
         this.resetPasswordUseCase = resetPasswordUseCase;
         this.signupUseCase = signupUseCase;
@@ -88,17 +82,6 @@ public class AuthController {
         AuthToken token = issueTokenUseCase.issueFor(user);
         return ResponseEntity.ok(ApiResponse.data(
                 LoginResponse.from(token)));
-    }
-
-    @PostMapping("/register")
-    public ResponseEntity<ApiResponse<UserResponse>> register(@RequestBody @Valid RegisterRequest request) {
-        User user = User.builder()
-                .email(request.email())
-                .fullName(request.fullName())
-                .role(request.role())
-                .build();
-        User saved = registerUseCase.execute(user, request.password());
-        return ResponseEntity.status(HttpStatus.CREATED).body(ApiResponse.data(UserResponse.from(saved, null)));
     }
 
     /// Responde igual havendo conta ou não (RN22) -- por isso não devolve dado nenhum.

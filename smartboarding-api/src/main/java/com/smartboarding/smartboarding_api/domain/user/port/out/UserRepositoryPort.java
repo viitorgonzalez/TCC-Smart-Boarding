@@ -13,6 +13,10 @@ public interface UserRepositoryPort {
     User save(User user);
     boolean existsByEmail(String email);
     long countActiveStudents();
+    long countAdmins();
+
+    /// Segura quem mexe em papel de admin ate o fim da transacao corrente.
+    void lockAdminRoleChanges();
     long countByInstitutionId(UUID institutionId);
     List<User> findByRouteId(UUID routeId);
 
