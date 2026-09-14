@@ -85,7 +85,13 @@ flutter build apk --release
 - **Entidades**: JPA com `@Entity`, UUID como PK (`gen_random_uuid()` no SQL)
 - **DTOs**: sempre usar DTOs para request/response, nunca expor a entidade diretamente
 - **Migrations Flyway**: `V{n}__{descricao_snake_case}.sql` em `src/main/resources/db/migration/`.
-  Consolidadas em `V1__initial_schema.sql` + `V2__seed_data.sql` (12/08/2026) — próxima é `V3+`.
+  Schema começa em `V1__initial_schema.sql`.
+- **Schema e seed são diretórios separados.** `db/migration/` é schema e roda em todo ambiente;
+  `db/seed/` é dado de demonstração e **só** é carregado pelo perfil padrão — as contas de lá
+  têm a senha publicada no próprio arquivo, e produção não pode nascer com administrador de
+  credencial conhecida. Quem decide é `spring.flyway.locations`, por perfil. O
+  `ProductionMigrationsIT` sobe a aplicação com o `locations` de produção e falha se o seed
+  voltar a ser alcançável ou se a cadeia de migrations parar de aplicar em banco vazio.
 - **Roles**: `ADMIN`, `STUDENT` — coluna `role` (`VARCHAR(20)`, sem `CHECK`, validada na
   aplicação). Checar com `@PreAuthorize("hasRole('ADMIN')")` ou na `SecurityConfig`. Ações de
   trajeto (iniciar/checkpoint/finalizar) são do `ADMIN` — não existe papel de motorista separado
