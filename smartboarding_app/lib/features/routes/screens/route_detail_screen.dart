@@ -3,6 +3,7 @@ import 'package:flutter/material.dart';
 // no desenho do pino.
 import 'package:provider/provider.dart';
 import '../widgets/route_institutions_card.dart';
+import '../widgets/route_invite_codes_card.dart';
 import '../widgets/route_stops_editor.dart';
 import '../widgets/route_vehicles_card.dart';
 import '../../../core/errors/app_exception.dart';
@@ -168,6 +169,12 @@ class _RouteDetailScreenState extends State<RouteDetailScreen> {
                   vehicles: _vehicles,
                   run: _run,
                 ),
+                const SizedBox(height: 24),
+                // Antes das instituições: é o que o admin abre a tela pra fazer
+                // quando a turma muda de semestre.
+                const SectionTitle('Códigos de acesso'),
+                const SizedBox(height: 8),
+                RouteInviteCodesCard(routeId: widget.route.id),
                 const SizedBox(height: 24),
                 const SectionTitle('Instituições atendidas'),
                 const SizedBox(height: 12),

@@ -1,10 +1,35 @@
 import '../../../core/services/dio_client.dart';
+import '../models/invite_code_model.dart';
 import '../models/route_model.dart';
 import '../models/stop_model.dart';
 import '../models/vehicle_model.dart';
 
 class RouteService {
   final _dio = DioClient.instance;
+
+  Future<List<InviteCode>> getInviteCodes(String routeId) async {
+    final response = await _dio.get('/api/routes/$routeId/invite-codes');
+    final data = response.data['data'] as List<dynamic>;
+    return data
+        .map((e) => InviteCode.fromJson(e as Map<String, dynamic>))
+        .toList();
+  }
+
+  /// [expiresAt] nulo deixa o backend aplicar a validade padrão dele.
+  Future<InviteCode> generateInviteCode(
+    String routeId, {
+    DateTime? expiresAt,
+  }) async {
+    final response = await _dio.post(
+      '/api/routes/$routeId/invite-codes',
+      data: {'expiresAt': ?expiresAt?.toIso8601String()},
+    );
+    return InviteCode.fromJson(response.data['data'] as Map<String, dynamic>);
+  }
+
+  Future<void> revokeInviteCode(String routeId, String codeId) async {
+    await _dio.delete('/api/routes/$routeId/invite-codes/$codeId');
+  }
 
   Future<List<StopModel>> getStops(String routeId) async {
     final response = await _dio.get('/api/routes/$routeId/stops');

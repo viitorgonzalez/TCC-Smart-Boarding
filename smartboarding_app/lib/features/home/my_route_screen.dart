@@ -13,7 +13,7 @@ class MyRouteScreen extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     return Scaffold(
-      appBar: AppBar(title: const Text('Minha rota')),
+      appBar: AppBar(title: const Text('Lista de hoje')),
       body: SafeArea(
         child: Consumer<StudentListProvider>(
           builder: (context, provider, _) => AsyncBuilder(

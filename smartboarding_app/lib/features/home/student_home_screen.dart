@@ -15,7 +15,7 @@ import '../membership/widgets/route_selector.dart';
 import '../notifications/screens/notifications_inbox_screen.dart';
 import '../reports/screens/my_attendance_screen.dart';
 import '../warnings/screens/warnings_screen.dart';
-import 'my_route_screen.dart';
+import 'my_routes_screen.dart';
 
 class StudentHomeScreen extends StatelessWidget {
   const StudentHomeScreen({super.key});
@@ -119,10 +119,10 @@ class StudentHomeScreen extends StatelessWidget {
                     children: [
                       FeatureCard(
                         icon: Icons.directions_bus_outlined,
-                        label: 'Minha rota',
+                        label: 'Minhas rotas',
                         onTap: () => _open(
                           context,
-                          const MyRouteScreen(),
+                          const MyRoutesScreen(),
                           keepList: true,
                         ),
                       ),
