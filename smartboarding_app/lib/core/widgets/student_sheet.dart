@@ -11,7 +11,9 @@ import '../../features/users/widgets/student_profile_card.dart';
 /// mostrando o aluno recém-promovido no grupo antigo até um pull-to-refresh.
 Future<bool> showStudentProfile(BuildContext context, String userId) async {
   // Fechar arrastando ou tocando fora não passa valor nenhum pro pop, então a
-  // mudança é registrada por callback em vez do resultado da rota.
+  // mudança é registrada por callback em vez do resultado da rota. Durante uma
+  // gravação a própria folha bloqueia o fechamento (PopScope), pra não devolver
+  // um resultado que a requisição em voo ainda vai contradizer.
   var changed = false;
   await showModalBottomSheet<void>(
     context: context,

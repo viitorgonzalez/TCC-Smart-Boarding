@@ -223,4 +223,31 @@ class UserStatusUseCaseImplTest {
                 .isInstanceOf(BadRequestException.class)
                 .hasMessageContaining("desativada");
     }
+
+    /// A trava do ultimo admin so vale se a contagem e a decisao acontecerem sem
+    /// outra transacao no meio. Sem o lock, duas que rebaixam admins diferentes
+    /// leem 2, as duas passam, e o sistema fica sem administrador.
+    @Test
+    void rebaixarSerializaAntesDeContar() {
+        UUID outro = UUID.randomUUID();
+        when(userRepository.findById(outro)).thenReturn(Optional.of(
+                User.builder().id(outro).fullName("Naiara").isActive(true)
+                        .role(Role.ADMIN).build()));
+        when(userRepository.countAdmins()).thenReturn(2L);
+
+        useCase.setRole(outro, Role.STUDENT, ADMIN);
+
+        org.mockito.InOrder ordem = org.mockito.Mockito.inOrder(userRepository);
+        ordem.verify(userRepository).lockAdminRoleChanges();
+        ordem.verify(userRepository).countAdmins();
+    }
+
+    /// Promover nao mexe na contagem de admins pra baixo, entao nao precisa
+    /// segurar ninguem -- pagar o lock ali seria serializar promocao a toa.
+    @Test
+    void promoverNaoPegaOLock() {
+        useCase.setRole(STUDENT, Role.ADMIN, ADMIN);
+
+        verify(userRepository, never()).lockAdminRoleChanges();
+    }
 }

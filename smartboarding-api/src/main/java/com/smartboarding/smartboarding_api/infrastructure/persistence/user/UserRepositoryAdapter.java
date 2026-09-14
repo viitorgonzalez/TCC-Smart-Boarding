@@ -25,6 +25,11 @@ public class UserRepositoryAdapter implements UserRepositoryPort {
     @Override public long countActiveStudents() { return jpa.countActiveStudents(); }
 
     @Override
+    public void lockAdminRoleChanges() {
+        jpa.lockAdminRoleChanges();
+    }
+
+    @Override
     public long countAdmins() {
         return jpa.countAdmins();
     }

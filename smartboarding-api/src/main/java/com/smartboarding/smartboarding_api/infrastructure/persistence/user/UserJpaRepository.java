@@ -21,6 +21,15 @@ public interface UserJpaRepository extends JpaRepository<User, UUID> {
     @Query("SELECT COUNT(u) FROM User u WHERE u.role = com.smartboarding.smartboarding_api.domain.user.entity.Role.ADMIN")
     long countAdmins();
 
+    /// Serializa quem mexe em papel de admin. Sem isto, duas transacoes que
+    /// rebaixam admins diferentes leem a mesma contagem, as duas passam pela
+    /// trava do ultimo admin, e o sistema fica sem administrador nenhum -- cuja
+    /// unica recuperacao seria editar o banco a mao. Lock consultivo em vez de
+    /// FOR UPDATE porque a trava protege um AGREGADO (quantos admins existem),
+    /// nao uma linha especifica.
+    @Query(value = "SELECT pg_advisory_xact_lock(2609121)", nativeQuery = true)
+    void lockAdminRoleChanges();
+
     long countByInstitutionId(UUID institutionId);
 
     @Query("""

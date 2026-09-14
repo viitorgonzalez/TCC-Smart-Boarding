@@ -29,7 +29,9 @@ secret:
     # Sem excluir, todo `flutter pub upgrade` acusa um punhado de "segredos"
     # novos -- e o check volta a ser ruido a cada atualizacao de dependencia.
     - "smartboarding_app/pubspec.lock"
-    # Planos e specs citam o codigo de teste que mandam escrever, fixture de
-    # senha inclusa. Sao registro historico do que foi implementado -- reescrever
-    # pra satisfazer o scanner falsificaria o registro.
-    - "docs/superpowers/**"
+    # Arquivo unico, nao a pasta: este plano cita verbatim o codigo de teste que
+    # manda escrever, fixture de senha inclusa, e reescreve-lo pra satisfazer o
+    # scanner falsificaria o registro do que foi implementado. Excluir
+    # docs/superpowers/** inteiro esconderia credencial real que alguem colasse
+    # em outro documento.
+    - "docs/superpowers/plans/2026-09-12-acesso-administrativo.md"

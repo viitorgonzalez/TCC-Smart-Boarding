@@ -2,6 +2,7 @@ package com.smartboarding.smartboarding_api.application.user;
 
 import com.smartboarding.smartboarding_api.domain.user.entity.Role;
 import com.smartboarding.smartboarding_api.domain.user.port.out.UserRepositoryPort;
+import lombok.extern.slf4j.Slf4j;
 import org.springframework.beans.factory.annotation.Value;
 import org.springframework.stereotype.Component;
 
@@ -17,6 +18,7 @@ import org.springframework.stereotype.Component;
 /// variável CONCEDE o papel a uma conta que a própria pessoa criou — não cria
 /// conta nenhuma.
 @Component
+@Slf4j
 public class BootstrapAdminPolicy {
 
     private final UserRepositoryPort userRepository;
@@ -30,7 +32,24 @@ public class BootstrapAdminPolicy {
 
     /// Papel com que uma conta nova nasce.
     public Role roleForNewAccount(String email) {
-        return grantsAdminTo(email) ? Role.ADMIN : Role.STUDENT;
+        if (!grantsAdminTo(email)) {
+            return Role.STUDENT;
+        }
+        // Em WARN de proposito, e a unica linha que registra o evento: o cadastro
+        // e publico e nao prova posse de e-mail, entao quem souber a variavel e
+        // chegar primeiro leva o papel. Nao da pra impedir sem verificacao de
+        // e-mail, mas da pra deixar DETECTAVEL -- sem esta linha, o operador nao
+        // tem como saber se a janela foi consumida por ele ou por outra pessoa.
+        log.warn("BOOTSTRAP: primeira conta do ambiente nasceu ADMIN ({}). "
+                + "Remova BOOTSTRAP_ADMIN_EMAIL da configuracao.", maskEmail(email));
+        return Role.ADMIN;
+    }
+
+    /// Mascara igual ao resto do sistema: log de auditoria nao precisa do
+    /// endereco inteiro pra ser util, e log vaza com mais facilidade que banco.
+    private static String maskEmail(String email) {
+        int arroba = email == null ? -1 : email.indexOf('@');
+        return arroba <= 1 ? "***" : email.charAt(0) + "***" + email.substring(arroba);
     }
 
     /// Comparação exata, não equalsIgnoreCase: a unicidade de e-mail no Postgres

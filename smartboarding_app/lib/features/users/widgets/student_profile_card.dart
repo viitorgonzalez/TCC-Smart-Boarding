@@ -130,18 +130,25 @@ class StudentProfileSheetState extends State<StudentProfileSheet> {
         profile.role == 'ADMIN' &&
         _adminCount != null &&
         _adminCount! <= 1;
-    return Padding(
-      padding: const EdgeInsets.fromLTRB(20, 0, 20, 24),
-      child: profile == null
-          ? const LoadingCard()
-          : StudentProfileBody(
-              profile: profile,
-              busy: _busy,
-              onToggle: _toggle,
-              onToggleRole: _toggleRole,
-              ehAPropriaConta: ehAPropriaConta,
-              ehUltimoAdmin: ehUltimoAdmin,
-            ),
+    // Fechar no meio do PATCH faria a folha sumir antes de o `onChanged`
+    // disparar, e a lista de tras ficaria mostrando o papel antigo de uma conta
+    // que ja mudou. Segurar durante a requisicao e mais honesto que aceitar o
+    // fechamento e devolver um resultado desatualizado.
+    return PopScope(
+      canPop: !_busy,
+      child: Padding(
+        padding: const EdgeInsets.fromLTRB(20, 0, 20, 24),
+        child: profile == null
+            ? const LoadingCard()
+            : StudentProfileBody(
+                profile: profile,
+                busy: _busy,
+                onToggle: _toggle,
+                onToggleRole: _toggleRole,
+                ehAPropriaConta: ehAPropriaConta,
+                ehUltimoAdmin: ehUltimoAdmin,
+              ),
+      ),
     );
   }
 }

@@ -84,6 +84,10 @@ public class UserStatusUseCaseImpl implements ManageUserStatusUseCase {
         }
 
         if (role == Role.STUDENT) {
+            // Antes de contar: a contagem e a decisao precisam acontecer sem
+            // outra transacao no meio, senao duas que rebaixam admins
+            // diferentes leem 2 e as duas passam.
+            userRepository.lockAdminRoleChanges();
             if (userId.equals(adminId)) {
                 throw new BadRequestException("CANNOT_DEMOTE_SELF",
                         "Você não pode rebaixar a própria conta.");

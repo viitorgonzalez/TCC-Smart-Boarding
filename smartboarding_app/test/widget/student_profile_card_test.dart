@@ -543,4 +543,27 @@ void main() {
 
     expect(avisou, isFalse);
   });
+
+  /// Fechar no meio do PATCH faria a folha sumir antes de o `onChanged`
+  /// disparar, e o chamador receberia "nada mudou" sobre uma conta que mudou.
+  testWidgets('a folha nao fecha enquanto grava', (tester) async {
+    await tester.pumpWidget(
+      wrap(
+        StudentProfileBody(
+          profile: comPapel('STUDENT'),
+          busy: true,
+          onToggle: (_) {},
+          onToggleRole: () {},
+          ehAPropriaConta: false,
+          ehUltimoAdmin: false,
+        ),
+      ),
+    );
+    await tester.pumpAndSettle();
+
+    final tile = tester.widget<ListTile>(
+      find.byKey(const Key('profile_role_action')),
+    );
+    expect(tile.enabled, isFalse, reason: 'ocupado desabilita a acao');
+  });
 }
