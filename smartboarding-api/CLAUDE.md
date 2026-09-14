@@ -92,6 +92,8 @@ flutter build apk --release
   credencial conhecida. Quem decide é `spring.flyway.locations`, por perfil. O
   `ProductionMigrationsIT` sobe a aplicação com o `locations` de produção e falha se o seed
   voltar a ser alcançável ou se a cadeia de migrations parar de aplicar em banco vazio.
+  Quem carrega o seed é o perfil **`dev`** (versionado), ativado pelo `run-local.sh`; a base
+  carrega só o schema.
 - **Roles**: `ADMIN`, `STUDENT` — coluna `role` (`VARCHAR(20)`, sem `CHECK`, validada na
   aplicação). Checar com `@PreAuthorize("hasRole('ADMIN')")` ou na `SecurityConfig`. Ações de
   trajeto (iniciar/checkpoint/finalizar) são do `ADMIN` — não existe papel de motorista separado

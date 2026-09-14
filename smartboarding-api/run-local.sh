@@ -26,4 +26,9 @@ set -a
 . ./.env
 set +a
 
+# `dev` traz o dado de demonstracao; `local` fica pro override pessoal
+# (gitignored). A base carrega so o schema de proposito, entao sem este perfil
+# o banco sobe vazio -- que e o que producao faz.
+export SPRING_PROFILES_ACTIVE="${SPRING_PROFILES_ACTIVE:-local,dev}"
+
 exec ./mvnw spring-boot:run
