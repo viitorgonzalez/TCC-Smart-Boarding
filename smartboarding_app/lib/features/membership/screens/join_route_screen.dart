@@ -79,6 +79,9 @@ class _JoinRouteScreenState extends State<JoinRouteScreen> {
                 const SizedBox(height: 8),
                 AppTextField(
                   key: const Key('join_code_field'),
+                  autofocus: true,
+                  textInputAction: TextInputAction.done,
+                  onSubmitted: _submit,
                   label: 'Código da rota',
                   controller: _codeCtrl,
                   icon: Icons.confirmation_number_outlined,

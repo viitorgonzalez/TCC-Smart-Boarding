@@ -69,6 +69,9 @@ class _ForgotPasswordScreenState extends State<ForgotPasswordScreen> {
                 ),
                 const SizedBox(height: 24),
                 AppTextField(
+                  autofocus: true,
+                  autofillHints: const [AutofillHints.username],
+                  textInputAction: TextInputAction.done,
                   key: const Key('forgot_email_field'),
                   label: 'Email',
                   controller: _emailCtrl,

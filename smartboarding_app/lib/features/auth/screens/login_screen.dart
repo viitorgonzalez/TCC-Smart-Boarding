@@ -95,6 +95,8 @@ class _LoginScreenState extends State<LoginScreen> {
                 const SizedBox(height: 32),
                 AppTextField(
                   key: const Key('login_email_field'),
+                  autofillHints: const [AutofillHints.username],
+                  textInputAction: TextInputAction.next,
                   autofocus: true,
                   label: 'Email',
                   controller: _emailCtrl,
@@ -107,6 +109,9 @@ class _LoginScreenState extends State<LoginScreen> {
                 const SizedBox(height: 20),
                 AppTextField(
                   key: const Key('login_password_field'),
+                  autofillHints: const [AutofillHints.password],
+                  textInputAction: TextInputAction.done,
+                  onSubmitted: _submit,
                   label: 'Senha',
                   controller: _passCtrl,
                   icon: Icons.lock_outline,

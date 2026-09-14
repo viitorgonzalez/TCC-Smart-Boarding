@@ -24,6 +24,20 @@ class AppTextField extends StatelessWidget {
   /// precisa de um toque a mais so pra comecar a digitar.
   final bool autofocus;
 
+  /// Diz ao gerenciador de senhas do aparelho o que este campo guarda. Sem
+  /// isso ele nao oferece preencher, e a pessoa digita e-mail e senha na mao em
+  /// todo login.
+  final List<String>? autofillHints;
+
+  /// Tecla de acao do teclado: `next` pula pro proximo campo, `done` fecha e
+  /// envia. Sem definir, o teclado mostra "return" e nao navega -- num
+  /// formulario de quatro campos isso e um toque a mais por campo.
+  final TextInputAction? textInputAction;
+
+  /// Chamado quando a tecla de acao e apertada. E o que faz o `done` enviar o
+  /// formulario em vez de so fechar o teclado.
+  final VoidCallback? onSubmitted;
+
   const AppTextField({
     super.key,
     required this.label,
@@ -39,6 +53,9 @@ class AppTextField extends StatelessWidget {
     this.validator,
     this.textCapitalization = TextCapitalization.none,
     this.autofocus = false,
+    this.autofillHints,
+    this.textInputAction,
+    this.onSubmitted,
   });
 
   @override
@@ -65,6 +82,9 @@ class AppTextField extends StatelessWidget {
           validator: validator,
           textCapitalization: textCapitalization,
           autofocus: autofocus,
+          autofillHints: autofillHints,
+          textInputAction: textInputAction,
+          onFieldSubmitted: onSubmitted == null ? null : (_) => onSubmitted!(),
           decoration: InputDecoration(
             hintText: hint,
             prefixIcon: icon == null ? null : Icon(icon),
