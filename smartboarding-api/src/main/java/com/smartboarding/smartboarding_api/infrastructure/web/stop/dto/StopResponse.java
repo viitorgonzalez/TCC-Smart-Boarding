@@ -4,9 +4,10 @@ import com.smartboarding.smartboarding_api.domain.stop.entity.Stop;
 
 import java.util.UUID;
 
-public record StopResponse(UUID id, String name, Double latitude, Double longitude, int sequence) {
+public record StopResponse(UUID id, String name, Double latitude, Double longitude,
+                           int sequence, boolean isMainPoint) {
     public static StopResponse from(Stop stop) {
         return new StopResponse(stop.getId(), stop.getName(), stop.getLatitude(),
-                stop.getLongitude(), stop.getSequence());
+                stop.getLongitude(), stop.getSequence(), stop.isMainPoint());
     }
 }

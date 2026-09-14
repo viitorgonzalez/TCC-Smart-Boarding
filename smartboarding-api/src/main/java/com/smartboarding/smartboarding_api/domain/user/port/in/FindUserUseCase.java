@@ -12,4 +12,9 @@ public interface FindUserUseCase {
     /// teto — listar tudo não escala nem ajuda o admin.
     List<User> findByRoute(UUID routeId);
     User findById(UUID id);
+
+    /// Quantos admins existem hoje. É o que a ficha do usuário precisa pra saber
+    /// se está olhando a última conta administrativa — sem isso o app baixaria a
+    /// tabela inteira, com o contato de toda a base, só pra chegar num número.
+    long countAdmins();
 }

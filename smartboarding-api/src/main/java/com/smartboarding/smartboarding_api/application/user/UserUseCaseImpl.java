@@ -29,6 +29,11 @@ public class UserUseCaseImpl implements FindUserUseCase {
     }
 
     @Override
+    public long countAdmins() {
+        return userRepository.countAdmins();
+    }
+
+    @Override
     public User findById(UUID id) {
         return userRepository.findById(id)
                 .orElseThrow(() -> new NotFoundException("Usuário não encontrado com ID: " + id));

@@ -2,7 +2,6 @@ import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
 import '../../core/providers/auth_provider.dart';
 import '../../core/theme/app_theme.dart';
-import '../../core/utils/async_value.dart';
 import '../../core/widgets/app_card.dart';
 import '../../core/widgets/app_header.dart';
 import '../../core/widgets/feature_card.dart';
@@ -13,11 +12,6 @@ import '../notifications/screens/broadcast_screen.dart';
 import '../warnings/screens/warnings_screen.dart';
 import '../notifications/screens/notifications_inbox_screen.dart';
 import '../notifications/services/notification_service.dart';
-import '../registration/providers/registration_provider.dart';
-import '../registration/screens/registration_approvals_screen.dart';
-import '../registration/services/institution_service.dart';
-import '../registration/services/registration_service.dart';
-import 'widgets/generate_invite_dialog.dart';
 import '../reports/providers/report_provider.dart';
 import '../reports/screens/reports_screen.dart';
 import '../reports/services/report_service.dart';
@@ -25,6 +19,10 @@ import '../routes/providers/route_provider.dart';
 import '../routes/screens/routes_screen.dart';
 import '../routes/services/route_service.dart';
 import '../users/providers/user_provider.dart';
+import '../../core/utils/async_value.dart';
+import '../institutions/providers/institution_provider.dart';
+import '../institutions/screens/institutions_screen.dart';
+import '../profile/screens/profile_screen.dart';
 import '../users/screens/user_management_screen.dart';
 import '../users/services/user_service.dart';
 import 'widgets/today_summary.dart';
@@ -50,13 +48,9 @@ class AdminHomeScreen extends StatelessWidget {
           create: (_) => UserProvider(UserService())..load(),
         ),
         ChangeNotifierProvider(
-          create: (_) =>
-              RegistrationProvider(RegistrationService(), InstitutionService())
-                ..loadPending(),
-        ),
-        ChangeNotifierProvider(
           create: (_) => AdminStatsProvider(AdminStatsService())..load(),
         ),
+        ChangeNotifierProvider(create: (_) => InstitutionProvider()..load()),
       ],
       child: const _AdminDashboard(),
     );
@@ -80,7 +74,7 @@ class _AdminDashboard extends StatelessWidget {
     final reportProvider = context.read<ReportProvider>();
     final notificationProvider = context.read<NotificationProvider>();
     final userProvider = context.read<UserProvider>();
-    final registrationProvider = context.read<RegistrationProvider>();
+    final institutionProvider = context.read<InstitutionProvider>();
 
     Navigator.push(
       context,
@@ -91,7 +85,7 @@ class _AdminDashboard extends StatelessWidget {
             ChangeNotifierProvider.value(value: reportProvider),
             ChangeNotifierProvider.value(value: notificationProvider),
             ChangeNotifierProvider.value(value: userProvider),
-            ChangeNotifierProvider.value(value: registrationProvider),
+            ChangeNotifierProvider.value(value: institutionProvider),
           ],
           child: Scaffold(
             appBar: AppBar(title: Text(title), actions: actions),
@@ -103,20 +97,13 @@ class _AdminDashboard extends StatelessWidget {
   }
 
   Future<void> _refresh(BuildContext context) async {
-    await Future.wait([
-      context.read<RegistrationProvider>().loadPending(),
-      context.read<AdminStatsProvider>().load(),
-    ]);
+    await context.read<AdminStatsProvider>().load();
   }
 
   @override
   Widget build(BuildContext context) {
     final auth = context.watch<AuthProvider>();
     final name = auth.token?.fullName ?? 'Admin';
-    final pending = switch (context.watch<RegistrationProvider>().pending) {
-      AsyncData(:final value) => value.length,
-      _ => 0,
-    };
 
     return Scaffold(
       body: Column(
@@ -124,15 +111,24 @@ class _AdminDashboard extends StatelessWidget {
           AppHeader(
             overline: 'GESTÃO DE TRANSPORTE',
             title: 'Painel do Admin',
-            trailing: CircleAvatar(
-              radius: 24,
-              backgroundColor: AppColors.mutedTeal,
-              child: Text(
-                name.isNotEmpty ? name[0].toUpperCase() : 'A',
-                style: const TextStyle(
-                  color: Colors.white,
-                  fontSize: 18,
-                  fontWeight: FontWeight.w700,
+            // O avatar vira o acesso ao perfil: e onde o usuario procura, e
+            // evita mais um icone no header.
+            trailing: InkWell(
+              key: const Key('admin_open_profile'),
+              customBorder: const CircleBorder(),
+              onTap: () => Navigator.of(
+                context,
+              ).push(MaterialPageRoute(builder: (_) => const ProfileScreen())),
+              child: CircleAvatar(
+                radius: 24,
+                backgroundColor: AppColors.mutedTeal,
+                child: Text(
+                  name.isNotEmpty ? name[0].toUpperCase() : 'A',
+                  style: const TextStyle(
+                    color: Colors.white,
+                    fontSize: 18,
+                    fontWeight: FontWeight.w700,
+                  ),
                 ),
               ),
             ),
@@ -143,28 +139,6 @@ class _AdminDashboard extends StatelessWidget {
               child: ListView(
                 padding: const EdgeInsets.all(20),
                 children: [
-                  AlertCard(
-                    icon: Icons.person_add_alt_1,
-                    title: 'Solicitações',
-                    subtitle: 'Aguardando aprovação',
-                    count: pending,
-                    onTap: () => _open(
-                      context,
-                      'Solicitações de cadastro',
-                      const RegistrationApprovalsScreen(),
-                      actions: [
-                        IconButton(
-                          icon: const Icon(Icons.mail_outline),
-                          tooltip: 'Gerar convite',
-                          onPressed: () => showDialog<void>(
-                            context: context,
-                            builder: (_) => const GenerateInviteDialog(),
-                          ),
-                        ),
-                      ],
-                    ),
-                  ),
-                  const SizedBox(height: 24),
                   const SectionTitle('Funcionalidades'),
                   const SizedBox(height: 12),
                   GridView.count(
@@ -228,18 +202,22 @@ class _AdminDashboard extends StatelessWidget {
                           context,
                           'Usuários',
                           const UserManagementScreen(),
-                          // Aluno só nasce por convite; sem isto a tela de
-                          // usuários não teria como trazer um.
-                          actions: [
-                            IconButton(
-                              icon: const Icon(Icons.person_add_alt_outlined),
-                              tooltip: 'Convidar aluno',
-                              onPressed: () => showDialog<bool>(
-                                context: context,
-                                builder: (_) => const GenerateInviteDialog(),
-                              ),
-                            ),
-                          ],
+                        ),
+                      ),
+                      FeatureCard(
+                        icon: Icons.school_outlined,
+                        label: 'Instituições',
+                        onTap: () => _open(
+                          context,
+                          'Instituições',
+                          InstitutionsScreen(
+                            routes: switch (context
+                                .read<RouteProvider>()
+                                .state) {
+                              AsyncData(:final value) => value,
+                              _ => const [],
+                            },
+                          ),
                         ),
                       ),
                     ],

@@ -1,7 +1,7 @@
 # Spec — Início do Aluno
 
 > Tela: `StudentHomeScreen` · Acesso: 🎓 · Provider: `ListProvider`
-> Base: [`../PAGES.md`](../PAGES.md), [`../spec.md`](../spec.md) §3.2, §3.3.
+> Base: [`../PAGES.md`](../../PAGES.md), [`../spec.md`](../../spec.md) §3.2, §3.3.
 
 ## Objetivo
 

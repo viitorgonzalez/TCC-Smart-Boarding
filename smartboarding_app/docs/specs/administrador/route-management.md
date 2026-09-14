@@ -2,7 +2,7 @@
 
 > Telas: `RouteListScreen`, `RouteFormScreen` · Acesso: 🧑‍💼
 > Providers: `RouteProvider`, `InstitutionProvider`, `VehicleProvider`
-> Base: [`../PAGES.md`](../PAGES.md), [`../spec.md`](../spec.md) §3.2.
+> Base: [`../PAGES.md`](../../PAGES.md), [`../spec.md`](../../spec.md) §3.2.
 
 ## Objetivo
 

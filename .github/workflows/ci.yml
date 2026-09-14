@@ -44,7 +44,11 @@ jobs:
           chmod +x ./mvnw
           ./mvnw -B --no-transfer-progress verify
 
-      - name: Cobertura (informativo)
+      # O `verify` acima ja reprova sozinho: o jacoco:check trava em 90% na regra
+      # de negocio (application.*) e 70% no resto. Este passo so publica o numero
+      # no resumo da run.
+      - name: Cobertura (resumo)
+        if: always()
         working-directory: .
         run: |
           csv="smartboarding-api/target/site/jacoco/jacoco.csv"
@@ -112,7 +116,11 @@ jobs:
       - name: Testes
         run: flutter test --coverage
 
-      - name: Cobertura (informativo)
+      - name: Gate de cobertura
+        run: ./scripts/coverage-gate.sh
+
+      - name: Cobertura (resumo)
+        if: always()
         working-directory: .
         run: |
           lcov="smartboarding_app/coverage/lcov.info"

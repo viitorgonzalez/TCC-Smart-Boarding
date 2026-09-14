@@ -1,7 +1,14 @@
 # Ativação do Firebase / Push (FCM)
 
 Status: **código do app pronto para receber; Firebase ainda NÃO ativado.**
-O app compila e roda sem Firebase. Este guia liga o push quando você estiver pronto.
+
+> ℹ️ **Nada aqui é obrigatório para desenvolver.** O app e a API funcionam com o push
+> desligado — os avisos são **persistidos** e aparecem no mural do aluno de qualquer jeito.
+> Verificado em 09/09/2026: sem `FIREBASE_CREDENTIALS_PATH`, a API sobe, o
+> `FirebaseConfig` loga um WARN (`Notificações FCM desabilitadas`) e publicar aviso
+> continua devolvendo `200` com o registro gravado.
+
+Este guia liga o push quando você estiver pronto.
 
 ## Passo a passo
 
@@ -42,6 +49,12 @@ O app compila e roda sem Firebase. Este guia liga o push quando você estiver pr
 ## Backend
 - Gerar a Service Account JSON (Firebase Console → Configurações → Contas de
   serviço) e apontar `FIREBASE_CREDENTIALS_PATH` no `.env` do `smartboarding-api`.
+- **Nunca versione a credencial.** O `.gitignore` da raiz cobre
+  `**/firebase-service-account*.json` e `**/GoogleService-Info.plist`; o
+  `google-services.json` é coberto pelo `.gitignore` do app. Há um
+  `android/app/google-services.json.example` mostrando o formato esperado.
+- O repo tem hook anti-segredo local (`.githooks/pre-commit`) e GitGuardian no CI —
+  os dois barram credencial em texto, e com razão.
 
 ## Contrato já usado pelo app (não muda)
 - `POST /api/devices/token { token, platform }` — `NotificationService.registerToken`

@@ -18,13 +18,16 @@ class AppCard extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final content = Padding(padding: padding, child: child);
-    return Container(
-      decoration: BoxDecoration(
-        color: AppColors.surface,
-        borderRadius: BorderRadius.circular(AppRadius.card),
-        border: Border.all(color: AppColors.stroke),
-      ),
+    // Material em vez de Container pintado: com a cor num DecoratedBox solto,
+    // o ink de qualquer ListTile com onTap la dentro era pintado ATRAS do fundo
+    // -- toque sem retorno visual, e o Flutter reclamando em debug.
+    return Material(
+      color: AppColors.surface,
       clipBehavior: Clip.antiAlias,
+      shape: RoundedRectangleBorder(
+        borderRadius: BorderRadius.circular(AppRadius.card),
+        side: const BorderSide(color: AppColors.stroke),
+      ),
       child: onTap == null ? content : InkWell(onTap: onTap, child: content),
     );
   }

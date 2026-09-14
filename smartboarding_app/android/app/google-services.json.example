@@ -1,0 +1,20 @@
+{
+  "project_info": {
+    "project_number": "SUBSTITUA-PELO-NUMERO-DO-PROJETO",
+    "project_id": "SUBSTITUA-PELO-ID-DO-PROJETO",
+    "storage_bucket": "SUBSTITUA.appspot.com"
+  },
+  "client": [
+    {
+      "client_info": {
+        "mobilesdk_app_id": "SUBSTITUA-PELO-APP-ID",
+        "android_client_info": {
+          "package_name": "com.smartboarding.smartboarding_app"
+        }
+      },
+      "api_key": [{ "current_key": "SUBSTITUA-PELA-CHAVE-DO-FIREBASE" }],
+      "services": { "appinvite_service": { "other_platform_oauth_client": [] } }
+    }
+  ],
+  "configuration_version": "1"
+}

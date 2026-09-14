@@ -1,0 +1,6 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources>
+    <!-- Mesmo ashGrey da tela de autenticacao: a abertura emenda no login em vez
+         de piscar branco antes. -->
+    <color name="splash_background">#CAD2C5</color>
+</resources>

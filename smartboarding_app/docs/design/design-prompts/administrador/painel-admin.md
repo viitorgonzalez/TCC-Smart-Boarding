@@ -1,7 +1,7 @@
 # Prompt de design — Painel do admin (TCC-Smart-Boarding / smartboarding_app)
 > Status: **rascunho** · Arquétipo: dashboard (novo — a tela atual é abas na base, a spec pede cartões de atalho) · Precedente: nenhum no app (arquétipo inédito); componentes reaproveitados do resto do design system
 > Tokens: `lib/core/theme/app_theme.dart` · Contrato: `smartboarding_app/docs/specs/administrador/admin-home.md`
-> Gaps ⛳: contagem de pendências (`GET /api/registration/pending`) depende da feature de aprovação de cadastro, que não existe no backend — o badge não tem de onde vir hoje.
+> Gaps ⛳: contagem de pendências (`GET /api/profile-requests`) depende da feature de aprovação de cadastro, que não existe no backend — o badge não tem de onde vir hoje.
 > Caracteres: 2359 (inclui espaços) · Limite: não confirmado (uxpilot free) — se precisar cortar, tire o bloco mais especulativo primeiro
 
 ## Prompt (colar na IA de layout)

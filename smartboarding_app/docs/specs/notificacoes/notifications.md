@@ -1,7 +1,7 @@
 # Spec — Notificações (Inbox + Envio)
 
 > Telas: `NotificationsInboxScreen`, `SendNotificationScreen` · Acesso: inbox 🎓🧑‍💼, envio 🧑‍💼
-> Provider: `NotificationProvider` · Base: [`../PAGES.md`](../PAGES.md), [`../spec.md`](../spec.md) §3.4.
+> Provider: `NotificationProvider` · Base: [`../PAGES.md`](../../PAGES.md), [`../spec.md`](../../spec.md) §3.4.
 
 ## Objetivo
 

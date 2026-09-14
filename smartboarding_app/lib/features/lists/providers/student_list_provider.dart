@@ -23,7 +23,12 @@ class StudentListProvider extends ChangeNotifier {
   }
 
   Future<void> load() async {
-    if (_userEmail.isEmpty) return;
+    // Sair calado aqui deixava a tela girando pra sempre.
+    if (_userEmail.isEmpty) {
+      _state = const AsyncError('Sessão sem e-mail. Entre novamente.');
+      notifyListeners();
+      return;
+    }
     _state = const AsyncLoading();
     notifyListeners();
     try {

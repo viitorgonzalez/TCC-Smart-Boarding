@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 import '../../../core/errors/app_exception.dart';
 import '../../../core/widgets/empty_state.dart';
 import '../../../core/widgets/initials_avatar.dart';
+import '../../../core/widgets/student_sheet.dart';
 import '../models/user_model.dart';
 import '../services/user_service.dart';
 import '../widgets/role_meta.dart';
@@ -116,6 +117,15 @@ class _RouteStudentsScreenState extends State<RouteStudentsScreen> {
                           ? user.fullName[0].toUpperCase()
                           : '?',
                     ),
+                    // A lista filtra por papel e marca conta inativa: mudou
+                    // na ficha, recarrega.
+                    onTap: () async {
+                      final changed = await showStudentProfile(
+                        context,
+                        user.id,
+                      );
+                      if (changed && mounted) await _reload();
+                    },
                     title: Text(user.fullName),
                     subtitle: Text(
                       user.institution == null

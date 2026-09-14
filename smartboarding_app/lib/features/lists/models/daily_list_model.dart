@@ -1,3 +1,5 @@
+import '../../../core/utils/date_format.dart';
+
 class DailyList {
   final String id;
   final String routeId;
@@ -73,6 +75,17 @@ class DailyList {
   }
 
   bool get isOpen => status == 'OPEN';
+
+  /// Ainda dá pra entrar ou sair. A lista só vira CLOSED na próxima varredura
+  /// (até 5 min depois do horário), então olhar só o status deixaria o botão
+  /// vivo nessa janela e o toque morreria em 400 LIST_CLOSED.
+  ///
+  /// Horário desconhecido não é horário vencido: sem closeTime, vale o status.
+  bool get acceptsChanges {
+    if (!isOpen) return false;
+    if (parseTimeOfDay(closeTime) == null) return true;
+    return timeUntilListClose(closeTime) != null;
+  }
 }
 
 class InstitutionCount {

@@ -38,10 +38,12 @@ cp .env.example .env
 
 # 4. Rodar testes
 ./mvnw test      # unit — rápido, sem Docker
-./mvnw verify     # unit + integration — sobe Postgres via Testcontainers, precisa de Docker
+./mvnw verify     # unit + integration + GATE de cobertura — sobe Postgres via Testcontainers, precisa de Docker
 
 # 5. Cobertura (unit)
 ./mvnw test && open target/site/jacoco/index.html   # (ou xdg-open no Linux)
+# O `verify` REPROVA abaixo de 90% em application.* e 70% no resto.
+# Entidade, DTO e config ficam fora do gate (record/Lombok sem ramo).
 ```
 
 A API sobe em `http://localhost:8080`. Flyway aplica as migrations automaticamente.
@@ -57,7 +59,8 @@ flutter pub get
 # Rodar no emulador/dispositivo
 # ⚠️ a base URL vem de --dart-define; em device físico use o IP da LAN,
 #    localhost não resolve pro seu host.
-flutter run --dart-define=API_BASE_URL=http://<ip-da-lan>:8080
+flutter run --dart-define=API_BASE_URL=http://<ip-da-lan>:8080 \
+            --dart-define=GOOGLE_WEB_CLIENT_ID=<id>.apps.googleusercontent.com
 
 # Build APK
 flutter build apk --release
@@ -82,7 +85,15 @@ flutter build apk --release
 - **Entidades**: JPA com `@Entity`, UUID como PK (`gen_random_uuid()` no SQL)
 - **DTOs**: sempre usar DTOs para request/response, nunca expor a entidade diretamente
 - **Migrations Flyway**: `V{n}__{descricao_snake_case}.sql` em `src/main/resources/db/migration/`.
-  Consolidadas em `V1__initial_schema.sql` + `V2__seed_data.sql` (12/08/2026) — próxima é `V3+`.
+  Schema começa em `V1__initial_schema.sql`.
+- **Schema e seed são diretórios separados.** `db/migration/` é schema e roda em todo ambiente;
+  `db/seed/` é dado de demonstração e **só** é carregado pelo perfil padrão — as contas de lá
+  têm a senha publicada no próprio arquivo, e produção não pode nascer com administrador de
+  credencial conhecida. Quem decide é `spring.flyway.locations`, por perfil. O
+  `ProductionMigrationsIT` sobe a aplicação com o `locations` de produção e falha se o seed
+  voltar a ser alcançável ou se a cadeia de migrations parar de aplicar em banco vazio.
+  Quem carrega o seed é o perfil **`dev`** (versionado), ativado pelo `run-local.sh`; a base
+  carrega só o schema.
 - **Roles**: `ADMIN`, `STUDENT` — coluna `role` (`VARCHAR(20)`, sem `CHECK`, validada na
   aplicação). Checar com `@PreAuthorize("hasRole('ADMIN')")` ou na `SecurityConfig`. Ações de
   trajeto (iniciar/checkpoint/finalizar) são do `ADMIN` — não existe papel de motorista separado

@@ -1,7 +1,7 @@
 # Spec — Advertências
 
 > Tela: `WarningsScreen` · Acesso: 🎓 (as próprias) e 🧑‍💼 (todas)
-> Base: [`../PAGES.md`](../PAGES.md), [`../spec.md`](../spec.md)
+> Base: [`../PAGES.md`](../../PAGES.md), [`../spec.md`](../../spec.md)
 
 ## Objetivo
 

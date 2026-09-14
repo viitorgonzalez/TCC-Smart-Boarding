@@ -1,5 +1,8 @@
 import 'package:flutter/material.dart';
+import 'package:provider/provider.dart';
+import '../../../core/widgets/student_sheet.dart';
 import '../models/user_model.dart';
+import '../providers/user_provider.dart';
 import 'role_meta.dart';
 
 class UserTile extends StatelessWidget {
@@ -13,6 +16,18 @@ class UserTile extends StatelessWidget {
     return Card(
       margin: const EdgeInsets.only(bottom: 8),
       child: ListTile(
+        // Abrir a ficha e a unica forma de ver instituicao e contato: a linha da
+        // lista so cabe nome e e-mail.
+        //
+        // Mudou papel ou status na ficha, a lista recarrega: o agrupamento e a
+        // etiqueta saem do papel, e sem isso o aluno recem-promovido continuaria
+        // em "Alunos" ate um pull-to-refresh.
+        onTap: () async {
+          final changed = await showStudentProfile(context, user.id);
+          if (changed && context.mounted) {
+            await context.read<UserProvider>().load();
+          }
+        },
         leading: CircleAvatar(
           backgroundColor: cs.surfaceContainerHighest,
           child: Icon(meta.icon, color: cs.onSurfaceVariant, size: 20),

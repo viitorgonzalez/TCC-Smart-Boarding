@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import 'package:provider/provider.dart';
 import '../../../core/errors/app_exception.dart';
 import '../../../core/theme/app_theme.dart';
 import '../../../core/utils/date_format.dart';
@@ -11,6 +12,10 @@ import '../../../core/widgets/snackbar_utils.dart';
 import '../../../core/widgets/status_pill.dart';
 import '../../routes/services/route_service.dart';
 import 'daily_list_schedule_card.dart';
+import '../../trip/providers/trip_provider.dart';
+import '../../trip/screens/trip_screen.dart';
+import '../../trip/services/trip_service.dart';
+import 'no_list_today_card.dart';
 import '../models/daily_list_model.dart';
 import '../screens/admin_list_entries_screen.dart';
 import '../services/list_service.dart';
@@ -179,31 +184,10 @@ class _DailyListSectionState extends State<DailyListSection> {
   Widget _listCard() {
     final list = _list;
     if (list == null) {
-      return AppCard(
-        child: Column(
-          crossAxisAlignment: CrossAxisAlignment.stretch,
-          children: [
-            Text(
-              'Ainda não há lista para hoje.',
-              style: Theme.of(context).textTheme.titleMedium,
-            ),
-            const SizedBox(height: 4),
-            Text(
-              'O agendador cria no horário de abertura — ou crie agora.',
-              style: Theme.of(
-                context,
-              ).textTheme.bodyMedium?.copyWith(color: AppColors.textSecondary),
-            ),
-            const SizedBox(height: 16),
-            FilledButton.icon(
-              onPressed: () => _run(
-                () => _service.createList(widget.routeId, DateTime.now()),
-                'Lista criada',
-              ),
-              icon: const Icon(Icons.add, size: 18),
-              label: const Text('Criar lista de hoje'),
-            ),
-          ],
+      return NoListTodayCard(
+        onCreate: () => _run(
+          () => _service.createList(widget.routeId, DateTime.now()),
+          'Lista criada',
         ),
       );
     }
@@ -249,6 +233,20 @@ class _DailyListSectionState extends State<DailyListSection> {
             ),
           ],
           const SizedBox(height: 16),
+          OutlinedButton.icon(
+            onPressed: () => Navigator.push(
+              context,
+              MaterialPageRoute(
+                builder: (_) => ChangeNotifierProvider(
+                  create: (_) => TripProvider(TripService(), list.id)..load(),
+                  child: const TripScreen(),
+                ),
+              ),
+            ),
+            icon: const Icon(Icons.directions_bus_outlined, size: 18),
+            label: const Text('Conduzir trajeto'),
+          ),
+          const SizedBox(height: 10),
           OutlinedButton.icon(
             onPressed: () => Navigator.push(
               context,

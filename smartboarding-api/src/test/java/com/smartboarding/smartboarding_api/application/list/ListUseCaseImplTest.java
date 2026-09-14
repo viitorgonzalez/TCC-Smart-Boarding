@@ -6,6 +6,8 @@ import com.smartboarding.smartboarding_api.domain.list.entity.ListStatus;
 import com.smartboarding.smartboarding_api.domain.list.entity.TripType;
 import com.smartboarding.smartboarding_api.domain.list.port.out.DailyListRepositoryPort;
 import com.smartboarding.smartboarding_api.domain.list.port.out.ListEntryRepositoryPort;
+import com.smartboarding.smartboarding_api.domain.membership.entity.RouteMember;
+import com.smartboarding.smartboarding_api.domain.membership.port.out.RouteMemberRepositoryPort;
 import com.smartboarding.smartboarding_api.domain.notification.port.in.SendToUserUseCase;
 import com.smartboarding.smartboarding_api.domain.route.entity.Route;
 import com.smartboarding.smartboarding_api.domain.user.entity.User;
@@ -40,7 +42,7 @@ class ListUseCaseImplTest {
     @Mock ListEntryRepositoryPort listEntryRepository;
     @Mock UserRepositoryPort userRepository;
     @Mock SendToUserUseCase sendToUserUseCase;
-    @Mock com.smartboarding.smartboarding_api.domain.institution.port.out.InstitutionRepositoryPort institutionRepository;
+    @Mock RouteMemberRepositoryPort routeMemberRepository;
 
     private Clock clockAt(LocalTime time) {
         return Clock.fixed(TODAY.atTime(time).atZone(ZONE).toInstant(), ZONE);
@@ -48,7 +50,16 @@ class ListUseCaseImplTest {
 
     private ListUseCaseImpl useCaseAt(LocalTime now) {
         return new ListUseCaseImpl(dailyListRepository, listEntryRepository,
-                userRepository, sendToUserUseCase, institutionRepository, clockAt(now));
+                userRepository, sendToUserUseCase, routeMemberRepository, clockAt(now));
+    }
+
+    /// Vincula o aluno a rota. Ate a V22 isso vinha da instituicao; agora e um
+    /// registro em route_members, criado quando ele usa o codigo da rota.
+    private void membroDe(UUID userId, UUID... routeIds) {
+        when(routeMemberRepository.findAllByUserId(userId)).thenReturn(
+                java.util.Arrays.stream(routeIds)
+                        .map(r -> RouteMember.builder().userId(userId).routeId(r).build())
+                        .toList());
     }
 
     private DailyList listWithCloseTime(LocalTime closeTime, LocalDate date) {
@@ -61,14 +72,13 @@ class ListUseCaseImplTest {
     private UUID stubList(DailyList list) {
         when(dailyListRepository.findById(list.getId())).thenReturn(Optional.of(list));
         // Aluno da própria rota: isola as regras de horário do guard de rota.
-        var institutionId = UUID.randomUUID();
+        var studentId = UUID.randomUUID();
         when(userRepository.findById(any())).thenReturn(Optional.of(User.builder()
-                .id(UUID.randomUUID())
+                .id(studentId)
                 .role(com.smartboarding.smartboarding_api.domain.user.entity.Role.STUDENT)
-                .institutionId(institutionId).build()));
-        when(institutionRepository.findById(institutionId)).thenReturn(Optional.of(
-                com.smartboarding.smartboarding_api.domain.institution.entity.Institution.builder()
-                        .id(institutionId).routeId(list.getRoute().getId()).build()));
+                .build()));
+        when(routeMemberRepository.findAllByUserId(any())).thenReturn(java.util.List.of(
+                RouteMember.builder().userId(studentId).routeId(list.getRoute().getId()).build()));
         when(listEntryRepository.findByUserIdAndDailyListId(any(), any())).thenReturn(Optional.empty());
         when(listEntryRepository.save(any())).thenAnswer(inv -> inv.getArgument(0));
         return list.getId();
@@ -78,15 +88,14 @@ class ListUseCaseImplTest {
     void alunoNaoEntraEmListaDeOutraRota() {
         var list = listWithCloseTime(LocalTime.of(23, 0), TODAY);
         when(dailyListRepository.findById(list.getId())).thenReturn(Optional.of(list));
-        var institutionId = UUID.randomUUID();
+        var studentId = UUID.randomUUID();
         when(userRepository.findById(any())).thenReturn(Optional.of(User.builder()
-                .id(UUID.randomUUID())
+                .id(studentId)
                 .role(com.smartboarding.smartboarding_api.domain.user.entity.Role.STUDENT)
-                .institutionId(institutionId).build()));
-        // Instituição do aluno aponta pra outra rota.
-        when(institutionRepository.findById(institutionId)).thenReturn(Optional.of(
-                com.smartboarding.smartboarding_api.domain.institution.entity.Institution.builder()
-                        .id(institutionId).routeId(UUID.randomUUID()).build()));
+                .build()));
+        // O aluno e membro de OUTRA rota, nao da rota desta lista.
+        when(routeMemberRepository.findAllByUserId(any())).thenReturn(java.util.List.of(
+                RouteMember.builder().userId(studentId).routeId(UUID.randomUUID()).build()));
         var useCase = useCaseAt(LocalTime.of(10, 0));
 
         assertThatThrownBy(() -> useCase.add(UUID.randomUUID(), list.getId(), TripType.ROUND_TRIP))
@@ -127,14 +136,11 @@ class ListUseCaseImplTest {
         var outra = listWithCloseTime(LocalTime.of(23, 0), TODAY);
         when(dailyListRepository.findAllByDate(TODAY)).thenReturn(java.util.List.of(minha, outra));
         var studentId = UUID.randomUUID();
-        var institutionId = UUID.randomUUID();
         when(userRepository.findById(studentId)).thenReturn(Optional.of(User.builder()
                 .id(studentId)
                 .role(com.smartboarding.smartboarding_api.domain.user.entity.Role.STUDENT)
-                .institutionId(institutionId).build()));
-        when(institutionRepository.findById(institutionId)).thenReturn(Optional.of(
-                com.smartboarding.smartboarding_api.domain.institution.entity.Institution.builder()
-                        .id(institutionId).routeId(minha.getRoute().getId()).build()));
+                .build()));
+        membroDe(studentId, minha.getRoute().getId());
 
         var result = useCaseAt(LocalTime.of(10, 0)).findTodayLists(studentId);
 

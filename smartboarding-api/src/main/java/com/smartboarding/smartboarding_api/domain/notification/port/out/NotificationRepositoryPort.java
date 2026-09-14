@@ -10,7 +10,8 @@ public interface NotificationRepositoryPort {
     Notification save(Notification notification);
 
     /// Avisos gerais + os da rota informada, ainda válidos na data dada.
-    List<Notification> findVisible(UUID routeId, LocalDateTime now);
+    /// [routeIds] vazio devolve so os avisos gerais.
+    List<Notification> findVisible(java.util.Collection<UUID> routeIds, LocalDateTime now);
 
     List<Notification> findAll();
     void deleteAllById(List<UUID> ids);

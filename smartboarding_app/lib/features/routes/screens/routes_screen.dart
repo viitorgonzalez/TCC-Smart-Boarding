@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
+import '../../institutions/providers/institution_provider.dart';
 import '../../../core/widgets/async_builder.dart';
 import '../../../core/widgets/empty_state.dart';
 import '../../../core/widgets/entity_list_tile.dart';
@@ -85,11 +86,19 @@ class _RoutesScreenState extends State<RoutesScreen> {
     RouteProvider provider, [
     RouteModel? route,
   ]) async {
+    // O push nasce no Navigator, acima de qualquer provider desta tela: o que
+    // nao for repassado aqui nao chega la. Faltando o InstitutionProvider, a
+    // secao "Instituicoes atendidas" do detalhe estourava ProviderNotFound.
+    final institutionProvider = context.read<InstitutionProvider>();
+
     await Navigator.push<void>(
       context,
       MaterialPageRoute(
-        builder: (_) => ChangeNotifierProvider.value(
-          value: provider,
+        builder: (_) => MultiProvider(
+          providers: [
+            ChangeNotifierProvider.value(value: provider),
+            ChangeNotifierProvider.value(value: institutionProvider),
+          ],
           // Rota nova usa o formulário mínimo (só precisa de nome); editar abre
           // a tela completa, com paradas, frota e instituições.
           child: route == null

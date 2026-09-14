@@ -165,7 +165,7 @@ public class ListController {
         TripType tripType = (body != null && body.tripType() != null) ? body.tripType() : TripType.ROUND_TRIP;
         var saved = addEntryUseCase.add(userId, id, tripType);
         return ResponseEntity.status(HttpStatus.CREATED).body(ApiResponse.data(
-                EntryResponse.from(saved, institutionNames().get(saved.getUser().getInstitutionId()))));
+                EntryResponse.from(saved, institutionNames().get(saved.getUser().getInstitutionId()), true)));
     }
 
     /// Inclusão tardia: entra mesmo com a lista fechada, e o admin decide se
@@ -179,7 +179,7 @@ public class ListController {
         var saved = enrollByAdminUseCase.enroll(id, body.userId(), tripType,
                 body.issueWarning(), body.warningReason(), extractUserId(auth));
         return ResponseEntity.status(HttpStatus.CREATED).body(ApiResponse.data(
-                EntryResponse.from(saved, institutionNames().get(saved.getUser().getInstitutionId()))));
+                EntryResponse.from(saved, institutionNames().get(saved.getUser().getInstitutionId()), true)));
     }
 
     /// Remoção pelo admin: tirar quem ele mesmo incluiu não pode depender do
@@ -199,11 +199,14 @@ public class ListController {
     }
 
     @GetMapping("/{id}/entries")
-    public ResponseEntity<ApiResponse<List<EntryResponse>>> getEntries(@PathVariable UUID id) {
+    public ResponseEntity<ApiResponse<List<EntryResponse>>> getEntries(@PathVariable UUID id,
+                                                                       Authentication auth) {
+        boolean isAdmin = auth.getAuthorities().stream()
+                .anyMatch(a -> "ROLE_ADMIN".equals(a.getAuthority()));
         Map<UUID, String> names = institutionNames();
         List<EntryResponse> entries = findListUseCase.findEntriesByList(id).stream()
                 .map(entry -> EntryResponse.from(
-                        entry, names.get(entry.getUser().getInstitutionId())))
+                        entry, names.get(entry.getUser().getInstitutionId()), isAdmin))
                 .toList();
         return ResponseEntity.ok(ApiResponse.data(entries));
     }
