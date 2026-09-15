@@ -20,6 +20,7 @@ import '../models/daily_list_model.dart';
 import '../screens/admin_list_entries_screen.dart';
 import '../services/list_service.dart';
 import 'schedule_picker_dialog.dart';
+import '../../../core/text/plural.dart';
 
 /// Lista de hoje da rota, embutida na tela da rota: uma rota tem no máximo uma
 /// lista por dia, então não faz sentido gerenciá-las numa tela separada.
@@ -208,7 +209,12 @@ class _DailyListSectionState extends State<DailyListSection> {
                     ),
                     const SizedBox(height: 2),
                     Text(
-                      '${list.totalEntries} inscrito(s)',
+                      contagem(
+                        list.totalEntries,
+                        'inscrito',
+                        'inscritos',
+                        zero: 'Ninguém inscrito',
+                      ),
                       style: Theme.of(context).textTheme.bodyMedium?.copyWith(
                         color: AppColors.textSecondary,
                       ),

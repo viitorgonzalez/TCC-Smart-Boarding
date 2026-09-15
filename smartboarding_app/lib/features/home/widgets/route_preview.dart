@@ -4,6 +4,7 @@ import '../../lists/models/daily_list_model.dart';
 import '../../routes/screens/route_stops_screen.dart';
 import '../../routes/models/map_stop.dart';
 import '../../routes/widgets/route_map.dart';
+import '../../../core/text/plural.dart';
 
 /// Blocos de apoio do cartão do aluno: veículo definido no fechamento (RN16)
 /// e prévia do trajeto.
@@ -59,17 +60,15 @@ class ProposedVehicle extends StatelessWidget {
                 : vehicles
                       .map((v) => '${v.label} (${v.capacity})')
                       .join('  +  '),
-            style: const TextStyle(
-              fontSize: 15,
-              fontWeight: FontWeight.w700,
-              color: AppColors.charcoal,
-            ),
+            style: Theme.of(context).textTheme.titleSmall,
           ),
           if (insufficient) ...[
             const SizedBox(height: 4),
             Text(
-              '$shortfall pessoa(s) sem lugar na frota',
-              style: TextStyle(fontSize: 13, color: color),
+              '${contagem(shortfall, 'pessoa', 'pessoas')} sem lugar na frota',
+              style: Theme.of(
+                context,
+              ).textTheme.bodySmall?.copyWith(color: color),
             ),
           ],
         ],

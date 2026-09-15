@@ -15,6 +15,10 @@ class FeatureCard extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
+    // Icone alinhado a esquerda, acima do rotulo, e nao centralizado num disco
+    // de 56px: o disco grande sobre rotulo centralizado gastava quase o dobro
+    // da altura pra dizer a mesma coisa, e oito itens de navegacao nao cabiam
+    // numa dobra.
     return Material(
       color: AppColors.surface,
       borderRadius: BorderRadius.circular(AppRadius.card),
@@ -27,29 +31,14 @@ class FeatureCard extends StatelessWidget {
             border: Border.all(color: AppColors.stroke),
           ),
           child: Padding(
-            padding: const EdgeInsets.symmetric(vertical: 22, horizontal: 12),
+            padding: const EdgeInsets.all(AppSpacing.lg),
             child: Column(
               mainAxisSize: MainAxisSize.min,
+              crossAxisAlignment: CrossAxisAlignment.start,
               children: [
-                Container(
-                  width: 56,
-                  height: 56,
-                  decoration: const BoxDecoration(
-                    color: AppColors.ashGrey,
-                    shape: BoxShape.circle,
-                  ),
-                  child: Icon(icon, size: 26, color: AppColors.darkSlate),
-                ),
-                const SizedBox(height: 14),
-                Text(
-                  label,
-                  textAlign: TextAlign.center,
-                  style: const TextStyle(
-                    fontSize: 15,
-                    fontWeight: FontWeight.w700,
-                    color: AppColors.charcoal,
-                  ),
-                ),
+                Icon(icon, size: 24, color: AppColors.deepTeal),
+                const SizedBox(height: AppSpacing.md),
+                Text(label, style: Theme.of(context).textTheme.titleSmall),
               ],
             ),
           ),
@@ -108,18 +97,11 @@ class AlertCard extends StatelessWidget {
                     children: [
                       Text(
                         title,
-                        style: const TextStyle(
-                          fontSize: 17,
-                          fontWeight: FontWeight.w700,
-                          color: AppColors.charcoal,
-                        ),
+                        style: Theme.of(context).textTheme.titleSmall,
                       ),
                       Text(
                         subtitle,
-                        style: const TextStyle(
-                          fontSize: 14,
-                          color: AppColors.textSecondary,
-                        ),
+                        style: Theme.of(context).textTheme.bodySmall,
                       ),
                     ],
                   ),
@@ -136,10 +118,9 @@ class AlertCard extends StatelessWidget {
                     ),
                     child: Text(
                       '$count',
-                      style: const TextStyle(
+                      style: Theme.of(context).textTheme.labelLarge?.copyWith(
                         color: Colors.white,
                         fontWeight: FontWeight.w700,
-                        fontSize: 15,
                       ),
                     ),
                   ),

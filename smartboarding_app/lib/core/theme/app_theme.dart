@@ -7,6 +7,24 @@ class AppRadius {
   static const pill = 20.0;
 }
 
+/// Três níveis de superfície, por intenção — não por gosto.
+///
+/// Quando tudo era caixa branca com fio, um card de rota, um item de menu e um
+/// bloco de estatística tinham o mesmo peso e nada liderava a tela.
+///
+/// - [grouped]: itens de uma lista. Sem fio; o fundo e os divisores separam.
+/// - [card]: conteúdo solto que precisa se destacar do fundo. Fio de 1px.
+/// - [floating]: o que de fato paira sobre o conteúdo (folha, botão). Sombra.
+enum AppSurface { grouped, card, floating }
+
+class AppShadow {
+  /// Difusa e quase sem deslocamento: o objetivo é destacar do fundo, não
+  /// simular objeto suspenso.
+  static const floating = [
+    BoxShadow(color: Color(0x14000000), blurRadius: 16, offset: Offset(0, 4)),
+  ];
+}
+
 class AppSpacing {
   static const xs = 4.0;
   static const sm = 8.0;
@@ -135,11 +153,10 @@ class AppTheme {
         hintStyle: const TextStyle(color: AppColors.textSecondary),
         prefixIconColor: AppColors.deepTeal,
       ),
-      dividerTheme: const DividerThemeData(space: 1, color: AppColors.stroke),
-      listTileTheme: const ListTileThemeData(
-        shape: RoundedRectangleBorder(
-          borderRadius: BorderRadius.all(Radius.circular(AppRadius.card)),
-        ),
+      dividerTheme: const DividerThemeData(
+        space: 1,
+        thickness: 1,
+        color: AppColors.stroke,
       ),
     );
 
@@ -168,6 +185,11 @@ class AppTheme {
       ),
       titleMedium: montserrat.titleMedium?.copyWith(
         fontSize: 16,
+        fontWeight: FontWeight.w700,
+        color: AppColors.charcoal,
+      ),
+      titleSmall: montserrat.titleSmall?.copyWith(
+        fontSize: 15,
         fontWeight: FontWeight.w700,
         color: AppColors.charcoal,
       ),

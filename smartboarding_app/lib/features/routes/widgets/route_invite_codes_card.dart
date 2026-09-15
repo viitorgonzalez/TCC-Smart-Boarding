@@ -228,7 +228,7 @@ class _RouteInviteCodesCardState extends State<RouteInviteCodesCard> {
           for (final code in _codes)
             ListTile(
               leading: Icon(
-                code.usable ? Icons.vpn_key : Icons.key_off,
+                code.usable ? Icons.vpn_key_outlined : Icons.key_off_outlined,
                 color: code.usable
                     ? AppColors.deepTeal
                     : AppColors.textSecondary,
@@ -254,13 +254,13 @@ class _RouteInviteCodesCardState extends State<RouteInviteCodesCard> {
                         IconButton(
                           key: Key('copy_code_${code.id}'),
                           tooltip: 'Copiar código',
-                          icon: const Icon(Icons.copy),
+                          icon: const Icon(Icons.copy_outlined),
                           onPressed: _busy ? null : () => _copiar(code),
                         ),
                         IconButton(
                           key: Key('revoke_code_${code.id}'),
                           tooltip: 'Cancelar código',
-                          icon: const Icon(Icons.block),
+                          icon: const Icon(Icons.block_outlined),
                           onPressed: _busy
                               ? null
                               : () => _confirmarRevogacao(code),

@@ -219,7 +219,9 @@ class _InviteCodesScreenState extends State<InviteCodesScreen> {
                           ListTile(
                             key: Key('code_${code.id}'),
                             leading: Icon(
-                              code.usable ? Icons.vpn_key : Icons.key_off,
+                              code.usable
+                                  ? Icons.vpn_key_outlined
+                                  : Icons.key_off_outlined,
                               color: code.usable
                                   ? AppColors.deepTeal
                                   : AppColors.textSecondary,
@@ -245,7 +247,7 @@ class _InviteCodesScreenState extends State<InviteCodesScreen> {
                                       IconButton(
                                         key: Key('copy_${code.id}'),
                                         tooltip: 'Copiar código',
-                                        icon: const Icon(Icons.copy),
+                                        icon: const Icon(Icons.copy_outlined),
                                         onPressed: _ocupado
                                             ? null
                                             : () async {
@@ -265,7 +267,7 @@ class _InviteCodesScreenState extends State<InviteCodesScreen> {
                                       IconButton(
                                         key: Key('revoke_${code.id}'),
                                         tooltip: 'Cancelar código',
-                                        icon: const Icon(Icons.block),
+                                        icon: const Icon(Icons.block_outlined),
                                         onPressed: _ocupado
                                             ? null
                                             : () => _revogar(code),
@@ -295,7 +297,11 @@ class _Vazio extends StatelessWidget {
       child: Column(
         mainAxisSize: MainAxisSize.min,
         children: [
-          const Icon(Icons.vpn_key, size: 48, color: AppColors.textSecondary),
+          const Icon(
+            Icons.vpn_key_outlined,
+            size: 48,
+            color: AppColors.textSecondary,
+          ),
           const SizedBox(height: 16),
           Text(
             'Nenhum código criado',

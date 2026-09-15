@@ -3,15 +3,16 @@ import 'package:provider/provider.dart';
 import '../../institutions/providers/institution_provider.dart';
 import '../../../core/widgets/async_builder.dart';
 import '../../../core/widgets/empty_state.dart';
-import '../../../core/widgets/entity_list_tile.dart';
 import '../../../core/widgets/snackbar_utils.dart';
-import '../../../core/widgets/status_pill.dart';
 import '../../lists/models/daily_list_model.dart';
 import '../../lists/services/list_service.dart';
 import '../models/route_model.dart';
 import '../providers/route_provider.dart';
 import 'route_detail_screen.dart';
 import 'route_form_screen.dart';
+import '../../../core/widgets/app_list_group.dart';
+import '../../../core/theme/app_theme.dart';
+import '../../../core/text/plural.dart';
 
 class RoutesScreen extends StatefulWidget {
   const RoutesScreen({super.key});
@@ -55,7 +56,7 @@ class _RoutesScreenState extends State<RoutesScreen> {
           onRetry: provider.load,
           builder: (routes) => routes.isEmpty
               ? const EmptyState(
-                  icon: Icons.route,
+                  icon: Icons.route_outlined,
                   title: 'Nenhuma rota cadastrada',
                   subtitle: 'Toque + para criar a primeira rota',
                 )
@@ -63,17 +64,23 @@ class _RoutesScreenState extends State<RoutesScreen> {
                   onRefresh: () async {
                     await Future.wait([provider.load(), _loadTodayLists()]);
                   },
-                  child: ListView.separated(
-                    padding: const EdgeInsets.fromLTRB(16, 16, 16, 80),
-                    itemCount: routes.length,
-                    separatorBuilder: (_, _) => const SizedBox(height: 10),
-                    itemBuilder: (_, i) => _RouteTile(
-                      route: routes[i],
-                      todayList: _todayLists[routes[i].id],
-                      onOpen: () => _openForm(context, provider, routes[i]),
-                      onDelete: () =>
-                          _confirmDelete(context, provider, routes[i]),
-                    ),
+                  child: ListView(
+                    padding: const EdgeInsets.fromLTRB(20, 20, 20, 96),
+                    children: [
+                      AppListGroup(
+                        dividerIndent: 68,
+                        children: [
+                          for (final route in routes)
+                            _RouteTile(
+                              route: route,
+                              todayList: _todayLists[route.id],
+                              onOpen: () => _openForm(context, provider, route),
+                              onDelete: () =>
+                                  _confirmDelete(context, provider, route),
+                            ),
+                        ],
+                      ),
+                    ],
                   ),
                 ),
         ),
@@ -161,40 +168,53 @@ class _RouteTile extends StatelessWidget {
     required this.onDelete,
   });
 
+  String get _resumo {
+    final lista = todayList;
+    if (lista == null) return 'Sem lista hoje';
+    return contagem(
+      lista.totalEntries,
+      'inscrito hoje',
+      'inscritos hoje',
+      zero: 'Ninguém inscrito hoje',
+    );
+  }
+
   @override
   Widget build(BuildContext context) {
-    return EntityListTile(
-      leading: CircleAvatar(
-        backgroundColor: Theme.of(context).colorScheme.primaryContainer,
-        child: Icon(Icons.route, color: Theme.of(context).colorScheme.primary),
-      ),
+    final lista = todayList;
+    final texto = Theme.of(context).textTheme;
+
+    return AppListItem(
+      leading: const Icon(Icons.route_outlined, color: AppColors.deepTeal),
       title: route.name,
-      subtitle: Text(
-        todayList == null
-            ? 'Sem lista hoje'
-            : '${todayList!.totalEntries} inscrito(s) hoje',
-        maxLines: 1,
-        overflow: TextOverflow.ellipsis,
-      ),
-      trailing: Row(
-        mainAxisSize: MainAxisSize.min,
+      // Estado no subtitulo, e nao numa pilula a direita: a pilula disputava
+      // largura com o nome da rota e quebrava "Rota Universitaria de Formiga"
+      // em duas linhas.
+      subtitleChild: Row(
         children: [
-          if (todayList != null)
-            StatusPill(
-              label: todayList!.isOpen ? 'Aberta' : 'Fechada',
-              tone: todayList!.isOpen
-                  ? StatusPillTone.positive
-                  : StatusPillTone.neutral,
+          if (lista != null)
+            StatusDot(
+              lista.isOpen ? AppColors.positiveFg : AppColors.textSecondary,
             ),
-          IconButton(
-            icon: Icon(
-              Icons.delete_outline,
-              color: Theme.of(context).colorScheme.error,
+          Expanded(
+            child: Text(
+              lista == null
+                  ? _resumo
+                  : '${lista.isOpen ? 'Aberta' : 'Fechada'} · $_resumo',
+              style: texto.bodySmall,
+              maxLines: 1,
+              overflow: TextOverflow.ellipsis,
             ),
-            onPressed: onDelete,
           ),
         ],
       ),
+      menu: [
+        destructiveMenuItem(
+          label: 'Excluir rota',
+          icon: Icons.delete_outline,
+          onSelected: onDelete,
+        ),
+      ],
       onTap: onOpen,
     );
   }

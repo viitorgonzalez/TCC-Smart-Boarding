@@ -138,17 +138,15 @@ class _AdminDashboard extends StatelessWidget {
             child: RefreshIndicator(
               onRefresh: () => _refresh(context),
               child: ListView(
-                padding: const EdgeInsets.all(20),
+                padding: const EdgeInsets.fromLTRB(20, 8, 20, 24),
                 children: [
-                  const SectionTitle('Funcionalidades'),
-                  const SizedBox(height: 12),
                   GridView.count(
                     crossAxisCount: 2,
                     shrinkWrap: true,
                     physics: const NeverScrollableScrollPhysics(),
                     crossAxisSpacing: 12,
                     mainAxisSpacing: 12,
-                    childAspectRatio: 1.25,
+                    childAspectRatio: 1.9,
                     children: [
                       FeatureCard(
                         icon: Icons.route_outlined,

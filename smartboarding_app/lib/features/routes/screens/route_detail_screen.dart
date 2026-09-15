@@ -24,6 +24,7 @@ import '../providers/route_provider.dart';
 import '../services/route_service.dart';
 import 'invite_codes_screen.dart';
 import 'route_section_screen.dart';
+import '../../../core/text/plural.dart';
 
 class RouteDetailScreen extends StatefulWidget {
   final RouteModel route;
@@ -172,7 +173,7 @@ class _RouteDetailScreenState extends State<RouteDetailScreen> {
                         chave: 'section_stops',
                         icone: Icons.route_outlined,
                         titulo: 'Trajeto',
-                        detalhe: '${_stops.length} parada(s)',
+                        detalhe: contagem(_stops.length, 'parada', 'paradas'),
                         abre: () => RouteStopsEditor(
                           routeId: widget.route.id,
                           stops: _stops,
@@ -183,7 +184,11 @@ class _RouteDetailScreenState extends State<RouteDetailScreen> {
                         chave: 'section_vehicles',
                         icone: Icons.directions_bus_outlined,
                         titulo: 'Frota',
-                        detalhe: '${_vehicles.length} veículo(s)',
+                        detalhe: contagem(
+                          _vehicles.length,
+                          'veículo',
+                          'veículos',
+                        ),
                         abre: () => RouteVehiclesCard(
                           routeId: widget.route.id,
                           vehicles: _vehicles,

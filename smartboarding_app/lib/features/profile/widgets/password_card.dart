@@ -92,7 +92,7 @@ class _PasswordCardState extends State<PasswordCard> {
         children: [
           Row(
             children: [
-              const Icon(Icons.password, color: AppColors.deepTeal),
+              const Icon(Icons.password_outlined, color: AppColors.deepTeal),
               const SizedBox(width: 12),
               Expanded(
                 child: Column(

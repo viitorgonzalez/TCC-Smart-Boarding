@@ -45,11 +45,7 @@ class UserTile extends StatelessWidget {
           ),
           child: Text(
             meta.singular,
-            style: TextStyle(
-              color: cs.onSurfaceVariant,
-              fontWeight: FontWeight.w600,
-              fontSize: 12,
-            ),
+            style: Theme.of(context).textTheme.labelMedium,
           ),
         ),
       ),

@@ -60,7 +60,7 @@ class MyRoutesScreen extends StatelessWidget {
                         Row(
                           children: [
                             const Icon(
-                              Icons.vpn_key,
+                              Icons.vpn_key_outlined,
                               color: AppColors.deepTeal,
                             ),
                             const SizedBox(width: 12),

@@ -92,7 +92,10 @@ class RouteInstitutionsCard extends StatelessWidget {
                 ),
               for (final i in atendidas)
                 ListTile(
-                  leading: const Icon(Icons.school, color: AppColors.deepTeal),
+                  leading: const Icon(
+                    Icons.school_outlined,
+                    color: AppColors.deepTeal,
+                  ),
                   title: Text(i.name),
                   subtitle: i.address == null
                       ? null

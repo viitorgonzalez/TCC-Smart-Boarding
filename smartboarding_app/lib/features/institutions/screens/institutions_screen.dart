@@ -129,7 +129,7 @@ class InstitutionsScreen extends StatelessWidget {
                         margin: const EdgeInsets.only(bottom: 8),
                         child: ListTile(
                           leading: const Icon(
-                            Icons.school,
+                            Icons.school_outlined,
                             color: AppColors.deepTeal,
                           ),
                           title: Text(inst.name),
