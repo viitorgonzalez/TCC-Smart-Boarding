@@ -15,6 +15,16 @@ class RouteService {
         .toList();
   }
 
+  /// Todos os códigos das rotas que o admin administra, numa chamada só —
+  /// é o que a tela de códigos consome.
+  Future<List<InviteCode>> getAllInviteCodes() async {
+    final response = await _dio.get('/api/invite-codes');
+    final data = response.data['data'] as List<dynamic>;
+    return data
+        .map((e) => InviteCode.fromJson(e as Map<String, dynamic>))
+        .toList();
+  }
+
   /// [expiresAt] nulo deixa o backend aplicar a validade padrão dele.
   /// [institutionId] nulo gera um código aberto a qualquer instituição.
   Future<InviteCode> generateInviteCode(

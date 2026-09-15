@@ -22,6 +22,7 @@ import '../users/providers/user_provider.dart';
 import '../../core/utils/async_value.dart';
 import '../institutions/providers/institution_provider.dart';
 import '../institutions/screens/institutions_screen.dart';
+import '../routes/screens/invite_codes_screen.dart';
 import '../profile/screens/profile_screen.dart';
 import '../users/screens/user_management_screen.dart';
 import '../users/services/user_service.dart';
@@ -202,6 +203,26 @@ class _AdminDashboard extends StatelessWidget {
                           context,
                           'Usuários',
                           const UserManagementScreen(),
+                        ),
+                      ),
+                      FeatureCard(
+                        icon: Icons.vpn_key_outlined,
+                        label: 'Códigos de acesso',
+                        // Empurrada direto, e não pelo _open: ela já traz
+                        // Scaffold e botão flutuante próprios, e o _open
+                        // acrescentaria uma segunda barra de título por cima.
+                        onTap: () => Navigator.push(
+                          context,
+                          MaterialPageRoute<void>(
+                            builder: (_) => InviteCodesScreen(
+                              routes: switch (context
+                                  .read<RouteProvider>()
+                                  .state) {
+                                AsyncData(:final value) => value,
+                                _ => const [],
+                              },
+                            ),
+                          ),
                         ),
                       ),
                       FeatureCard(
