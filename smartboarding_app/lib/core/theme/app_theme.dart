@@ -19,8 +19,10 @@ class AppSpacing {
 /// claro, stroke e texto secundário — não saem do `ColorScheme`: o Material
 /// deriva outros valores a partir do seed, e o desenho depende destes exatos.
 class AppColors {
-  static const ashGrey = Color(0xFFCAD2C5); // fundo das telas de autenticação
-  static const background = Color(0xFFF4F6F4); // fundo do app autenticado
+  static const ashGrey = Color(
+    0xFFCAD2C5,
+  ); // superfície de destaque sobre o fundo
+  static const background = Color(0xFFF4F6F4); // fundo de todas as telas
   static const mutedTeal = Color(0xFF84A98C);
   static const deepTeal = Color(0xFF52796F); // primária
   static const darkSlate = Color(0xFF354F52);

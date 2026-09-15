@@ -1,5 +1,8 @@
 import 'package:flutter/material.dart';
+import 'package:provider/provider.dart';
+
 import '../../../core/errors/app_exception.dart';
+import '../../../core/providers/auth_provider.dart';
 import '../../../core/theme/app_theme.dart';
 import '../../../core/widgets/app_card.dart';
 import '../../../core/widgets/snackbar_utils.dart';
@@ -7,8 +10,9 @@ import '../../institutions/models/institution_model.dart';
 import '../../institutions/services/institution_service.dart';
 import '../services/profile_service.dart';
 
-/// Instituições do aluno. É pré-requisito pra entrar em rota — sem nenhuma, o
-/// backend recusa o código com PROFILE_INCOMPLETE.
+/// Instituições da conta. Pro aluno é pré-requisito pra entrar em rota — sem
+/// nenhuma, o backend recusa o código com PROFILE_INCOMPLETE. Pro admin é o que
+/// permite travar um código de convite numa instituição.
 ///
 /// Aceita mais de uma: quem faz dois cursos não precisa escolher qual declarar.
 class MyInstitutionsCard extends StatefulWidget {
@@ -66,6 +70,7 @@ class _MyInstitutionsCardState extends State<MyInstitutionsCard> {
   }
 
   Future<void> _adicionar() async {
+    final aluno = context.read<AuthProvider>().isStudent;
     final disponiveis = _todas.where((i) => !_minhas.contains(i.id)).toList();
     if (disponiveis.isEmpty) {
       showErrorSnackBar(context, 'Você já declarou todas as instituições.');
@@ -74,7 +79,7 @@ class _MyInstitutionsCardState extends State<MyInstitutionsCard> {
     final escolhida = await showDialog<InstitutionModel>(
       context: context,
       builder: (ctx) => SimpleDialog(
-        title: const Text('Onde você estuda?'),
+        title: Text(aluno ? 'Onde você estuda?' : 'Qual instituição?'),
         children: [
           for (final i in disponiveis)
             SimpleDialogOption(
@@ -104,6 +109,8 @@ class _MyInstitutionsCardState extends State<MyInstitutionsCard> {
 
   @override
   Widget build(BuildContext context) {
+    final aluno = context.watch<AuthProvider>().isStudent;
+
     if (_loading) {
       return const AppCard(
         child: Center(
@@ -122,7 +129,7 @@ class _MyInstitutionsCardState extends State<MyInstitutionsCard> {
           Row(
             children: [
               Text(
-                'Onde você estuda',
+                aluno ? 'Onde você estuda' : 'Instituições que você administra',
                 style: Theme.of(context).textTheme.titleSmall,
               ),
               const Spacer(),
@@ -136,9 +143,11 @@ class _MyInstitutionsCardState extends State<MyInstitutionsCard> {
           ),
           const SizedBox(height: 8),
           if (_minhas.isEmpty)
-            const Text(
-              'Defina ao menos uma para poder entrar em uma rota.',
-              style: TextStyle(color: AppColors.danger),
+            Text(
+              aluno
+                  ? 'Defina ao menos uma para poder entrar em uma rota.'
+                  : 'Defina ao menos uma para vincular rotas a ela.',
+              style: const TextStyle(color: AppColors.danger),
             )
           else
             Wrap(

@@ -87,7 +87,9 @@ class _ProfileScreenState extends State<ProfileScreen> {
     final nome = _mudou(_nameCtrl, auth.token?.fullName);
     final telefone = _mudou(_phoneCtrl, null);
     final endereco = _mudou(_addressCtrl, null);
-    final curso = _mudou(_courseCtrl, null);
+    // O campo nem aparece pra quem administra; ler o controller assim mesmo
+    // mandaria curso de uma sessao anterior que trocou de papel.
+    final curso = auth.isStudent ? _mudou(_courseCtrl, null) : null;
 
     if (nome == null && telefone == null && endereco == null && curso == null) {
       showErrorSnackBar(context, 'Altere ao menos um campo antes de enviar.');
@@ -250,14 +252,18 @@ class _ProfileScreenState extends State<ProfileScreen> {
                         icon: Icons.place_outlined,
                         readOnly: emAnalise,
                       ),
-                      const SizedBox(height: 16),
-                      AppTextField(
-                        key: const Key('profile_course_field'),
-                        label: 'Curso',
-                        controller: _courseCtrl,
-                        icon: Icons.school_outlined,
-                        readOnly: emAnalise,
-                      ),
+                      // Curso descreve quem estuda. Quem administra declara a
+                      // instituicao pra vincular a rota, e mais nada.
+                      if (auth.isStudent) ...[
+                        const SizedBox(height: 16),
+                        AppTextField(
+                          key: const Key('profile_course_field'),
+                          label: 'Curso',
+                          controller: _courseCtrl,
+                          icon: Icons.school_outlined,
+                          readOnly: emAnalise,
+                        ),
+                      ],
                       const SizedBox(height: 24),
                       // Campo travado durante a analise: deixar editavel sugere
                       // que da pra enviar outro, e o backend recusa com 409.
