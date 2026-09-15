@@ -90,9 +90,12 @@ class StudentListCard extends StatelessWidget {
               ),
               Expanded(
                 child: StatBlock(
-                  label: 'Fecha às',
+                  // Ja fechada, "fecha as" descreve um futuro que nao existe.
+                  label: acceptingChanges ? 'Fecha às' : 'Fechou às',
                   value: hasCloseTime ? formatCloseTime(list.closeTime) : '—',
-                  valueColor: AppColors.deepTeal,
+                  valueColor: acceptingChanges
+                      ? AppColors.deepTeal
+                      : AppColors.textSecondary,
                 ),
               ),
             ],
@@ -106,37 +109,15 @@ class StudentListCard extends StatelessWidget {
               },
             ),
           ],
-          if (list.proposedVehicles.isNotEmpty ||
-              list.capacityShortfall > 0) ...[
-            const SizedBox(height: 14),
-            ProposedVehicle(
-              vehicles: list.proposedVehicles,
-              shortfall: list.capacityShortfall,
-            ),
-          ] else if (list.vehicles.isNotEmpty) ...[
-            const SizedBox(height: 14),
-            // Antes do fechamento a frota é só informação: o veículo definitivo
-            // depende do total final de confirmados (RN16).
-            Wrap(
-              spacing: 8,
-              runSpacing: 8,
-              children: list.vehicles
-                  .map(
-                    (v) => Chip(
-                      avatar: const Icon(
-                        Icons.directions_bus_outlined,
-                        size: 16,
-                        color: AppColors.deepTeal,
-                      ),
-                      label: Text('${v.label} · ${v.capacity} lugares'),
-                      visualDensity: VisualDensity.compact,
-                      backgroundColor: AppColors.background,
-                      side: const BorderSide(color: AppColors.stroke),
-                    ),
-                  )
-                  .toList(),
-            ),
-          ],
+          // Sempre o veiculo recomendado pro total atual, nunca a frota
+          // inteira: com "Onibus (45)" e "Van (15)" lado a lado o aluno tinha
+          // que adivinhar em qual dos dois ele ia.
+          const SizedBox(height: 14),
+          ProposedVehicle(
+            vehicles: list.proposedVehicles,
+            shortfall: list.capacityShortfall,
+            definido: !list.acceptsChanges,
+          ),
           if (list.stops.any((s) => s.hasCoordinates)) ...[
             const SizedBox(height: 18),
             RoutePreview(list: list),

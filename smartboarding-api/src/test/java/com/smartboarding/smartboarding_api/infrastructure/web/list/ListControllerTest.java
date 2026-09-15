@@ -18,6 +18,7 @@ import com.smartboarding.smartboarding_api.domain.route.entity.Route;
 import com.smartboarding.smartboarding_api.domain.stop.port.in.ManageStopsUseCase;
 import com.smartboarding.smartboarding_api.domain.user.entity.Role;
 import com.smartboarding.smartboarding_api.domain.user.entity.User;
+import com.smartboarding.smartboarding_api.domain.vehicle.entity.Vehicle;
 import com.smartboarding.smartboarding_api.domain.user.port.out.UserRepositoryPort;
 import com.smartboarding.smartboarding_api.domain.vehicle.port.out.VehicleRepositoryPort;
 import com.smartboarding.smartboarding_api.infrastructure.web.WebMvcTestSupport;
@@ -503,5 +504,68 @@ class ListControllerTest extends WebMvcTestSupport {
                 .andExpect(status().isCreated());
 
         verify(addEntryUseCase).add(STUDENT_ID, LIST_ID, TripType.ROUND_TRIP);
+    }
+
+    // ─── Veículo recomendado (RN16) ──────────────────────────────────────────
+
+    private void frota(int... capacidades) {
+        var veiculos = new java.util.ArrayList<Vehicle>();
+        for (int i = 0; i < capacidades.length; i++) {
+            veiculos.add(Vehicle.builder().id(UUID.randomUUID()).routeId(ROUTE_ID)
+                    .label(capacidades[i] >= 40 ? "Ônibus" : "Van")
+                    .capacity(capacidades[i]).build());
+        }
+        when(vehicleRepository.findAllByRouteId(ROUTE_ID)).thenReturn(veiculos);
+    }
+
+    /// O aluno via a frota inteira e tinha que adivinhar em qual veículo ia.
+    /// Com a lista aberta a proposta é calculada na hora, pelo total atual.
+    @Test
+    void listaAbertaJaTrazOVeiculoRecomendado() throws Exception {
+        frota(45, 15);
+        when(findListUseCase.findTodayLists(STUDENT_ID)).thenReturn(List.of(lista()));
+        when(listEntryRepository.countByDailyListIdAndIsActiveTrue(LIST_ID)).thenReturn(10L);
+
+        mvc.perform(get("/api/lists/today").with(student()))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.data[0].proposedVehicles.length()").value(1))
+                .andExpect(jsonPath("$.data[0].proposedVehicles[0].label").value("Van"))
+                .andExpect(jsonPath("$.data[0].capacityShortfall").value(0));
+    }
+
+    /// Dez cabem na van; quarenta não. O algoritmo escolhe o menor que cobre,
+    /// pra não mandar ônibus vazio levar dez.
+    @Test
+    void aRecomendacaoAcompanhaOTotalDeConfirmados() throws Exception {
+        frota(45, 15);
+        when(findListUseCase.findTodayLists(STUDENT_ID)).thenReturn(List.of(lista()));
+        when(listEntryRepository.countByDailyListIdAndIsActiveTrue(LIST_ID)).thenReturn(40L);
+
+        mvc.perform(get("/api/lists/today").with(student()))
+                .andExpect(jsonPath("$.data[0].proposedVehicles.length()").value(1))
+                .andExpect(jsonPath("$.data[0].proposedVehicles[0].label").value("Ônibus"));
+    }
+
+    @Test
+    void frotaInsuficienteAparaceComoFaltaDeLugar() throws Exception {
+        frota(15);
+        when(findListUseCase.findTodayLists(STUDENT_ID)).thenReturn(List.of(lista()));
+        when(listEntryRepository.countByDailyListIdAndIsActiveTrue(LIST_ID)).thenReturn(20L);
+
+        mvc.perform(get("/api/lists/today").with(student()))
+                .andExpect(jsonPath("$.data[0].capacityShortfall").value(5));
+    }
+
+    /// Sem ninguém confirmado não há veículo a recomendar — e isso é diferente
+    /// de "a rota não tem frota".
+    @Test
+    void semConfirmadoNaoRecomendaVeiculo() throws Exception {
+        frota(45, 15);
+        when(findListUseCase.findTodayLists(STUDENT_ID)).thenReturn(List.of(lista()));
+        when(listEntryRepository.countByDailyListIdAndIsActiveTrue(LIST_ID)).thenReturn(0L);
+
+        mvc.perform(get("/api/lists/today").with(student()))
+                .andExpect(jsonPath("$.data[0].proposedVehicles.length()").value(0))
+                .andExpect(jsonPath("$.data[0].capacityShortfall").value(0));
     }
 }

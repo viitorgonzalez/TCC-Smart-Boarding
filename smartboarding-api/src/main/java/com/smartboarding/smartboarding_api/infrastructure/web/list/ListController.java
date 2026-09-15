@@ -3,6 +3,7 @@ package com.smartboarding.smartboarding_api.infrastructure.web.list;
 import com.smartboarding.smartboarding_api.domain.institution.entity.Institution;
 import com.smartboarding.smartboarding_api.domain.institution.port.out.InstitutionRepositoryPort;
 import com.smartboarding.smartboarding_api.domain.list.entity.DailyList;
+import com.smartboarding.smartboarding_api.domain.vehicle.service.VehicleAllocator;
 import com.smartboarding.smartboarding_api.domain.list.entity.TripType;
 import com.smartboarding.smartboarding_api.domain.list.port.in.AddEntryUseCase;
 import com.smartboarding.smartboarding_api.domain.list.port.in.FindListUseCase;
@@ -80,15 +81,7 @@ public class ListController {
         UUID userId = extractUserId(auth);
         Map<UUID, String> names = institutionNames();
         List<ListResponse> lists = findListUseCase.findTodayLists(userId).stream()
-                .map(list -> ListResponse.from(
-                        list,
-                        listEntryRepository.countByDailyListIdAndIsActiveTrue(list.getId()),
-                        listEntryRepository.findByUserIdAndDailyListId(userId, list.getId()).orElse(null),
-                        entriesByInstitution(list.getId(), names),
-                        vehiclesOf(list.getRoute().getId()),
-                        proposedOf(list).vehicles(),
-                        proposedOf(list).shortfall(),
-                        stopsOf(list.getRoute().getId())))
+                .map(list -> montar(list, userId, names))
                 .toList();
         return ResponseEntity.ok(ApiResponse.data(lists));
     }
@@ -99,15 +92,7 @@ public class ListController {
         UUID userId = extractUserId(auth);
         Map<UUID, String> names = institutionNames();
         List<ListResponse> lists = manageDailyListUseCase.findByDate(date).stream()
-                .map(list -> ListResponse.from(
-                        list,
-                        listEntryRepository.countByDailyListIdAndIsActiveTrue(list.getId()),
-                        listEntryRepository.findByUserIdAndDailyListId(userId, list.getId()).orElse(null),
-                        entriesByInstitution(list.getId(), names),
-                        vehiclesOf(list.getRoute().getId()),
-                        proposedOf(list).vehicles(),
-                        proposedOf(list).shortfall(),
-                        stopsOf(list.getRoute().getId())))
+                .map(list -> montar(list, userId, names))
                 .toList();
         return ResponseEntity.ok(ApiResponse.data(lists));
     }
@@ -146,14 +131,8 @@ public class ListController {
     public ResponseEntity<ApiResponse<ListResponse>> findById(@PathVariable UUID id, Authentication auth) {
         UUID userId = extractUserId(auth);
         DailyList list = findListUseCase.findById(id);
-        long count = listEntryRepository.countByDailyListIdAndIsActiveTrue(id);
-        return ResponseEntity.ok(ApiResponse.data(ListResponse.from(
-                list, count, listEntryRepository.findByUserIdAndDailyListId(userId, id).orElse(null),
-                entriesByInstitution(id, institutionNames()),
-                vehiclesOf(list.getRoute().getId()),
-                proposedOf(list).vehicles(),
-                proposedOf(list).shortfall(),
-                stopsOf(list.getRoute().getId()))));
+        return ResponseEntity.ok(ApiResponse.data(
+                montar(list, userId, institutionNames())));
     }
 
     @PostMapping("/{id}/entries")
@@ -229,11 +208,33 @@ public class ListController {
                 .toList();
     }
 
-    /// Veículo proposto vem do relatório gravado no fechamento (RN16). Lista
-    /// aberta ainda não tem proposta — o total de confirmados muda até fechar.
-    private ProposedInfo proposedOf(DailyList list) {
+    /// Monta a resposta de uma lista. Junto porque a proposta de veículo
+    /// depende do total de confirmados: separado, cada chamador contava de
+    /// novo e a alocação rodava duas vezes por lista.
+    private ListResponse montar(DailyList list, UUID userId, Map<UUID, String> names) {
+        long confirmados = listEntryRepository.countByDailyListIdAndIsActiveTrue(list.getId());
+        ProposedInfo proposta = proposedOf(list, confirmados);
+        return ListResponse.from(
+                list,
+                confirmados,
+                listEntryRepository.findByUserIdAndDailyListId(userId, list.getId()).orElse(null),
+                entriesByInstitution(list.getId(), names),
+                vehiclesOf(list.getRoute().getId()),
+                proposta.vehicles(),
+                proposta.shortfall(),
+                stopsOf(list.getRoute().getId()));
+    }
+
+    /// Qual veículo leva essa gente (RN16).
+    ///
+    /// Fechada, vem do relatório gravado: ali a decisão está congelada e é o
+    /// registro do que foi combinado. Aberta, é calculada na hora com o total
+    /// atual — antes o aluno via a frota inteira da rota e tinha que adivinhar
+    /// qual era o dele. Muda conforme entra e sai gente, e é isso mesmo: é
+    /// previsão, não promessa.
+    private ProposedInfo proposedOf(DailyList list, long confirmados) {
         if (list.getStatus() != com.smartboarding.smartboarding_api.domain.list.entity.ListStatus.CLOSED) {
-            return new ProposedInfo(List.of(), 0);
+            return alocacaoAoVivo(list, confirmados);
         }
         return reportRepository.findByDailyListId(list.getId())
                 .map(report -> {
@@ -249,7 +250,19 @@ public class ListController {
                         return new ProposedInfo(List.of(), report.getCapacityShortfall());
                     }
                 })
-                .orElseGet(() -> new ProposedInfo(List.of(), 0));
+                // Fechada sem relatorio e um buraco que ja existiu: melhor
+                // calcular do que deixar a tela sem veiculo nenhum.
+                .orElseGet(() -> alocacaoAoVivo(list, confirmados));
+    }
+
+    private ProposedInfo alocacaoAoVivo(DailyList list, long confirmados) {
+        var frota = vehicleRepository.findAllByRouteId(list.getRoute().getId());
+        var alocacao = VehicleAllocator.allocate(frota, (int) confirmados);
+        return new ProposedInfo(
+                alocacao.vehicles().stream()
+                        .map(v -> new ListResponse.VehicleSummary(v.getLabel(), v.getCapacity()))
+                        .toList(),
+                alocacao.shortfall());
     }
 
     private record ProposedInfo(List<ListResponse.VehicleSummary> vehicles, int shortfall) {}
