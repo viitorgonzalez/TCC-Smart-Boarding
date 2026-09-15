@@ -2,6 +2,8 @@ import 'package:flutter/material.dart';
 import '../../features/auth/models/auth_token.dart';
 import '../../features/auth/services/auth_service.dart';
 import '../../features/auth/services/google_auth_service.dart';
+import '../navigation/app_navigator.dart';
+import '../services/dio_client.dart';
 import '../services/storage_service.dart';
 
 enum AuthStatus { unknown, authenticated, unauthenticated }
@@ -13,6 +15,14 @@ class AuthProvider extends ChangeNotifier {
 
   AuthStatus _status = AuthStatus.unknown;
   AuthToken? _token;
+
+  /// Trava de reentrância: uma tela que dispara várias requisições toma
+  /// vários 401 de uma vez, e sem isso cada um encerraria a sessão de novo.
+  bool _encerrando = false;
+
+  AuthProvider() {
+    DioClient.onUnauthorized = _sessaoExpirou;
+  }
 
   AuthStatus get status => _status;
   AuthToken? get token => _token;
@@ -81,5 +91,21 @@ class AuthProvider extends ChangeNotifier {
     _token = null;
     _status = AuthStatus.unauthenticated;
     notifyListeners();
+  }
+
+  /// O servidor recusou o token: a sessão acabou (expirou, conta desativada ou
+  /// removida). Só avisar não basta — sem derrubar a sessão o usuário fica
+  /// numa tela onde toda ação falha, lendo "faça login novamente" sem ter como.
+  Future<void> _sessaoExpirou() async {
+    if (_encerrando || _status != AuthStatus.authenticated) return;
+    _encerrando = true;
+    try {
+      await logout();
+    } finally {
+      _encerrando = false;
+    }
+    // O AuthGate já troca pro login sozinho, mas ele é a tela de baixo: sem
+    // desempilhar, o que estava aberto por cima continua na frente.
+    navigatorKey.currentState?.popUntil((r) => r.isFirst);
   }
 }

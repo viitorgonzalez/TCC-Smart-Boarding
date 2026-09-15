@@ -30,19 +30,29 @@ class AppException implements Exception {
         'Sem conexão com o servidor. Verifique sua rede.',
       DioExceptionType.receiveTimeout =>
         'O servidor demorou a responder. Tente novamente.',
-      DioExceptionType.badResponse => _fromStatus(e.response?.statusCode),
+      DioExceptionType.badResponse => _fromStatus(
+        e.response?.statusCode,
+        entrando: _ehPortaDeEntrada(e),
+      ),
       _ => 'Erro de conexão. Tente novamente.',
     };
   }
 
-  static String _fromStatus(int? code) => switch (code) {
-    400 => 'Dados inválidos na requisição.',
-    401 => 'Sessão expirada. Faça login novamente.',
-    403 => 'Você não tem permissão para esta ação.',
-    404 => 'Recurso não encontrado.',
-    409 => 'Conflito: já existe um registro com esses dados.',
-    422 => 'Dados inválidos.',
-    500 || 502 || 503 => 'Erro no servidor. Tente novamente.',
-    _ => 'Erro ${code ?? "desconhecido"}.',
-  };
+  /// Em `/auth/*` quem está do outro lado ainda não tem sessão: falar em
+  /// sessão expirada ali manda o usuário fazer o que ele já está fazendo.
+  static bool _ehPortaDeEntrada(DioException e) =>
+      e.requestOptions.path.contains('/auth/');
+
+  static String _fromStatus(int? code, {bool entrando = false}) =>
+      switch (code) {
+        400 => 'Dados inválidos na requisição.',
+        401 when entrando => 'E-mail ou senha incorretos.',
+        401 => 'Sessão expirada. Faça login novamente.',
+        403 => 'Você não tem permissão para esta ação.',
+        404 => 'Recurso não encontrado.',
+        409 => 'Conflito: já existe um registro com esses dados.',
+        422 => 'Dados inválidos.',
+        500 || 502 || 503 => 'Erro no servidor. Tente novamente.',
+        _ => 'Erro ${code ?? "desconhecido"}.',
+      };
 }

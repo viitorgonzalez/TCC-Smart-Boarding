@@ -53,7 +53,7 @@ class _LoginScreenState extends State<LoginScreen> {
         _passCtrl.text,
       );
     } catch (e) {
-      if (mounted) showErrorSnackBar(context, 'Falha no login: $e');
+      if (mounted) showErrorSnackBar(context, AppException.fromError(e));
     } finally {
       if (mounted) setState(() => _loading = false);
     }
@@ -61,6 +61,8 @@ class _LoginScreenState extends State<LoginScreen> {
 
   @override
   Widget build(BuildContext context) {
+    // As telas de autenticação são as únicas sobre Ash Grey no desenho; o resto
+    // do app é #F4F6F4 (ver design-system.md).
     return Scaffold(
       backgroundColor: AppColors.background,
       body: SafeArea(

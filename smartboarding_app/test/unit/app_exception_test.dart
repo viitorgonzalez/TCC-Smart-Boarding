@@ -136,4 +136,48 @@ void main() {
       'Erro inesperado. Tente novamente.',
     );
   });
+
+  /// Um 401 na tela de login é senha errada, não sessão vencida: quem está ali
+  /// ainda não tem sessão nenhuma pra expirar.
+  test('401 entrando fala de credencial, nao de sessao', () {
+    final e = DioException(
+      requestOptions: RequestOptions(path: '/auth/login'),
+      response: Response(
+        requestOptions: RequestOptions(path: '/auth/login'),
+        statusCode: 401,
+      ),
+      type: DioExceptionType.badResponse,
+    );
+
+    expect(AppException.fromError(e), 'E-mail ou senha incorretos.');
+  });
+
+  test('401 em rota autenticada continua falando de sessao', () {
+    final e = DioException(
+      requestOptions: RequestOptions(path: '/api/me'),
+      response: Response(
+        requestOptions: RequestOptions(path: '/api/me'),
+        statusCode: 401,
+      ),
+      type: DioExceptionType.badResponse,
+    );
+
+    expect(AppException.fromError(e), contains('Sessão expirada'));
+  });
+
+  /// A mensagem do servidor vence a genérica: ela diz o que de fato aconteceu.
+  test('mensagem do servidor tem prioridade', () {
+    final req = RequestOptions(path: '/auth/login');
+    final e = DioException(
+      requestOptions: req,
+      response: Response(
+        requestOptions: req,
+        statusCode: 401,
+        data: {'error': 'Credenciais inválidas'},
+      ),
+      type: DioExceptionType.badResponse,
+    );
+
+    expect(AppException.fromError(e), 'Credenciais inválidas');
+  });
 }

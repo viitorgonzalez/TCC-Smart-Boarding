@@ -3,6 +3,7 @@ import 'package:provider/provider.dart';
 import 'core/providers/auth_provider.dart';
 import 'features/membership/providers/membership_provider.dart';
 import 'core/theme/app_theme.dart';
+import 'core/navigation/app_navigator.dart';
 import 'core/widgets/auth_gate.dart';
 import 'features/lists/providers/student_list_provider.dart';
 import 'features/lists/services/list_service.dart';
@@ -10,8 +11,6 @@ import 'features/lists/services/list_service.dart';
 void main() {
   runApp(const SmartBoardingApp());
 }
-
-final navigatorKey = GlobalKey<NavigatorState>();
 
 class SmartBoardingApp extends StatelessWidget {
   const SmartBoardingApp({super.key});
