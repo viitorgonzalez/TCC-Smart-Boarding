@@ -3,7 +3,9 @@ package com.smartboarding.smartboarding_api.infrastructure.web.profile;
 import com.smartboarding.smartboarding_api.domain.profile.entity.ProfileUpdateRequest;
 import com.smartboarding.smartboarding_api.domain.membership.port.in.ManageUserInstitutionsUseCase;
 import com.smartboarding.smartboarding_api.domain.profile.port.in.ManageProfileUpdateUseCase;
+import com.smartboarding.smartboarding_api.domain.user.port.in.ChangePasswordUseCase;
 import com.smartboarding.smartboarding_api.domain.user.port.in.SetLocalPasswordUseCase;
+import com.smartboarding.smartboarding_api.infrastructure.web.user.dto.ChangePasswordRequest;
 import com.smartboarding.smartboarding_api.infrastructure.web.user.dto.SetPasswordRequest;
 import com.smartboarding.smartboarding_api.domain.user.entity.User;
 import com.smartboarding.smartboarding_api.domain.user.port.out.UserRepositoryPort;
@@ -36,15 +38,18 @@ public class ProfileController {
     private final UserRepositoryPort userRepository;
     private final ManageUserInstitutionsUseCase userInstitutionsUseCase;
     private final SetLocalPasswordUseCase setLocalPasswordUseCase;
+    private final ChangePasswordUseCase changePasswordUseCase;
 
     public ProfileController(ManageProfileUpdateUseCase useCase,
                              UserRepositoryPort userRepository,
                              ManageUserInstitutionsUseCase userInstitutionsUseCase,
-                             SetLocalPasswordUseCase setLocalPasswordUseCase) {
+                             SetLocalPasswordUseCase setLocalPasswordUseCase,
+                             ChangePasswordUseCase changePasswordUseCase) {
         this.useCase = useCase;
         this.userRepository = userRepository;
         this.userInstitutionsUseCase = userInstitutionsUseCase;
         this.setLocalPasswordUseCase = setLocalPasswordUseCase;
+        this.changePasswordUseCase = changePasswordUseCase;
     }
 
     @PostMapping("/me/profile-requests")
@@ -136,6 +141,17 @@ public class ProfileController {
     public ResponseEntity<ApiResponse<?>> setPassword(
             @RequestBody @Valid SetPasswordRequest body, Authentication auth) {
         setLocalPasswordUseCase.setPassword(me(auth).getId(), body.password());
+        return ResponseEntity.ok(ApiResponse.success());
+    }
+
+    /// Troca a senha de quem já tem uma. Verbo diferente do POST de propósito:
+    /// lá se cria a primeira senha, aqui se substitui uma existente, e cada um
+    /// tem a sua exigência.
+    @PutMapping("/me/password")
+    public ResponseEntity<ApiResponse<?>> changePassword(
+            @RequestBody @Valid ChangePasswordRequest body, Authentication auth) {
+        changePasswordUseCase.changePassword(
+                me(auth).getId(), body.currentPassword(), body.newPassword());
         return ResponseEntity.ok(ApiResponse.success());
     }
 

@@ -77,6 +77,15 @@ class ProfileService {
     await _dio.post('/api/me/password', data: {'password': password});
   }
 
+  /// Troca a senha de quem já tem uma. Verbo diferente do POST: lá se cria a
+  /// primeira senha, aqui se substitui uma existente provando posse da antiga.
+  Future<void> changePassword(String current, String novaSenha) async {
+    await _dio.put(
+      '/api/me/password',
+      data: {'currentPassword': current, 'newPassword': novaSenha},
+    );
+  }
+
   /// Instituições do próprio aluno. É pré-requisito pra entrar em rota, por
   /// isso vive sob /me e não na área do admin.
   Future<List<String>> myInstitutions() async {

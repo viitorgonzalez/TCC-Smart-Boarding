@@ -11,7 +11,7 @@ import '../../../core/widgets/snackbar_utils.dart';
 import '../models/profile_update_model.dart';
 import '../services/profile_service.dart';
 import '../widgets/my_institutions_card.dart';
-import '../widgets/set_password_card.dart';
+import '../widgets/password_card.dart';
 
 /// Perfil do próprio usuário.
 ///
@@ -160,10 +160,11 @@ class _ProfileScreenState extends State<ProfileScreen> {
                 // resolver ao abrir o perfil.
                 const MyInstitutionsCard(),
                 const SizedBox(height: 20),
-                // So pra quem entrou pelo Google e ainda nao tem senha: oferecer
-                // a todos faria metade tomar 409 do backend.
-                if (_me case Me(hasPassword: false, hasGoogle: true)) ...[
-                  SetPasswordCard(onCreated: _load),
+                // Quem ainda nao tem senha cria a primeira; quem tem, troca
+                // provando a atual. Nao ha terceiro caso -- o card so some
+                // enquanto o /me nao respondeu.
+                if (_me case final me?) ...[
+                  PasswordCard(changing: me.hasPassword, onSaved: _load),
                   const SizedBox(height: 20),
                 ],
 

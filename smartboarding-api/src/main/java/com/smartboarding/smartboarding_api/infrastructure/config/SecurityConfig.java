@@ -72,6 +72,7 @@ public class SecurityConfig {
                         // solicitacoes e do admin.
                         .requestMatchers(HttpMethod.GET, "/api/me").authenticated()
                         .requestMatchers(HttpMethod.POST, "/api/me/password").authenticated()
+                        .requestMatchers(HttpMethod.PUT, "/api/me/password").authenticated()
                         .requestMatchers("/api/me/institutions/**").authenticated()
                         .requestMatchers("/api/me/institutions").authenticated()
                         .requestMatchers("/api/me/profile-requests/**").authenticated()
