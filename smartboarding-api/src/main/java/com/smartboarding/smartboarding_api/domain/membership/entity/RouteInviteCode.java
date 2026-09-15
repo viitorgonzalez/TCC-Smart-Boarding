@@ -34,6 +34,11 @@ public class RouteInviteCode {
     @Column(name = "revoked_at")
     private LocalDateTime revokedAt;
 
+    /// Nulo = vale pra qualquer instituição. Preenchido, só entra quem
+    /// declarou essa instituição no perfil.
+    @Column(name = "institution_id")
+    private UUID institutionId;
+
     @Column(name = "created_by")
     private UUID createdBy;
 

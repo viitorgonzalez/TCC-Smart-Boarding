@@ -32,6 +32,8 @@ Map<String, dynamic> codigo({
   bool usable = true,
   int uses = 0,
   String? revokedAt,
+  String? institutionId,
+  String? institutionName,
 }) => {
   'id': id,
   'routeId': 'rota-1',
@@ -40,6 +42,8 @@ Map<String, dynamic> codigo({
   'revokedAt': revokedAt,
   'usable': usable,
   'uses': uses,
+  'institutionId': institutionId,
+  'institutionName': institutionName,
 };
 
 void main() {
@@ -97,5 +101,95 @@ void main() {
     );
 
     expect(find.byKey(const Key('generate_code')), findsOneWidget);
+  });
+
+  // ─── Instituição do código ───────────────────────────────────────────────
+
+  /// O admin lista códigos de várias instituições ao mesmo tempo: sem dizer
+  /// pra quem cada um serve, ele manda o da UNIFOR pro grupo do IFMG.
+  testWidgets('cada codigo diz a que instituicao serve', (tester) async {
+    await abrir(
+      tester,
+      codigos: [codigo(institutionId: 'i1', institutionName: 'UNIFOR-MG')],
+    );
+
+    expect(find.textContaining('UNIFOR-MG'), findsOneWidget);
+  });
+
+  testWidgets('codigo sem instituicao aparece como aberto', (tester) async {
+    await abrir(tester, codigos: [codigo()]);
+
+    expect(find.textContaining('Qualquer instituição'), findsOneWidget);
+  });
+
+  testWidgets('gerar pergunta validade e depois instituicao', (tester) async {
+    final http = await abrir(tester, codigos: [codigo()]);
+    http.on(
+      'GET',
+      '/api/institutions',
+      body: {
+        'data': [
+          {'id': 'i1', 'name': 'UNIFOR-MG'},
+          {'id': 'i2', 'name': 'IFMG'},
+        ],
+      },
+    );
+    http.on(
+      'POST',
+      '/api/routes/rota-1/invite-codes',
+      status: 201,
+      body: {
+        'data': codigo(
+          id: 'novo',
+          code: 'NOVO12',
+          institutionId: 'i1',
+          institutionName: 'UNIFOR-MG',
+        ),
+      },
+    );
+
+    await tester.tap(find.byKey(const Key('generate_code')));
+    await tester.pumpAndSettle();
+    await tester.tap(find.byKey(const Key('validity_seteDias')));
+    await tester.pumpAndSettle();
+
+    // Segundo passo: a quem o codigo serve.
+    expect(find.byKey(const Key('institution_any')), findsOneWidget);
+    await tester.tap(find.byKey(const Key('institution_i1')));
+    await tester.pumpAndSettle();
+
+    final envio = http.requests.where((r) => r.method == 'POST').single;
+    expect((envio.data as Map)['institutionId'], 'i1');
+  });
+
+  /// "Qualquer instituição" tem que mandar o campo ausente, nao a string
+  /// "null": o backend distingue aberto de travado pela ausencia.
+  testWidgets('qualquer instituicao nao manda institutionId', (tester) async {
+    final http = await abrir(tester, codigos: [codigo()]);
+    http.on(
+      'GET',
+      '/api/institutions',
+      body: {
+        'data': [
+          {'id': 'i1', 'name': 'UNIFOR-MG'},
+        ],
+      },
+    );
+    http.on(
+      'POST',
+      '/api/routes/rota-1/invite-codes',
+      status: 201,
+      body: {'data': codigo(id: 'novo', code: 'ABERTO')},
+    );
+
+    await tester.tap(find.byKey(const Key('generate_code')));
+    await tester.pumpAndSettle();
+    await tester.tap(find.byKey(const Key('validity_seteDias')));
+    await tester.pumpAndSettle();
+    await tester.tap(find.byKey(const Key('institution_any')));
+    await tester.pumpAndSettle();
+
+    final envio = http.requests.where((r) => r.method == 'POST').single;
+    expect((envio.data as Map).containsKey('institutionId'), isFalse);
   });
 }

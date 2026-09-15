@@ -5,6 +5,8 @@ import com.smartboarding.smartboarding_api.domain.membership.entity.RouteMember;
 import com.smartboarding.smartboarding_api.domain.membership.port.in.JoinRouteUseCase;
 import com.smartboarding.smartboarding_api.domain.membership.port.out.RouteInviteCodeRepositoryPort;
 import com.smartboarding.smartboarding_api.domain.membership.port.out.RouteMemberRepositoryPort;
+import com.smartboarding.smartboarding_api.domain.institution.entity.Institution;
+import com.smartboarding.smartboarding_api.domain.institution.port.out.InstitutionRepositoryPort;
 import com.smartboarding.smartboarding_api.domain.membership.port.out.UserInstitutionRepositoryPort;
 import com.smartboarding.smartboarding_api.shared.exception.BadRequestException;
 import com.smartboarding.smartboarding_api.shared.exception.ConflictException;
@@ -24,15 +26,18 @@ public class JoinRouteUseCaseImpl implements JoinRouteUseCase {
     private final RouteInviteCodeRepositoryPort codeRepository;
     private final RouteMemberRepositoryPort memberRepository;
     private final UserInstitutionRepositoryPort userInstitutionRepository;
+    private final InstitutionRepositoryPort institutionRepository;
     private final Clock clock;
 
     public JoinRouteUseCaseImpl(RouteInviteCodeRepositoryPort codeRepository,
                                 RouteMemberRepositoryPort memberRepository,
                                 UserInstitutionRepositoryPort userInstitutionRepository,
+                                InstitutionRepositoryPort institutionRepository,
                                 Clock clock) {
         this.codeRepository = codeRepository;
         this.memberRepository = memberRepository;
         this.userInstitutionRepository = userInstitutionRepository;
+        this.institutionRepository = institutionRepository;
         this.clock = clock;
     }
 
@@ -49,7 +54,8 @@ public class JoinRouteUseCaseImpl implements JoinRouteUseCase {
         // A instituicao e o que diz onde o aluno desce e em que contagem ele
         // entra. Deixar entrar sem ela poria na lista alguem que o motorista nao
         // sabe onde deixar.
-        if (userInstitutionRepository.findAllByUserId(userId).isEmpty()) {
+        var minhasInstituicoes = userInstitutionRepository.findAllByUserId(userId);
+        if (minhasInstituicoes.isEmpty()) {
             throw new BadRequestException("PROFILE_INCOMPLETE",
                     "Defina sua instituição no perfil antes de entrar em uma rota.");
         }
@@ -73,6 +79,20 @@ public class JoinRouteUseCaseImpl implements JoinRouteUseCase {
 
         if (memberRepository.existsByUserIdAndRouteId(userId, invite.getRouteId())) {
             throw new ConflictException("ALREADY_MEMBER", "Você já está nessa rota.");
+        }
+
+        // Código preso a uma instituição só serve a quem a declarou. Nulo é o
+        // código aberto: vale pra qualquer um, e é o que os códigos antigos
+        // continuam sendo.
+        UUID exigida = invite.getInstitutionId();
+        if (exigida != null
+                && minhasInstituicoes.stream().noneMatch(i -> exigida.equals(i.getInstitutionId()))) {
+            String nome = institutionRepository.findById(exigida)
+                    .map(Institution::getName)
+                    .orElse("outra instituição");
+            throw new BadRequestException("INSTITUTION_MISMATCH",
+                    "Esse código é só para alunos de " + nome
+                            + ". Adicione essa instituição no seu perfil ou peça outro código.");
         }
 
         RouteMember saved = memberRepository.save(RouteMember.builder()

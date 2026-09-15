@@ -5,6 +5,8 @@ import '../../../core/errors/app_exception.dart';
 import '../../../core/theme/app_theme.dart';
 import '../../../core/widgets/app_card.dart';
 import '../../../core/widgets/snackbar_utils.dart';
+import '../../institutions/models/institution_model.dart';
+import '../../institutions/services/institution_service.dart';
 import '../models/invite_code_model.dart';
 import '../services/route_service.dart';
 
@@ -24,6 +26,7 @@ class RouteInviteCodesCard extends StatefulWidget {
 
 class _RouteInviteCodesCardState extends State<RouteInviteCodesCard> {
   final _service = RouteService();
+  final _catalogo = InstitutionService();
   List<InviteCode> _codes = const [];
   bool _busy = false;
   bool _carregou = false;
@@ -76,11 +79,15 @@ class _RouteInviteCodesCardState extends State<RouteInviteCodesCard> {
     );
     if (validade == null || !mounted) return;
 
+    final escolha = await _escolherInstituicao();
+    if (escolha == null || !mounted) return;
+
     setState(() => _busy = true);
     try {
       final novo = await _service.generateInviteCode(
         widget.routeId,
         expiresAt: validade.expiresFrom(DateTime.now()),
+        institutionId: escolha.id,
       );
       if (!mounted) return;
       setState(() => _codes = [novo, ..._codes]);
@@ -93,6 +100,60 @@ class _RouteInviteCodesCardState extends State<RouteInviteCodesCard> {
     } finally {
       if (mounted) setState(() => _busy = false);
     }
+  }
+
+  /// Segundo passo: a quem o código serve. Devolver nulo é desistir; devolver
+  /// com [id] nulo é escolher "qualquer instituição" — são coisas diferentes,
+  /// por isso o retorno não é um String? solto.
+  Future<({String? id, String? nome})?> _escolherInstituicao() async {
+    List<InstitutionModel> instituicoes;
+    try {
+      instituicoes = await _catalogo.getInstitutions();
+    } catch (e) {
+      if (mounted) showErrorSnackBar(context, AppException.fromError(e));
+      return null;
+    }
+    if (!mounted) return null;
+
+    return showModalBottomSheet<({String? id, String? nome})>(
+      context: context,
+      backgroundColor: AppColors.surface,
+      showDragHandle: true,
+      builder: (ctx) => SafeArea(
+        child: SingleChildScrollView(
+          child: Column(
+            mainAxisSize: MainAxisSize.min,
+            crossAxisAlignment: CrossAxisAlignment.stretch,
+            children: [
+              Padding(
+                padding: const EdgeInsets.fromLTRB(20, 0, 20, 8),
+                child: Text(
+                  'Quem pode usar esse código?',
+                  style: Theme.of(ctx).textTheme.titleMedium,
+                ),
+              ),
+              ListTile(
+                key: const Key('institution_any'),
+                leading: const Icon(Icons.public),
+                title: const Text('Qualquer instituição'),
+                subtitle: const Text('Qualquer aluno com o código entra'),
+                onTap: () => Navigator.pop(ctx, (id: null, nome: null)),
+              ),
+              const Divider(height: 1),
+              for (final i in instituicoes)
+                ListTile(
+                  key: Key('institution_${i.id}'),
+                  leading: const Icon(Icons.school_outlined),
+                  title: Text(i.name),
+                  subtitle: const Text('Só alunos dessa instituição'),
+                  onTap: () => Navigator.pop(ctx, (id: i.id, nome: i.name)),
+                ),
+              const SizedBox(height: 12),
+            ],
+          ),
+        ),
+      ),
+    );
   }
 
   Future<void> _copiar(InviteCode code) async {
@@ -182,6 +243,7 @@ class _RouteInviteCodesCardState extends State<RouteInviteCodesCard> {
                 ),
               ),
               subtitle: Text(
+                '${code.institutionName ?? 'Qualquer instituição'} · '
                 '${_situacao(code)} · ${code.uses} '
                 '${code.uses == 1 ? 'aluno entrou' : 'alunos entraram'}',
               ),

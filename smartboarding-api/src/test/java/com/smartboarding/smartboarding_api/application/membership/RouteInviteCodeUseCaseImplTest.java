@@ -1,5 +1,7 @@
 package com.smartboarding.smartboarding_api.application.membership;
 
+import com.smartboarding.smartboarding_api.domain.institution.entity.Institution;
+import com.smartboarding.smartboarding_api.domain.institution.port.out.InstitutionRepositoryPort;
 import com.smartboarding.smartboarding_api.domain.membership.entity.RouteInviteCode;
 import com.smartboarding.smartboarding_api.domain.membership.port.out.RouteInviteCodeRepositoryPort;
 import com.smartboarding.smartboarding_api.domain.membership.port.out.RouteMemberRepositoryPort;
@@ -41,6 +43,7 @@ class RouteInviteCodeUseCaseImplTest {
     private static final long VALIDADE_DIAS = 90;
 
     @Mock RouteInviteCodeRepositoryPort codeRepository;
+    @Mock InstitutionRepositoryPort institutionRepository;
     @Mock RouteMemberRepositoryPort memberRepository;
     @Mock RouteRepositoryPort routeRepository;
 
@@ -49,6 +52,7 @@ class RouteInviteCodeUseCaseImplTest {
     @BeforeEach
     void setUp() {
         useCase = new RouteInviteCodeUseCaseImpl(codeRepository, memberRepository, routeRepository,
+                institutionRepository,
                 Clock.fixed(AGORA.toInstant(ZoneOffset.UTC), ZoneOffset.UTC), TAMANHO, VALIDADE_DIAS);
         when(routeRepository.findById(ROTA)).thenReturn(Optional.of(
                 Route.builder().id(ROTA).name("Rota Universitária").build()));
@@ -58,7 +62,7 @@ class RouteInviteCodeUseCaseImplTest {
 
     @Test
     void semExpiracaoUsaAValidadePadrao() {
-        RouteInviteCode code = useCase.generate(ROTA, null, ADMIN);
+        RouteInviteCode code = useCase.generate(ROTA, null, null, ADMIN);
 
         assertThat(code.getExpiresAt()).isEqualTo(AGORA.plusDays(VALIDADE_DIAS));
         assertThat(code.getRouteId()).isEqualTo(ROTA);
@@ -70,14 +74,14 @@ class RouteInviteCodeUseCaseImplTest {
     void expiracaoInformadaERespeitada() {
         var prazo = AGORA.plusDays(7);
 
-        assertThat(useCase.generate(ROTA, prazo, ADMIN).getExpiresAt()).isEqualTo(prazo);
+        assertThat(useCase.generate(ROTA, prazo, null, ADMIN).getExpiresAt()).isEqualTo(prazo);
     }
 
     /// Código que já nasce vencido não serve pra nada e o admin só descobriria
     /// quando um aluno reclamasse.
     @Test
     void expiracaoNoPassadoERecusada() {
-        assertThatThrownBy(() -> useCase.generate(ROTA, AGORA.minusDays(1), ADMIN))
+        assertThatThrownBy(() -> useCase.generate(ROTA, AGORA.minusDays(1), null, ADMIN))
                 .isInstanceOf(BadRequestException.class)
                 .hasMessageContaining("futuro");
 
@@ -86,7 +90,7 @@ class RouteInviteCodeUseCaseImplTest {
 
     @Test
     void expiracaoExatamenteAgoraERecusada() {
-        assertThatThrownBy(() -> useCase.generate(ROTA, AGORA, ADMIN))
+        assertThatThrownBy(() -> useCase.generate(ROTA, AGORA, null, ADMIN))
                 .isInstanceOf(BadRequestException.class);
     }
 
@@ -95,7 +99,7 @@ class RouteInviteCodeUseCaseImplTest {
         UUID desconhecida = UUID.randomUUID();
         when(routeRepository.findById(desconhecida)).thenReturn(Optional.empty());
 
-        assertThatThrownBy(() -> useCase.generate(desconhecida, null, ADMIN))
+        assertThatThrownBy(() -> useCase.generate(desconhecida, null, null, ADMIN))
                 .isInstanceOf(NotFoundException.class);
 
         verify(codeRepository, never()).save(any());
@@ -106,7 +110,7 @@ class RouteInviteCodeUseCaseImplTest {
     @Test
     void codigoNaoUsaCaracteresAmbiguos() {
         var gerados = IntStream.range(0, 200)
-                .mapToObj(i -> useCase.generate(ROTA, null, ADMIN).getCode())
+                .mapToObj(i -> useCase.generate(ROTA, null, null, ADMIN).getCode())
                 .toList();
 
         assertThat(gerados).allSatisfy(c -> {
@@ -122,7 +126,7 @@ class RouteInviteCodeUseCaseImplTest {
     void colisaoDeCodigoGeraOutroEmVezDeFalhar() {
         when(codeRepository.existsByCode(any())).thenReturn(true, true, false);
 
-        assertThat(useCase.generate(ROTA, null, ADMIN).getCode()).isNotBlank();
+        assertThat(useCase.generate(ROTA, null, null, ADMIN).getCode()).isNotBlank();
 
         verify(codeRepository, org.mockito.Mockito.times(3)).existsByCode(any());
     }
@@ -171,5 +175,37 @@ class RouteInviteCodeUseCaseImplTest {
         when(memberRepository.countByInviteCodeId(codeId)).thenReturn(23L);
 
         assertThat(useCase.countUses(codeId)).isEqualTo(23L);
+    }
+
+    // ─── Instituição do código ───────────────────────────────────────────────
+
+    @Test
+    void guardaAInstituicaoEscolhida() {
+        UUID unifor = UUID.randomUUID();
+        when(institutionRepository.findById(unifor)).thenReturn(Optional.of(
+                Institution.builder().id(unifor).name("UNIFOR-MG").build()));
+
+        assertThat(useCase.generate(ROTA, null, unifor, ADMIN).getInstitutionId())
+                .isEqualTo(unifor);
+    }
+
+    /// Nulo é o código aberto, e é o padrão: a rota pode atender mais de uma
+    /// instituição.
+    @Test
+    void semInstituicaoOCodigoNasceAberto() {
+        assertThat(useCase.generate(ROTA, null, null, ADMIN).getInstitutionId()).isNull();
+    }
+
+    /// Instituição inexistente travaria o código sem ninguém notar: quem
+    /// recebesse tomaria "você não estuda nessa instituição" sem ter saída.
+    @Test
+    void instituicaoInexistenteNaoGeraCodigo() {
+        UUID fantasma = UUID.randomUUID();
+        when(institutionRepository.findById(fantasma)).thenReturn(Optional.empty());
+
+        assertThatThrownBy(() -> useCase.generate(ROTA, null, fantasma, ADMIN))
+                .isInstanceOf(NotFoundException.class);
+
+        verify(codeRepository, never()).save(any());
     }
 }

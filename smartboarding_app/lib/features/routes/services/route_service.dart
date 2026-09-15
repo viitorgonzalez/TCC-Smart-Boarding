@@ -16,13 +16,18 @@ class RouteService {
   }
 
   /// [expiresAt] nulo deixa o backend aplicar a validade padrão dele.
+  /// [institutionId] nulo gera um código aberto a qualquer instituição.
   Future<InviteCode> generateInviteCode(
     String routeId, {
     DateTime? expiresAt,
+    String? institutionId,
   }) async {
     final response = await _dio.post(
       '/api/routes/$routeId/invite-codes',
-      data: {'expiresAt': ?expiresAt?.toIso8601String()},
+      data: {
+        'expiresAt': ?expiresAt?.toIso8601String(),
+        'institutionId': ?institutionId,
+      },
     );
     return InviteCode.fromJson(response.data['data'] as Map<String, dynamic>);
   }

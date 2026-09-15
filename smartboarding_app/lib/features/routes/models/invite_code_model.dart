@@ -11,6 +11,18 @@ class InviteCode {
   final bool usable;
   final int uses;
 
+  /// Instituição exigida. Nulo é o código aberto: vale pra qualquer aluno.
+  final String? institutionId;
+
+  /// Nome resolvido pelo backend — só o id obrigaria a tela a cruzar cada
+  /// código com o catálogo pra escrever uma linha.
+  final String? institutionName;
+
+  /// Só vem preenchido na listagem que cruza rotas; dentro de uma rota só,
+  /// repetir o nome em cada linha seria ruído.
+  final String? routeName;
+  final String? routeId;
+
   const InviteCode({
     required this.id,
     required this.code,
@@ -18,9 +30,16 @@ class InviteCode {
     required this.uses,
     this.expiresAt,
     this.revokedAt,
+    this.institutionId,
+    this.institutionName,
+    this.routeName,
+    this.routeId,
   });
 
   bool get revoked => revokedAt != null;
+
+  /// Sem instituição, qualquer aluno entra.
+  bool get aberto => institutionId == null;
   bool get expired => !usable && !revoked;
 
   factory InviteCode.fromJson(Map<String, dynamic> json) => InviteCode(
@@ -34,6 +53,10 @@ class InviteCode {
     revokedAt: json['revokedAt'] == null
         ? null
         : DateTime.parse(json['revokedAt'] as String),
+    institutionId: json['institutionId'] as String?,
+    institutionName: json['institutionName'] as String?,
+    routeName: json['routeName'] as String?,
+    routeId: json['routeId'] as String?,
   );
 }
 

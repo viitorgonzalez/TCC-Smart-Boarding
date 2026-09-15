@@ -1,5 +1,7 @@
 package com.smartboarding.smartboarding_api.application.membership;
 
+import com.smartboarding.smartboarding_api.domain.institution.entity.Institution;
+import com.smartboarding.smartboarding_api.domain.institution.port.out.InstitutionRepositoryPort;
 import com.smartboarding.smartboarding_api.domain.membership.entity.RouteInviteCode;
 import com.smartboarding.smartboarding_api.domain.membership.entity.RouteMember;
 import com.smartboarding.smartboarding_api.domain.membership.port.out.RouteInviteCodeRepositoryPort;
@@ -39,6 +41,7 @@ class JoinRouteUseCaseImplTest {
     private static final UUID ROTA = UUID.randomUUID();
 
     @Mock RouteInviteCodeRepositoryPort codeRepository;
+    @Mock InstitutionRepositoryPort institutionRepository;
     @Mock RouteMemberRepositoryPort memberRepository;
     @Mock UserInstitutionRepositoryPort userInstitutionRepository;
 
@@ -47,7 +50,7 @@ class JoinRouteUseCaseImplTest {
     @BeforeEach
     void setUp() {
         useCase = new JoinRouteUseCaseImpl(codeRepository, memberRepository,
-                userInstitutionRepository,
+                userInstitutionRepository, institutionRepository,
                 Clock.fixed(AGORA.toInstant(ZoneOffset.UTC), ZoneOffset.UTC));
         // Por padrao o aluno ja tem instituicao; os testes de gate sobrescrevem.
         when(userInstitutionRepository.findAllByUserId(any())).thenReturn(List.of(
@@ -206,5 +209,67 @@ class JoinRouteUseCaseImplTest {
         codigo("RU7K2M", AGORA.plusDays(30), null);
 
         assertThat(useCase.join(ALUNO, "RU7K2M").getRouteId()).isEqualTo(ROTA);
+    }
+
+    // ─── Código preso a uma instituição ──────────────────────────────────────
+
+    private static final UUID UNIFOR = UUID.randomUUID();
+    private static final UUID IFMG = UUID.randomUUID();
+
+    private RouteInviteCode codigoDa(UUID institutionId) {
+        var invite = RouteInviteCode.builder()
+                .id(UUID.randomUUID()).routeId(ROTA).code("UNI123")
+                .expiresAt(AGORA.plusDays(30)).institutionId(institutionId).build();
+        when(codeRepository.findByCode("UNI123")).thenReturn(Optional.of(invite));
+        return invite;
+    }
+
+    private void alunoDe(UUID... institutionIds) {
+        when(userInstitutionRepository.findAllByUserId(any())).thenReturn(
+                java.util.Arrays.stream(institutionIds)
+                        .map(id -> UserInstitution.builder().userId(ALUNO).institutionId(id).build())
+                        .toList());
+    }
+
+    @Test
+    void alunoDaInstituicaoExigidaEntra() {
+        codigoDa(UNIFOR);
+        alunoDe(UNIFOR);
+
+        assertThat(useCase.join(ALUNO, "UNI123").getRouteId()).isEqualTo(ROTA);
+    }
+
+    /// Quem faz dois cursos declara duas instituições: basta o código casar com
+    /// uma delas.
+    @Test
+    void bastaTerAInstituicaoExigidaEntreAsSuas() {
+        codigoDa(UNIFOR);
+        alunoDe(IFMG, UNIFOR);
+
+        assertThat(useCase.join(ALUNO, "UNI123").getRouteId()).isEqualTo(ROTA);
+    }
+
+    @Test
+    void alunoDeOutraInstituicaoNaoEntra() {
+        codigoDa(UNIFOR);
+        alunoDe(IFMG);
+        when(institutionRepository.findById(UNIFOR)).thenReturn(Optional.of(
+                Institution.builder().id(UNIFOR).name("UNIFOR-MG").build()));
+
+        assertThatThrownBy(() -> useCase.join(ALUNO, "UNI123"))
+                .isInstanceOf(BadRequestException.class)
+                .hasMessageContaining("UNIFOR-MG");
+
+        verify(memberRepository, never()).save(any());
+    }
+
+    /// Nulo é o código aberto: é o que os códigos gerados antes desta regra
+    /// continuam sendo, e eles não podem parar de funcionar.
+    @Test
+    void codigoSemInstituicaoValePraQualquerAluno() {
+        codigoDa(null);
+        alunoDe(IFMG);
+
+        assertThat(useCase.join(ALUNO, "UNI123").getRouteId()).isEqualTo(ROTA);
     }
 }
