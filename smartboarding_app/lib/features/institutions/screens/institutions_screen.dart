@@ -9,6 +9,7 @@ import '../../routes/models/route_model.dart';
 import '../models/institution_model.dart';
 import '../providers/institution_provider.dart';
 import '../widgets/institution_form.dart';
+import '../../../core/widgets/app_list_group.dart';
 
 /// Catálogo de instituições. É aqui que elas nascem e são editadas; a tela da
 /// rota apenas escolhe entre as que existem.
@@ -119,50 +120,65 @@ class InstitutionsScreen extends StatelessWidget {
                 )
               : RefreshIndicator(
                   onRefresh: provider.load,
-                  child: ListView.builder(
-                    padding: const EdgeInsets.fromLTRB(16, 12, 16, 88),
-                    itemCount: institutions.length,
-                    itemBuilder: (_, i) {
-                      final inst = institutions[i];
-                      final rota = _routeName(inst.routeId);
-                      return Card(
-                        margin: const EdgeInsets.only(bottom: 8),
-                        child: ListTile(
-                          leading: const Icon(
-                            Icons.school_outlined,
-                            color: AppColors.deepTeal,
-                          ),
-                          title: Text(inst.name),
-                          subtitle: Text(
-                            // Sem rota o aluno dessa instituição não enxerga
-                            // lista nenhuma; dizer isso evita o mistério.
-                            rota == null
-                                ? 'Sem rota atendendo'
-                                : 'Atendida por $rota',
-                            style: TextStyle(
-                              color: rota == null
-                                  ? AppColors.danger
-                                  : AppColors.textSecondary,
+                  child: ListView(
+                    padding: const EdgeInsets.fromLTRB(20, 20, 20, 96),
+                    children: [
+                      AppListGroup(
+                        dividerIndent: 68,
+                        children: [
+                          for (final inst in institutions)
+                            AppListItem(
+                              leading: const Icon(
+                                Icons.school_outlined,
+                                color: AppColors.deepTeal,
+                              ),
+                              title: inst.name,
+                              subtitleChild: Builder(
+                                builder: (context) {
+                                  final rota = _routeName(inst.routeId);
+                                  return Row(
+                                    children: [
+                                      if (rota == null)
+                                        const StatusDot(AppColors.danger),
+                                      Expanded(
+                                        child: Text(
+                                          // Sem rota o aluno dessa instituicao
+                                          // nao enxerga lista nenhuma; dizer
+                                          // isso evita o misterio.
+                                          rota == null
+                                              ? 'Sem rota atendendo'
+                                              : 'Atendida por $rota',
+                                          style: Theme.of(context)
+                                              .textTheme
+                                              .bodySmall
+                                              ?.copyWith(
+                                                color: rota == null
+                                                    ? AppColors.danger
+                                                    : null,
+                                              ),
+                                          maxLines: 1,
+                                          overflow: TextOverflow.ellipsis,
+                                        ),
+                                      ),
+                                    ],
+                                  );
+                                },
+                              ),
+                              menu: [
+                                PopupMenuItem<VoidCallback>(
+                                  value: () => _editar(context, inst),
+                                  child: const Text('Editar'),
+                                ),
+                                destructiveMenuItem(
+                                  label: 'Remover',
+                                  icon: Icons.delete_outline,
+                                  onSelected: () => _remover(context, inst),
+                                ),
+                              ],
                             ),
-                          ),
-                          trailing: PopupMenuButton<String>(
-                            onSelected: (v) => v == 'edit'
-                                ? _editar(context, inst)
-                                : _remover(context, inst),
-                            itemBuilder: (_) => const [
-                              PopupMenuItem(
-                                value: 'edit',
-                                child: Text('Editar'),
-                              ),
-                              PopupMenuItem(
-                                value: 'delete',
-                                child: Text('Remover'),
-                              ),
-                            ],
-                          ),
-                        ),
-                      );
-                    },
+                        ],
+                      ),
+                    ],
                   ),
                 ),
         ),

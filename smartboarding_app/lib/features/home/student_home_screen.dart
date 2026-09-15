@@ -110,12 +110,16 @@ class StudentHomeScreen extends StatelessWidget {
                   const SectionTitle('O que você pode fazer'),
                   const SizedBox(height: 12),
                   GridView.count(
+                    // Sem padding explicito, uma grade aninhada consome o
+                    // padding do MediaQuery e abre um vao antes da primeira
+                    // linha.
+                    padding: EdgeInsets.zero,
                     crossAxisCount: 2,
                     shrinkWrap: true,
                     physics: const NeverScrollableScrollPhysics(),
                     crossAxisSpacing: 12,
                     mainAxisSpacing: 12,
-                    childAspectRatio: 1.25,
+                    childAspectRatio: AppGrid.featureAspectRatio,
                     children: [
                       FeatureCard(
                         icon: Icons.directions_bus_outlined,
@@ -209,16 +213,10 @@ class _TodayStatus extends StatelessWidget {
         return AppCard(
           child: Row(
             children: [
-              Container(
-                width: 52,
-                height: 52,
-                decoration: BoxDecoration(
-                  color: color.withValues(alpha: 0.12),
-                  shape: BoxShape.circle,
-                ),
-                child: Icon(icon, color: color),
-              ),
-              const SizedBox(width: 16),
+              // Icone solto, sem disco: o disco de 52px era o resto do padrao
+              // antigo e brigava com o icone chapado do resto do app.
+              Icon(icon, color: color, size: 28),
+              const SizedBox(width: AppSpacing.lg),
               Expanded(
                 child: Column(
                   crossAxisAlignment: CrossAxisAlignment.start,

@@ -9,6 +9,7 @@ import '../lists/providers/student_list_provider.dart';
 import '../membership/providers/membership_provider.dart';
 import '../membership/screens/join_route_screen.dart';
 import 'my_route_screen.dart';
+import '../../core/widgets/app_list_group.dart';
 
 /// As rotas de que o aluno participa, e a porta pra entrar em mais uma.
 ///
@@ -75,12 +76,12 @@ class MyRoutesScreen extends StatelessWidget {
                                     ).textTheme.titleMedium,
                                   ),
                                   const SizedBox(height: 4),
-                                  const Text(
+                                  Text(
                                     'Peça o código ao administrador da sua '
                                     'rota e digite aqui.',
-                                    style: TextStyle(
-                                      color: AppColors.textSecondary,
-                                    ),
+                                    style: Theme.of(
+                                      context,
+                                    ).textTheme.bodySmall,
                                   ),
                                 ],
                               ),
@@ -91,7 +92,7 @@ class MyRoutesScreen extends StatelessWidget {
                         FilledButton.icon(
                           key: const Key('my_routes_join'),
                           onPressed: () => _entrarComCodigo(context),
-                          icon: const Icon(Icons.login),
+                          icon: const Icon(Icons.login_outlined),
                           label: const Text('Entrar com código'),
                         ),
                       ],
@@ -102,53 +103,34 @@ class MyRoutesScreen extends StatelessWidget {
                     const Padding(
                       padding: EdgeInsets.only(top: 40),
                       child: EmptyState(
-                        icon: Icons.alt_route,
+                        icon: Icons.alt_route_outlined,
                         title: 'Você ainda não está em nenhuma rota',
                         subtitle:
                             'Assim que entrar com um código, a rota aparece '
                             'aqui e a lista do dia fica disponível.',
                       ),
                     ),
-                  for (final rota in rotas)
-                    Padding(
-                      padding: const EdgeInsets.only(bottom: 12),
-                      child: AppCard(
-                        onTap: () => _abrirLista(context, rota.id),
-                        child: Row(
-                          children: [
-                            const Icon(
-                              Icons.directions_bus,
-                              color: AppColors.deepTeal,
-                            ),
-                            const SizedBox(width: 12),
-                            Expanded(
-                              child: Column(
-                                crossAxisAlignment: CrossAxisAlignment.start,
-                                children: [
-                                  Text(
-                                    rota.name,
-                                    style: Theme.of(
-                                      context,
-                                    ).textTheme.titleMedium,
-                                  ),
-                                  const SizedBox(height: 2),
-                                  const Text(
-                                    'Ver a lista de hoje',
-                                    style: TextStyle(
-                                      color: AppColors.textSecondary,
-                                    ),
-                                  ),
-                                ],
-                              ),
-                            ),
-                            const Icon(
-                              Icons.chevron_right,
-                              color: AppColors.textSecondary,
-                            ),
-                          ],
+                  // Grupo unico: uma pilha de cartoes fazia cada rota pesar o
+                  // mesmo que o bloco de entrar com codigo, que e a acao.
+                  AppListGroup(
+                    dividerIndent: 68,
+                    children: [
+                      for (final rota in rotas)
+                        AppListItem(
+                          leading: const Icon(
+                            Icons.directions_bus_outlined,
+                            color: AppColors.deepTeal,
+                          ),
+                          title: rota.name,
+                          subtitle: 'Ver a lista de hoje',
+                          trailing: const Icon(
+                            Icons.chevron_right,
+                            color: AppColors.textSecondary,
+                          ),
+                          onTap: () => _abrirLista(context, rota.id),
                         ),
-                      ),
-                    ),
+                    ],
+                  ),
                 ],
               ),
             );

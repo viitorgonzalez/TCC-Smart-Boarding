@@ -104,12 +104,11 @@ class _RouteStopsEditorState extends State<RouteStopsEditor> {
                       '${stop.longitude!.toStringAsFixed(4)}',
                     )
                   : const Text('sem coordenada'),
-              trailing: IconButton(
-                icon: const Icon(Icons.delete_outline, color: AppColors.danger),
-                onPressed: () => widget.run(
-                  () => _service.deleteStop(widget.routeId, stop.id),
-                  'Parada removida',
-                ),
+              // Remover ja esta na folha que abre no toque; repetir aqui punha
+              // a acao destrutiva em vermelho no meio da lista.
+              trailing: const Icon(
+                Icons.more_horiz,
+                color: AppColors.textSecondary,
               ),
             ),
         ],

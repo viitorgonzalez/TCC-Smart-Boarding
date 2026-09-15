@@ -141,12 +141,16 @@ class _AdminDashboard extends StatelessWidget {
                 padding: const EdgeInsets.fromLTRB(20, 8, 20, 24),
                 children: [
                   GridView.count(
+                    // Sem padding explicito, uma grade aninhada consome o
+                    // padding do MediaQuery e abre um vao antes da primeira
+                    // linha.
+                    padding: EdgeInsets.zero,
                     crossAxisCount: 2,
                     shrinkWrap: true,
                     physics: const NeverScrollableScrollPhysics(),
                     crossAxisSpacing: 12,
                     mainAxisSpacing: 12,
-                    childAspectRatio: 1.9,
+                    childAspectRatio: AppGrid.featureAspectRatio,
                     children: [
                       FeatureCard(
                         icon: Icons.route_outlined,

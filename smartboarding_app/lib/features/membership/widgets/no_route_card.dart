@@ -16,16 +16,12 @@ class NoRouteCard extends StatelessWidget {
         children: [
           Row(
             children: [
-              Container(
-                width: 52,
-                height: 52,
-                decoration: BoxDecoration(
-                  color: AppColors.deepTeal.withValues(alpha: 0.12),
-                  shape: BoxShape.circle,
-                ),
-                child: const Icon(Icons.alt_route, color: AppColors.deepTeal),
+              const Icon(
+                Icons.alt_route_outlined,
+                color: AppColors.deepTeal,
+                size: 28,
               ),
-              const SizedBox(width: 16),
+              const SizedBox(width: AppSpacing.lg),
               Expanded(
                 child: Column(
                   crossAxisAlignment: CrossAxisAlignment.start,

@@ -17,6 +17,14 @@ class AppRadius {
 /// - [floating]: o que de fato paira sobre o conteúdo (folha, botão). Sombra.
 enum AppSurface { grouped, card, floating }
 
+/// Proporção das grades de navegação (painel do admin, início do aluno).
+///
+/// Token porque estava cravado em duas telas e já tinha divergido: mexer numa
+/// deixava a outra com cartão oco.
+class AppGrid {
+  static const featureAspectRatio = 1.9;
+}
+
 class AppShadow {
   /// Difusa e quase sem deslocamento: o objetivo é destacar do fundo, não
   /// simular objeto suspenso.
