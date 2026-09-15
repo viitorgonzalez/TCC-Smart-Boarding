@@ -44,6 +44,13 @@ public class ScheduledNotificationUseCaseImpl implements ManageScheduledNotifica
     }
 
     @Override
+    @Transactional(readOnly = true)
+    public ScheduledNotification findById(UUID id) {
+        return repository.findById(id)
+                .orElseThrow(() -> new NotFoundException("Aviso automático não encontrado"));
+    }
+
+    @Override
     @Transactional
     public ScheduledNotification toggle(UUID id, boolean active) {
         ScheduledNotification found = repository.findById(id)

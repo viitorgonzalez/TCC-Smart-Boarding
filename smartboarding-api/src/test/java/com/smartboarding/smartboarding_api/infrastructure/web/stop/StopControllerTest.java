@@ -1,5 +1,7 @@
 package com.smartboarding.smartboarding_api.infrastructure.web.stop;
 
+import com.smartboarding.smartboarding_api.infrastructure.web.common.AdminGuard;
+
 import com.smartboarding.smartboarding_api.domain.stop.entity.Stop;
 import com.smartboarding.smartboarding_api.domain.stop.port.in.ManageStopsUseCase;
 import com.smartboarding.smartboarding_api.infrastructure.web.WebMvcTestSupport;
@@ -33,6 +35,7 @@ class StopControllerTest extends WebMvcTestSupport {
     @Autowired MockMvc mvc;
 
     @MockitoBean ManageStopsUseCase manageStopsUseCase;
+    @MockitoBean AdminGuard guard;
 
     private Stop parada() {
         return Stop.builder().id(STOP_ID).routeId(ROUTE_ID).name("Rodoviária")

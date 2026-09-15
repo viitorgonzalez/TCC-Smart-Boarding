@@ -1,5 +1,9 @@
 package com.smartboarding.smartboarding_api.infrastructure.web.route;
 
+import com.smartboarding.smartboarding_api.domain.membership.port.out.RouteMemberRepositoryPort;
+
+import com.smartboarding.smartboarding_api.infrastructure.web.common.AdminGuard;
+
 import com.smartboarding.smartboarding_api.domain.route.entity.Route;
 import com.smartboarding.smartboarding_api.domain.route.port.in.CreateRouteUseCase;
 import com.smartboarding.smartboarding_api.domain.route.port.in.DeleteRouteUseCase;
@@ -18,6 +22,7 @@ import org.springframework.test.web.servlet.MockMvc;
 
 import java.time.LocalTime;
 import java.util.List;
+import java.util.Set;
 import java.util.UUID;
 
 import static org.mockito.ArgumentMatchers.any;
@@ -44,38 +49,83 @@ class RouteControllerTest extends WebMvcTestSupport {
     @MockitoBean UpdateRouteUseCase updateRouteUseCase;
     @MockitoBean DeleteRouteUseCase deleteRouteUseCase;
     @MockitoBean UpdateRouteScheduleUseCase updateRouteScheduleUseCase;
+    @MockitoBean AdminGuard guard;
+    @MockitoBean RouteMemberRepositoryPort memberRepository;
 
     private Route rota() {
         return Route.builder().id(ROUTE_ID).name("Rota Universitária").description("via centro")
                 .openTime(LocalTime.of(6, 0)).closeTime(LocalTime.of(17, 0)).isActive(true).build();
     }
 
-    /// GET /api/routes é permitAll: a tela de cadastro precisa listar as rotas
-    /// antes de existir conta.
+    /// Listar rotas já foi público. Deixou de ser: a lista é a porta pra lista
+    /// de presença, veículos e códigos de cada rota.
     @Test
-    void listarRotasEPublico() throws Exception {
-        when(findRouteUseCase.findAllActive()).thenReturn(List.of(rota()));
+    void listarRotasExigeSessao() throws Exception {
+        mvc.perform(get("/api/routes")).andExpect(status().isUnauthorized());
+    }
 
-        mvc.perform(get("/api/routes"))
+    @Test
+    void adminVeSoAsRotasQueAdministra() throws Exception {
+        UUID daOutraInstituicao = UUID.randomUUID();
+        when(findRouteUseCase.findAllActive()).thenReturn(List.of(
+                rota(),
+                Route.builder().id(daOutraInstituicao).name("Rota de Outra Cidade").build()));
+        when(guard.routes(any())).thenReturn(Set.of(ROUTE_ID));
+
+        mvc.perform(get("/api/routes").with(admin()))
                 .andExpect(status().isOk())
+                .andExpect(jsonPath("$.data.length()").value(1))
                 .andExpect(jsonPath("$.data[0].name").value("Rota Universitária"))
                 .andExpect(jsonPath("$.data[0].openTime").value("06:00:00"));
     }
 
     @Test
-    void verUmaRotaEPublico() throws Exception {
-        when(findRouteUseCase.findById(ROUTE_ID)).thenReturn(rota());
+    void adminSemInstituicaoNaoVeRotaNenhuma() throws Exception {
+        when(findRouteUseCase.findAllActive()).thenReturn(List.of(rota()));
+        when(guard.routes(any())).thenReturn(Set.of());
 
-        mvc.perform(get("/api/routes/{id}", ROUTE_ID))
+        mvc.perform(get("/api/routes").with(admin()))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.data.length()").value(0));
+    }
+
+    @Test
+    void adminVeODetalheDaRotaQueAdministra() throws Exception {
+        when(findRouteUseCase.findById(ROUTE_ID)).thenReturn(rota());
+        when(guard.routes(any())).thenReturn(Set.of(ROUTE_ID));
+
+        mvc.perform(get("/api/routes/{id}", ROUTE_ID).with(admin()))
                 .andExpect(status().isOk())
                 .andExpect(jsonPath("$.data.id").value(ROUTE_ID.toString()));
     }
 
+    /// O aluno não administra rota nenhuma, mas precisa da dele pro mapa e pro
+    /// horário — o vínculo de membro é o que abre a porta.
     @Test
-    void rotaInexistenteDevolve404() throws Exception {
+    void alunoVeODetalheDaRotaEmQueEstaMatriculado() throws Exception {
+        when(findRouteUseCase.findById(ROUTE_ID)).thenReturn(rota());
+        when(memberRepository.existsByUserIdAndRouteId(any(), eq(ROUTE_ID))).thenReturn(true);
+
+        mvc.perform(get("/api/routes/{id}", ROUTE_ID).with(student()))
+                .andExpect(status().isOk());
+    }
+
+    @Test
+    void semVinculoNemAlcanceODetalheERecusado() throws Exception {
+        when(findRouteUseCase.findById(ROUTE_ID)).thenReturn(rota());
+
+        mvc.perform(get("/api/routes/{id}", ROUTE_ID).with(student()))
+                .andExpect(status().isForbidden());
+    }
+
+    /// Rota fora do alcance responde igual exista ou não: distinguir contaria a
+    /// quem não pode ver que aquela rota existe.
+    @Test
+    void rotaForaDoAlcanceNaoRevelaSeExiste() throws Exception {
         when(findRouteUseCase.findById(any())).thenThrow(new NotFoundException("Rota não encontrada"));
 
-        mvc.perform(get("/api/routes/{id}", ROUTE_ID)).andExpect(status().isNotFound());
+        mvc.perform(get("/api/routes/{id}", ROUTE_ID).with(admin()))
+                .andExpect(status().isForbidden());
     }
 
     @Test

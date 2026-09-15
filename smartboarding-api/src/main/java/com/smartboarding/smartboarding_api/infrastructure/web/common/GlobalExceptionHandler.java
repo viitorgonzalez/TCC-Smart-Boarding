@@ -2,6 +2,7 @@ package com.smartboarding.smartboarding_api.infrastructure.web.common;
 
 import com.smartboarding.smartboarding_api.shared.exception.AppException;
 import com.smartboarding.smartboarding_api.shared.exception.ConflictException;
+import com.smartboarding.smartboarding_api.shared.exception.ForbiddenException;
 import com.smartboarding.smartboarding_api.shared.exception.NotFoundException;
 import com.smartboarding.smartboarding_api.shared.exception.UnauthorizedException;
 import lombok.extern.slf4j.Slf4j;
@@ -30,6 +31,11 @@ public class GlobalExceptionHandler {
     @ExceptionHandler(ConflictException.class)
     public ResponseEntity<Map<String, String>> handleConflict(ConflictException ex) {
         return ResponseEntity.status(409).body(errorBody(ex));
+    }
+
+    @ExceptionHandler(ForbiddenException.class)
+    public ResponseEntity<Map<String, String>> handleForbidden(ForbiddenException ex) {
+        return ResponseEntity.status(403).body(errorBody(ex));
     }
 
     @ExceptionHandler(UnauthorizedException.class)

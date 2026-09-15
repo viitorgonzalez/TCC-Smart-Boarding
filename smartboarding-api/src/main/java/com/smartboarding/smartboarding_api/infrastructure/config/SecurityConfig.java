@@ -52,8 +52,8 @@ public class SecurityConfig {
                         .requestMatchers(HttpMethod.POST, "/api/auth/google").permitAll()
                         .requestMatchers(HttpMethod.POST, "/api/auth/forgot-password").permitAll()
                         .requestMatchers(HttpMethod.POST, "/api/auth/reset-password").permitAll()
-                        .requestMatchers(HttpMethod.GET, "/api/routes").permitAll()
-                        .requestMatchers(HttpMethod.GET, "/api/routes/{id}").permitAll()
+                        .requestMatchers(HttpMethod.GET, "/api/routes").hasRole("ADMIN")
+                        .requestMatchers(HttpMethod.GET, "/api/routes/{id}").authenticated()
                         .requestMatchers(HttpMethod.GET, "/api/institutions").permitAll()
                         .requestMatchers(HttpMethod.GET, "/api/users/**").hasRole("ADMIN")
                         .requestMatchers(HttpMethod.POST, "/api/routes").hasRole("ADMIN")
@@ -67,6 +67,7 @@ public class SecurityConfig {
                         // e um aluno emitiria codigo pra propria rota.
                         .requestMatchers("/api/routes/*/invite-codes/**").hasRole("ADMIN")
                         .requestMatchers("/api/routes/*/invite-codes").hasRole("ADMIN")
+                        .requestMatchers("/api/invite-codes").hasRole("ADMIN")
                         // Usar o codigo e do aluno logado, sobre as rotas DELE.
                         // O proprio perfil e do usuario logado; a fila de
                         // solicitacoes e do admin.

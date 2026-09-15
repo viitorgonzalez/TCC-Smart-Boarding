@@ -1,10 +1,13 @@
 package com.smartboarding.smartboarding_api.infrastructure.web.notification;
 
+import com.smartboarding.smartboarding_api.infrastructure.web.common.AdminGuard;
+
 import com.smartboarding.smartboarding_api.domain.notification.entity.NotificationFrequency;
 import com.smartboarding.smartboarding_api.domain.notification.entity.ScheduledNotification;
 import com.smartboarding.smartboarding_api.domain.notification.port.in.ManageScheduledNotificationUseCase;
 import com.smartboarding.smartboarding_api.infrastructure.web.WebMvcTestSupport;
 import com.smartboarding.smartboarding_api.shared.exception.NotFoundException;
+import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.boot.webmvc.test.autoconfigure.WebMvcTest;
@@ -35,7 +38,15 @@ class ScheduledNotificationControllerTest extends WebMvcTestSupport {
 
     @Autowired MockMvc mvc;
 
+    @BeforeEach
+    void setUp() {
+        // A checagem de alcance le a rota do aviso guardado.
+        when(useCase.findById(any())).thenReturn(
+                ScheduledNotification.builder().routeId(ROUTE_ID).build());
+    }
+
     @MockitoBean ManageScheduledNotificationUseCase useCase;
+    @MockitoBean AdminGuard guard;
 
     private ScheduledNotification aviso() {
         return ScheduledNotification.builder().id(UUID.randomUUID()).routeId(ROUTE_ID)
