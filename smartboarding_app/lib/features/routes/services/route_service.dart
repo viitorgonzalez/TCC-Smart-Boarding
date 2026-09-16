@@ -74,17 +74,21 @@ class RouteService {
     return RouteModel.fromJson(response.data['data'] as Map<String, dynamic>);
   }
 
+  /// [admitsNoInstitution] nulo mantém o que está gravado: a tela de dados da
+  /// rota não conhece essa chave, e mandar falso dali a desligaria sem querer.
   Future<RouteModel> updateRoute(
     String id,
     String name,
-    String? description,
-  ) async {
+    String? description, {
+    bool? admitsNoInstitution,
+  }) async {
     final response = await _dio.patch(
       '/api/routes/$id',
       data: {
         'name': name,
         if (description != null && description.isNotEmpty)
           'description': description,
+        'admitsNoInstitution': ?admitsNoInstitution,
       },
     );
     return RouteModel.fromJson(response.data['data'] as Map<String, dynamic>);

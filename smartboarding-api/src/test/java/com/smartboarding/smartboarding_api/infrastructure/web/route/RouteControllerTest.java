@@ -27,6 +27,7 @@ import java.util.UUID;
 
 import static org.mockito.ArgumentMatchers.any;
 import static org.mockito.ArgumentMatchers.eq;
+import static org.mockito.ArgumentMatchers.isNull;
 import static org.mockito.Mockito.never;
 import static org.mockito.Mockito.verify;
 import static org.mockito.Mockito.when;
@@ -179,7 +180,7 @@ class RouteControllerTest extends WebMvcTestSupport {
 
     @Test
     void editarRotaRepassaIsActive() throws Exception {
-        when(updateRouteUseCase.execute(eq(ROUTE_ID), any(), eq(true))).thenReturn(rota());
+        when(updateRouteUseCase.execute(eq(ROUTE_ID), any(), eq(true), any())).thenReturn(rota());
 
         mvc.perform(patch("/api/routes/{id}", ROUTE_ID).with(admin())
                         .contentType(MediaType.APPLICATION_JSON)
@@ -187,7 +188,7 @@ class RouteControllerTest extends WebMvcTestSupport {
                                 {"name":"Rota Universitária","isActive":true}"""))
                 .andExpect(status().isOk());
 
-        verify(updateRouteUseCase).execute(eq(ROUTE_ID), any(), eq(true));
+        verify(updateRouteUseCase).execute(eq(ROUTE_ID), any(), eq(true), isNull());
     }
 
     /// Mudar o horário dispara aviso aos alunos — o motivo vai no aviso, então

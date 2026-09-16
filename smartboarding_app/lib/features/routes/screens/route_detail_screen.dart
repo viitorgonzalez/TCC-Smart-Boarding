@@ -25,6 +25,7 @@ import '../services/route_service.dart';
 import 'invite_codes_screen.dart';
 import 'route_section_screen.dart';
 import '../../../core/text/plural.dart';
+import '../../institutions/providers/institution_provider.dart';
 
 class RouteDetailScreen extends StatefulWidget {
   final RouteModel route;
@@ -41,6 +42,7 @@ class _RouteDetailScreenState extends State<RouteDetailScreen> {
   late final TextEditingController _descCtrl;
   TimeOfDay? _openTime;
   TimeOfDay? _closeTime;
+  late bool _admiteSemInstituicao;
 
   List<StopModel> _stops = const [];
   List<VehicleModel> _vehicles = const [];
@@ -55,6 +57,7 @@ class _RouteDetailScreenState extends State<RouteDetailScreen> {
     _descCtrl = TextEditingController(text: widget.route.description ?? '');
     _openTime = _asTimeOfDay(widget.route.openTime);
     _closeTime = _asTimeOfDay(widget.route.closeTime);
+    _admiteSemInstituicao = widget.route.admitsNoInstitution;
     _reload();
   }
 
@@ -200,8 +203,11 @@ class _RouteDetailScreenState extends State<RouteDetailScreen> {
                         icone: Icons.school_outlined,
                         titulo: 'Instituições atendidas',
                         detalhe: 'Quais escolas usam esta rota',
-                        abre: () =>
-                            RouteInstitutionsCard(routeId: widget.route.id),
+                        abre: () => RouteInstitutionsCard(
+                          routeId: widget.route.id,
+                          admitsNoInstitution: _admiteSemInstituicao,
+                          onAdmitsNoInstitutionChanged: _mudarAdmissao,
+                        ),
                       ),
                       _linha(
                         chave: 'section_notices',
@@ -231,6 +237,34 @@ class _RouteDetailScreenState extends State<RouteDetailScreen> {
   /// Linha que abre uma seção em tela própria. O conteúdo é construído só ao
   /// abrir: montar as seis seções de uma vez faria a tela buscar tudo de novo
   /// a cada volta.
+  /// Salva na hora, sem botao: uma chave que so vale depois de "salvar dados
+  /// da rota" -- que fica noutra tela -- seria esquecida ligada sem efeito.
+  ///
+  /// Relanca em caso de falha: quem desenha a chave e quem a devolve ao estado
+  /// anterior, senao a tela mente sobre o que o servidor guardou.
+  Future<void> _mudarAdmissao(bool valor) async {
+    try {
+      await context.read<RouteProvider>().update(
+        widget.route.id,
+        _nameCtrl.text.trim(),
+        _descCtrl.text.trim(),
+        admitsNoInstitution: valor,
+      );
+      if (mounted) setState(() => _admiteSemInstituicao = valor);
+      if (mounted) {
+        showSuccessSnackBar(
+          context,
+          valor
+              ? 'A rota passa a aceitar aluno sem instituição'
+              : 'A rota volta a exigir instituição',
+        );
+      }
+    } catch (e) {
+      if (mounted) showErrorSnackBar(context, AppException.fromError(e));
+      rethrow;
+    }
+  }
+
   Widget _linha({
     required String chave,
     required IconData icone,
@@ -248,16 +282,38 @@ class _RouteDetailScreenState extends State<RouteDetailScreen> {
       title: Text(titulo),
       subtitle: Text(detalhe),
       trailing: const Icon(Icons.chevron_right),
-      onTap: () => Navigator.of(context)
-          .push(
-            MaterialPageRoute<void>(
-              builder: (_) => telaPropria
-                  ? abre()
-                  : RouteSectionScreen(title: titulo, child: abre()),
-            ),
-          )
-          .then((_) => _reload()),
+      onTap: () => _abrirSecao(titulo, abre, telaPropria: telaPropria),
     );
+  }
+
+  /// Abre a seção em tela própria, repassando os providers.
+  ///
+  /// O push nasce no Navigator, ACIMA dos providers desta tela: o que não for
+  /// repassado aqui não chega lá. Sem isso, "Instituições atendidas" estourava
+  /// ProviderNotFoundException na cara do admin — a mesma armadilha que a lista
+  /// de rotas já documentava ao empurrar este detalhe.
+  Future<void> _abrirSecao(
+    String titulo,
+    Widget Function() constroi, {
+    required bool telaPropria,
+  }) async {
+    final institutionProvider = context.read<InstitutionProvider>();
+    final routeProvider = context.read<RouteProvider>();
+
+    await Navigator.of(context).push(
+      MaterialPageRoute<void>(
+        builder: (_) => MultiProvider(
+          providers: [
+            ChangeNotifierProvider.value(value: institutionProvider),
+            ChangeNotifierProvider.value(value: routeProvider),
+          ],
+          child: telaPropria
+              ? constroi()
+              : RouteSectionScreen(title: titulo, child: constroi()),
+        ),
+      ),
+    );
+    if (mounted) await _reload();
   }
 
   Widget _basics() {

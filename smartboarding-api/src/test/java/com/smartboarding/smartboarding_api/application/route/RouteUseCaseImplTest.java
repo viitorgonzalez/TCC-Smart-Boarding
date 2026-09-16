@@ -105,7 +105,7 @@ class RouteUseCaseImplTest {
 
         Route saved = useCase.execute(route.getId(), Route.builder().name("Rota Nova")
                 .description("via centro").openTime(LocalTime.of(5, 0))
-                .closeTime(LocalTime.of(19, 0)).build(), null);
+                .closeTime(LocalTime.of(19, 0)).build(), null, null);
 
         assertThat(saved.getName()).isEqualTo("Rota Nova");
         assertThat(saved.getDescription()).isEqualTo("via centro");
@@ -123,7 +123,7 @@ class RouteUseCaseImplTest {
         mudanca.setOpenTime(null);
         mudanca.setCloseTime(null);
 
-        Route saved = useCase.execute(route.getId(), mudanca, null);
+        Route saved = useCase.execute(route.getId(), mudanca, null, null);
 
         assertThat(saved.getOpenTime()).isEqualTo(LocalTime.of(6, 0));
         assertThat(saved.getCloseTime()).isEqualTo(LocalTime.of(17, 0));
@@ -135,7 +135,7 @@ class RouteUseCaseImplTest {
         when(repository.existsByNameAndIdNot("Rota B", route.getId())).thenReturn(true);
 
         assertThatThrownBy(() -> useCase.execute(route.getId(),
-                Route.builder().name("Rota B").build(), null))
+                Route.builder().name("Rota B").build(), null, null))
                 .isInstanceOf(ConflictException.class)
                 .hasMessageContaining("Nome de rota já utilizado");
     }
@@ -147,7 +147,7 @@ class RouteUseCaseImplTest {
         Route route = existente("Rota A");
         route.setActive(false);
 
-        Route saved = useCase.execute(route.getId(), Route.builder().name("Rota A").build(), null);
+        Route saved = useCase.execute(route.getId(), Route.builder().name("Rota A").build(), null, null);
 
         assertThat(saved.isActive()).isFalse();
     }
@@ -157,7 +157,7 @@ class RouteUseCaseImplTest {
         Route route = existente("Rota A");
         route.setActive(false);
 
-        Route saved = useCase.execute(route.getId(), Route.builder().name("Rota A").build(), true);
+        Route saved = useCase.execute(route.getId(), Route.builder().name("Rota A").build(), true, null);
 
         assertThat(saved.isActive()).isTrue();
     }

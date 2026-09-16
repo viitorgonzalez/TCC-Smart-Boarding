@@ -91,9 +91,16 @@ public class RouteController {
 
     @PatchMapping("/{id}")
     public ResponseEntity<ApiResponse<RouteResponse>> update(@PathVariable UUID id,
-                                                             @RequestBody @Valid UpdateRouteRequest request) {
-        Route route = Route.builder().name(request.name()).description(request.description()).build();
-        return ResponseEntity.ok(ApiResponse.data(RouteResponse.from(updateRouteUseCase.execute(id, route, request.isActive()))));
+                                                             @RequestBody @Valid UpdateRouteRequest request,
+                                                             Authentication auth) {
+        guard.ownsRoute(auth, id);
+        Route route = Route.builder()
+                .name(request.name())
+                .description(request.description())
+                .build();
+        return ResponseEntity.ok(ApiResponse.data(RouteResponse.from(
+                updateRouteUseCase.execute(id, route, request.isActive(),
+                        request.admitsNoInstitution()))));
     }
 
     @PatchMapping("/{id}/schedule")
