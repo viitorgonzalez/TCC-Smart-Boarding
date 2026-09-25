@@ -12,5 +12,7 @@ public interface RouteInviteCodeJpaRepository extends JpaRepository<RouteInviteC
 
     List<RouteInviteCode> findAllByRouteIdOrderByCreatedAtDesc(UUID routeId);
 
+    List<RouteInviteCode> findAllByRouteIdAndArchivedAtIsNullOrderByCreatedAtDesc(UUID routeId);
+
     boolean existsByCode(String code);
 }

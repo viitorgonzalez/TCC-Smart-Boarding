@@ -217,7 +217,9 @@ Future<void> _addStudent(
 Future<UserModel?> _pickStudent(BuildContext context, String routeId) async {
   List<UserModel> students;
   try {
-    students = (await UserService().getUsers(
+    // Todos, nao so a primeira pagina: a folha tem busca por nome, e buscar
+    // dentro de um pedaco encontraria so quem calhou de vir primeiro.
+    students = (await UserService().getAllUsers(
       routeId: routeId,
     )).where((u) => u.role == 'STUDENT').toList();
   } catch (e) {

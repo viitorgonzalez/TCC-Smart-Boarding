@@ -15,6 +15,7 @@ import org.springframework.boot.test.context.TestConfiguration;
 import org.springframework.boot.webmvc.test.autoconfigure.WebMvcTest;
 import org.springframework.context.annotation.Bean;
 import org.springframework.context.annotation.Import;
+import org.springframework.http.MediaType;
 import org.springframework.test.context.bean.override.mockito.MockitoBean;
 import org.springframework.test.web.servlet.MockMvc;
 
@@ -26,7 +27,10 @@ import java.util.Set;
 import java.util.UUID;
 
 import static org.mockito.ArgumentMatchers.any;
+import static org.mockito.Mockito.never;
+import static org.mockito.Mockito.verify;
 import static org.mockito.Mockito.when;
+import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.delete;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.get;
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.jsonPath;
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.status;
@@ -130,5 +134,83 @@ class InviteCodeOverviewControllerTest extends WebMvcTestSupport {
     void alunoNaoVeCodigoNenhum() throws Exception {
         mvc.perform(get("/api/invite-codes").with(student()))
                 .andExpect(status().isForbidden());
+    }
+
+    // ─── Arquivar em lote ────────────────────────────────────────────────────
+
+    private RouteInviteCode daRota(UUID id, UUID rota, UUID instituicao) {
+        return RouteInviteCode.builder().id(id).routeId(rota).code("AAA111")
+                .expiresAt(AGORA.plusDays(7)).institutionId(instituicao).build();
+    }
+
+    @Test
+    void arquivaOsCodigosDoAdmin() throws Exception {
+        UUID id = UUID.randomUUID();
+        when(useCase.findAllById(any())).thenReturn(List.of(daRota(id, MINHA_ROTA, IFMG)));
+        when(useCase.archive(any())).thenReturn(1);
+
+        mvc.perform(delete("/api/invite-codes").with(admin())
+                        .contentType(MediaType.APPLICATION_JSON)
+                        .content("{\"codeIds\":[\"" + id + "\"]}"))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.data.archived").value(1));
+    }
+
+    /// Um id de rota alheia no meio do lote não pode entrar de carona: o lote
+    /// inteiro é recusado, e nada é arquivado.
+    @Test
+    void naoArquivaCodigoDeRotaAlheia() throws Exception {
+        UUID id = UUID.randomUUID();
+        when(useCase.findAllById(any())).thenReturn(List.of(daRota(id, ROTA_ALHEIA, IFMG)));
+
+        mvc.perform(delete("/api/invite-codes").with(admin())
+                        .contentType(MediaType.APPLICATION_JSON)
+                        .content("{\"codeIds\":[\"" + id + "\"]}"))
+                .andExpect(status().isForbidden());
+
+        verify(useCase, never()).archive(any());
+    }
+
+    @Test
+    void naoArquivaCodigoDeInstituicaoAlheia() throws Exception {
+        UUID id = UUID.randomUUID();
+        when(useCase.findAllById(any())).thenReturn(List.of(daRota(id, MINHA_ROTA, UNIFOR)));
+
+        mvc.perform(delete("/api/invite-codes").with(admin())
+                        .contentType(MediaType.APPLICATION_JSON)
+                        .content("{\"codeIds\":[\"" + id + "\"]}"))
+                .andExpect(status().isForbidden());
+
+        verify(useCase, never()).archive(any());
+    }
+
+    /// Código aberto não é de ninguém: quem administra a rota pode limpá-lo.
+    @Test
+    void arquivaCodigoAbertoDaPropriaRota() throws Exception {
+        UUID id = UUID.randomUUID();
+        when(useCase.findAllById(any())).thenReturn(List.of(daRota(id, MINHA_ROTA, null)));
+        when(useCase.archive(any())).thenReturn(1);
+
+        mvc.perform(delete("/api/invite-codes").with(admin())
+                        .contentType(MediaType.APPLICATION_JSON)
+                        .content("{\"codeIds\":[\"" + id + "\"]}"))
+                .andExpect(status().isOk());
+    }
+
+    @Test
+    void alunoNaoArquivaNada() throws Exception {
+        mvc.perform(delete("/api/invite-codes").with(student())
+                        .contentType(MediaType.APPLICATION_JSON)
+                        .content("{\"codeIds\":[\"" + UUID.randomUUID() + "\"]}"))
+                .andExpect(status().isForbidden());
+    }
+
+    /// Lote vazio é pedido malformado, não sucesso silencioso.
+    @Test
+    void loteVazioERecusado() throws Exception {
+        mvc.perform(delete("/api/invite-codes").with(admin())
+                        .contentType(MediaType.APPLICATION_JSON)
+                        .content("{\"codeIds\":[]}"))
+                .andExpect(status().isBadRequest());
     }
 }

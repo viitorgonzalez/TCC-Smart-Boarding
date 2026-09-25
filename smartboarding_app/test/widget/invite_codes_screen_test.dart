@@ -139,4 +139,96 @@ void main() {
 
     expect(find.text('Para qual rota?'), findsOneWidget);
   });
+
+  // ─── Apagar e seleção múltipla ───────────────────────────────────────────
+
+  /// Código expirado e cancelado se acumulam e escondem o que ainda vale — o
+  /// atalho seleciona exatamente esses.
+  testWidgets('o atalho marca so os inutilizaveis', (tester) async {
+    await abrir(
+      tester,
+      codigos: [
+        codigo(id: 'vivo', code: 'VIVO11'),
+        codigo(id: 'morto', code: 'MORTO1', usable: false),
+      ],
+    );
+
+    await tester.tap(find.byKey(const Key('select_unusable')));
+    await tester.pumpAndSettle();
+
+    expect(find.text('1 selecionado'), findsOneWidget);
+    expect(
+      tester.widget<Checkbox>(find.byKey(const Key('check_morto'))).value,
+      isTrue,
+    );
+    expect(
+      tester.widget<Checkbox>(find.byKey(const Key('check_vivo'))).value,
+      isFalse,
+    );
+  });
+
+  /// Sem nenhum inutilizável não há o que limpar: oferecer o atalho sugeriria
+  /// uma ação que não faz nada.
+  testWidgets('sem inutilizavel, o atalho nao aparece', (tester) async {
+    await abrir(tester, codigos: [codigo()]);
+
+    expect(find.byKey(const Key('select_unusable')), findsNothing);
+  });
+
+  testWidgets('segurar entra na selecao', (tester) async {
+    await abrir(tester, codigos: [codigo()]);
+
+    await tester.longPress(find.byKey(const Key('code_c1')));
+    await tester.pumpAndSettle();
+
+    expect(find.text('1 selecionado'), findsOneWidget);
+    // O botão de gerar sai de cena: durante a seleção ele não é o gesto.
+    expect(find.byKey(const Key('generate_code_fab')), findsNothing);
+  });
+
+  testWidgets('apagar manda o lote e recarrega', (tester) async {
+    final http = await abrir(
+      tester,
+      codigos: [
+        codigo(id: 'a', code: 'AAA111', usable: false),
+        codigo(id: 'b', code: 'BBB222', usable: false),
+      ],
+    );
+    http.on(
+      'DELETE',
+      '/api/invite-codes',
+      body: {
+        'data': {'archived': 2},
+      },
+    );
+
+    await tester.tap(find.byKey(const Key('select_unusable')));
+    await tester.pumpAndSettle();
+    await tester.tap(find.byKey(const Key('archive_selected')));
+    await tester.pumpAndSettle();
+    await tester.tap(find.byKey(const Key('confirm_archive')));
+    await tester.pumpAndSettle();
+
+    final envio = http.requests.where((r) => r.method == 'DELETE').single;
+    expect((envio.data as Map)['codeIds'], containsAll(<String>['a', 'b']));
+    // Recarrega depois de apagar: senão a lista mostra o que já sumiu.
+    expect(
+      http.requests.where((r) => r.path == '/api/invite-codes'),
+      hasLength(greaterThan(2)),
+    );
+  });
+
+  /// Desmarcar o último sai do modo: uma barra de seleção vazia deixa o admin
+  /// num estado sem saída óbvia.
+  testWidgets('desmarcar o ultimo sai da selecao', (tester) async {
+    await abrir(tester, codigos: [codigo()]);
+
+    await tester.longPress(find.byKey(const Key('code_c1')));
+    await tester.pumpAndSettle();
+    await tester.tap(find.byKey(const Key('code_c1')));
+    await tester.pumpAndSettle();
+
+    expect(find.text('Códigos de acesso'), findsOneWidget);
+    expect(find.byKey(const Key('generate_code_fab')), findsOneWidget);
+  });
 }

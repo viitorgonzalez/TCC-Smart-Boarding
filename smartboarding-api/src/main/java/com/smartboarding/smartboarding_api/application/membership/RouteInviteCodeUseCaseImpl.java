@@ -115,7 +115,33 @@ public class RouteInviteCodeUseCaseImpl implements ManageRouteInviteCodeUseCase 
     @Override
     @Transactional(readOnly = true)
     public List<RouteInviteCode> listByRoute(UUID routeId) {
-        return codeRepository.findAllByRouteId(routeId);
+        // Arquivado sai da tela: expirado e cancelado se acumulam e escondem o
+        // que ainda vale.
+        return codeRepository.findAllByRouteIdAndArchivedAtIsNull(routeId);
+    }
+
+    @Override
+    @Transactional(readOnly = true)
+    public List<RouteInviteCode> findAllById(List<UUID> codeIds) {
+        return codeRepository.findAllById(codeIds);
+    }
+
+    @Override
+    @Transactional
+    public int archive(List<UUID> codeIds) {
+        LocalDateTime now = LocalDateTime.now(clock);
+        int arquivados = 0;
+        for (RouteInviteCode code : codeRepository.findAllById(codeIds)) {
+            if (code.getArchivedAt() == null) {
+                code.setArchivedAt(now);
+                codeRepository.save(code);
+                arquivados++;
+            }
+        }
+        if (arquivados > 0) {
+            log.info("{} código(s) de convite arquivado(s)", arquivados);
+        }
+        return arquivados;
     }
 
     @Override

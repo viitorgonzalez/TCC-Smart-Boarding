@@ -164,7 +164,7 @@ class RouteInviteCodeUseCaseImplTest {
     @Test
     void listarFiltraPelaRota() {
         var lista = List.of(RouteInviteCode.builder().routeId(ROTA).build());
-        when(codeRepository.findAllByRouteId(ROTA)).thenReturn(lista);
+        when(codeRepository.findAllByRouteIdAndArchivedAtIsNull(ROTA)).thenReturn(lista);
 
         assertThat(useCase.listByRoute(ROTA)).isEqualTo(lista);
     }
@@ -207,5 +207,57 @@ class RouteInviteCodeUseCaseImplTest {
                 .isInstanceOf(NotFoundException.class);
 
         verify(codeRepository, never()).save(any());
+    }
+
+    // ─── Arquivar ────────────────────────────────────────────────────────────
+
+    private RouteInviteCode paraArquivar(UUID id, LocalDateTime arquivadoEm) {
+        return RouteInviteCode.builder().id(id).routeId(ROTA).code("AAA111")
+                .expiresAt(AGORA.plusDays(7)).archivedAt(arquivadoEm).build();
+    }
+
+    /// Arquivar tira da tela sem apagar: quem entrou pelo código mantém a
+    /// origem no relatório.
+    @Test
+    void arquivarMarcaAData() {
+        UUID id = UUID.randomUUID();
+        var code = paraArquivar(id, null);
+        when(codeRepository.findAllById(List.of(id))).thenReturn(List.of(code));
+
+        assertThat(useCase.archive(List.of(id))).isEqualTo(1);
+        assertThat(code.getArchivedAt()).isEqualTo(AGORA);
+        verify(codeRepository).save(code);
+    }
+
+    /// Arquivar de novo não é erro: o admin pode repetir o gesto e o resultado
+    /// que ele quer já está valendo.
+    @Test
+    void arquivarDuasVezesNaoContaDeNovo() {
+        UUID id = UUID.randomUUID();
+        var jaArquivado = paraArquivar(id, AGORA.minusDays(1));
+        when(codeRepository.findAllById(List.of(id))).thenReturn(List.of(jaArquivado));
+
+        assertThat(useCase.archive(List.of(id))).isZero();
+        assertThat(jaArquivado.getArchivedAt()).isEqualTo(AGORA.minusDays(1));
+        verify(codeRepository, never()).save(any());
+    }
+
+    @Test
+    void arquivaOLoteInteiroDeUmaVez() {
+        UUID a = UUID.randomUUID();
+        UUID b = UUID.randomUUID();
+        when(codeRepository.findAllById(List.of(a, b)))
+                .thenReturn(List.of(paraArquivar(a, null), paraArquivar(b, null)));
+
+        assertThat(useCase.archive(List.of(a, b))).isEqualTo(2);
+    }
+
+    /// A listagem do admin omite arquivado — é o ponto de arquivar.
+    @Test
+    void listagemNaoTrazArquivado() {
+        useCase.listByRoute(ROTA);
+
+        verify(codeRepository).findAllByRouteIdAndArchivedAtIsNull(ROTA);
+        verify(codeRepository, never()).findAllByRouteId(any());
     }
 }

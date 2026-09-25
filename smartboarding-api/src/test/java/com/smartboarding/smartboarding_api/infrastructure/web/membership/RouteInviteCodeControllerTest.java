@@ -1,5 +1,7 @@
 package com.smartboarding.smartboarding_api.infrastructure.web.membership;
 
+import com.smartboarding.smartboarding_api.domain.route.port.out.RouteRepositoryPort;
+
 import com.smartboarding.smartboarding_api.infrastructure.web.common.AdminGuard;
 
 import com.smartboarding.smartboarding_api.domain.membership.entity.RouteInviteCode;
@@ -58,6 +60,7 @@ class RouteInviteCodeControllerTest extends WebMvcTestSupport {
     @MockitoBean UserRepositoryPort userRepository;
     @MockitoBean InstitutionRepositoryPort institutionRepository;
     @MockitoBean AdminGuard guard;
+    @MockitoBean RouteRepositoryPort routeRepository;
 
     @BeforeEach
     void setUp() {

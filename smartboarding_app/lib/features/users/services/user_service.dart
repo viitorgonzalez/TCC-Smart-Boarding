@@ -1,3 +1,4 @@
+import '../../../core/pagination/page_result.dart';
 import '../../../core/services/dio_client.dart';
 import '../models/student_profile_model.dart';
 import '../models/user_model.dart';
@@ -7,15 +8,36 @@ class UserService {
 
   /// [routeId] nulo traz o sistema inteiro; o app usa o filtro por rota porque
   /// a base cresce sem teto e o admin trabalha por rota.
-  Future<List<UserModel>> getUsers({String? routeId}) async {
+  ///
+  /// Vem por partes: a tela pede a próxima conforme o admin rola, em vez de
+  /// baixar a base inteira pra mostrar os primeiros dez nomes.
+  Future<PageResult<UserModel>> getUsers({
+    String? routeId,
+    int page = 0,
+  }) async {
     final response = await _dio.get(
       '/api/users',
-      queryParameters: {'routeId': ?routeId},
+      queryParameters: {'routeId': ?routeId, 'page': page},
     );
-    final List data = response.data['data'] as List;
-    return data
-        .map((e) => UserModel.fromJson(e as Map<String, dynamic>))
-        .toList();
+    return PageResult.fromJson(
+      response.data['data'] as Map<String, dynamic>,
+      UserModel.fromJson,
+    );
+  }
+
+  /// Todas as páginas de uma vez.
+  ///
+  /// Pra telas com busca por nome: procurar dentro de um pedaço encontraria só
+  /// quem calhou de vir na primeira página, e o resultado pareceria um bug.
+  Future<List<UserModel>> getAllUsers({String? routeId}) async {
+    final todos = <UserModel>[];
+    var pagina = 0;
+    while (true) {
+      final result = await getUsers(routeId: routeId, page: pagina);
+      todos.addAll(result.items);
+      if (!result.hasMore) return todos;
+      pagina++;
+    }
   }
 
   /// Só o número de administradores. A ficha do usuário precisa dele pra saber

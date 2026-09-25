@@ -25,6 +25,19 @@ class RouteService {
         .toList();
   }
 
+  /// Tira os códigos da tela do admin. O registro fica: quem entrou por eles
+  /// mantém a origem no relatório.
+  ///
+  /// Em lote porque o gesto é limpar uma lista cheia de código morto — um
+  /// pedido por linha faria o app disparar dezenas.
+  Future<int> archiveInviteCodes(List<String> codeIds) async {
+    final response = await _dio.delete(
+      '/api/invite-codes',
+      data: {'codeIds': codeIds},
+    );
+    return (response.data['data']?['archived'] as num?)?.toInt() ?? 0;
+  }
+
   /// [expiresAt] nulo deixa o backend aplicar a validade padrão dele.
   /// [institutionId] nulo gera um código aberto a qualquer instituição.
   Future<InviteCode> generateInviteCode(

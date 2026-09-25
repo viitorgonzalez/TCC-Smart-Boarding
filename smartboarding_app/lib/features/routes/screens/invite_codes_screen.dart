@@ -10,6 +10,7 @@ import '../../institutions/services/institution_service.dart';
 import '../models/invite_code_model.dart';
 import '../models/route_model.dart';
 import '../services/route_service.dart';
+import '../../../core/text/plural.dart';
 
 /// Controle dos códigos de acesso, de todas as rotas do admin.
 ///
@@ -34,6 +35,11 @@ class _InviteCodesScreenState extends State<InviteCodesScreen> {
   List<InviteCode> _codes = const [];
   bool _carregando = true;
   bool _ocupado = false;
+
+  /// Ids marcados. Vazio com [_selecionando] ligado é o estado logo após entrar
+  /// no modo — o admin ainda não escolheu nada.
+  final Set<String> _marcados = {};
+  bool _selecionando = false;
 
   @override
   void initState() {
@@ -137,6 +143,85 @@ class _InviteCodesScreenState extends State<InviteCodesScreen> {
     }
   }
 
+  void _alternarSelecao(String id) {
+    setState(() {
+      if (!_marcados.remove(id)) _marcados.add(id);
+      // Desmarcar o último sai do modo: manter a barra de seleção vazia na
+      // tela deixa o admin preso num estado sem saída óbvia.
+      if (_marcados.isEmpty) _selecionando = false;
+    });
+  }
+
+  void _entrarNaSelecao(String id) {
+    setState(() {
+      _selecionando = true;
+      _marcados.add(id);
+    });
+  }
+
+  void _sairDaSelecao() {
+    setState(() {
+      _selecionando = false;
+      _marcados.clear();
+    });
+  }
+
+  /// Seleciona os que já não servem pra nada — é o caso de uso real de limpar.
+  void _marcarInutilizaveis() {
+    setState(() {
+      _selecionando = true;
+      _marcados
+        ..clear()
+        ..addAll(_codes.where((c) => !c.usable).map((c) => c.id));
+      if (_marcados.isEmpty) _selecionando = false;
+    });
+  }
+
+  Future<void> _apagarMarcados() async {
+    final quantos = _marcados.length;
+    final ok = await showDialog<bool>(
+      context: context,
+      builder: (ctx) => AlertDialog(
+        title: Text(
+          quantos == 1 ? 'Apagar este código?' : 'Apagar $quantos códigos?',
+        ),
+        content: const Text(
+          'Eles somem desta tela. Quem já entrou continua na rota, e o '
+          'relatório mantém por onde cada aluno chegou.',
+        ),
+        actions: [
+          TextButton(
+            onPressed: () => Navigator.pop(ctx, false),
+            child: const Text('Voltar'),
+          ),
+          FilledButton(
+            key: const Key('confirm_archive'),
+            onPressed: () => Navigator.pop(ctx, true),
+            child: const Text('Apagar'),
+          ),
+        ],
+      ),
+    );
+    if (!(ok ?? false) || !mounted) return;
+
+    setState(() => _ocupado = true);
+    try {
+      await _service.archiveInviteCodes(_marcados.toList());
+      _sairDaSelecao();
+      await _load();
+      if (mounted) {
+        showSuccessSnackBar(
+          context,
+          contagem(quantos, 'código apagado', 'códigos apagados'),
+        );
+      }
+    } catch (e) {
+      if (mounted) showErrorSnackBar(context, AppException.fromError(e));
+    } finally {
+      if (mounted) setState(() => _ocupado = false);
+    }
+  }
+
   Future<void> _revogar(InviteCode code) async {
     final ok = await showDialog<bool>(
       context: context,
@@ -188,14 +273,51 @@ class _InviteCodesScreenState extends State<InviteCodesScreen> {
       porRota.putIfAbsent(c.routeName ?? 'Rota', () => []).add(c);
     }
 
+    final inutilizaveis = _codes.where((c) => !c.usable).length;
+
     return Scaffold(
-      appBar: AppBar(title: const Text('Códigos de acesso')),
-      floatingActionButton: FloatingActionButton.extended(
-        key: const Key('generate_code_fab'),
-        onPressed: _ocupado || widget.routes.isEmpty ? null : _gerar,
-        icon: const Icon(Icons.add),
-        label: const Text('Gerar código'),
-      ),
+      appBar: _selecionando
+          // Barra de seleção no lugar do título: enquanto o admin escolhe, o
+          // que importa é quantos marcou e o que fazer com eles.
+          ? AppBar(
+              leading: IconButton(
+                key: const Key('exit_selection'),
+                icon: const Icon(Icons.close),
+                onPressed: _sairDaSelecao,
+              ),
+              title: Text(
+                '${_marcados.length} selecionado'
+                '${_marcados.length == 1 ? '' : 's'}',
+              ),
+              actions: [
+                IconButton(
+                  key: const Key('archive_selected'),
+                  tooltip: 'Apagar selecionados',
+                  icon: const Icon(Icons.delete_outline),
+                  onPressed: _ocupado ? null : _apagarMarcados,
+                ),
+              ],
+            )
+          : AppBar(
+              title: const Text('Códigos de acesso'),
+              actions: [
+                if (inutilizaveis > 0)
+                  IconButton(
+                    key: const Key('select_unusable'),
+                    tooltip: 'Selecionar expirados e cancelados',
+                    icon: const Icon(Icons.checklist),
+                    onPressed: _marcarInutilizaveis,
+                  ),
+              ],
+            ),
+      floatingActionButton: _selecionando
+          ? null
+          : FloatingActionButton.extended(
+              key: const Key('generate_code_fab'),
+              onPressed: _ocupado || widget.routes.isEmpty ? null : _gerar,
+              icon: const Icon(Icons.add),
+              label: const Text('Gerar código'),
+            ),
       body: _carregando
           ? const Center(child: CircularProgressIndicator())
           : _codes.isEmpty
@@ -218,14 +340,22 @@ class _InviteCodesScreenState extends State<InviteCodesScreen> {
                         for (final code in entrada.value)
                           ListTile(
                             key: Key('code_${code.id}'),
-                            leading: Icon(
-                              code.usable
-                                  ? Icons.vpn_key_outlined
-                                  : Icons.key_off_outlined,
-                              color: code.usable
-                                  ? AppColors.deepTeal
-                                  : AppColors.textSecondary,
-                            ),
+                            selected: _marcados.contains(code.id),
+                            selectedTileColor: AppColors.positiveBg,
+                            leading: _selecionando
+                                ? Checkbox(
+                                    key: Key('check_${code.id}'),
+                                    value: _marcados.contains(code.id),
+                                    onChanged: (_) => _alternarSelecao(code.id),
+                                  )
+                                : Icon(
+                                    code.usable
+                                        ? Icons.vpn_key_outlined
+                                        : Icons.key_off_outlined,
+                                    color: code.usable
+                                        ? AppColors.deepTeal
+                                        : AppColors.textSecondary,
+                                  ),
                             title: Text(
                               code.code,
                               style: const TextStyle(
@@ -240,7 +370,17 @@ class _InviteCodesScreenState extends State<InviteCodesScreen> {
                               '${_situacao(code)} · ${code.uses} '
                               '${code.uses == 1 ? 'aluno entrou' : 'alunos entraram'}',
                             ),
-                            trailing: code.usable
+                            // Segurar entra no modo de seleção: é o gesto que
+                            // o usuário já conhece de qualquer lista de app.
+                            onLongPress: _selecionando
+                                ? null
+                                : () => _entrarNaSelecao(code.id),
+                            onTap: _selecionando
+                                ? () => _alternarSelecao(code.id)
+                                : null,
+                            trailing: _selecionando
+                                ? null
+                                : code.usable
                                 ? Row(
                                     mainAxisSize: MainAxisSize.min,
                                     children: [

@@ -14,6 +14,8 @@ import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.boot.webmvc.test.autoconfigure.WebMvcTest;
+import org.springframework.data.domain.PageImpl;
+import org.springframework.data.domain.Pageable;
 import org.springframework.http.MediaType;
 import org.springframework.test.context.bean.override.mockito.MockitoBean;
 import org.springframework.security.oauth2.jwt.Jwt;
@@ -23,7 +25,10 @@ import java.util.List;
 import java.util.Optional;
 import java.util.UUID;
 
+import static org.assertj.core.api.Assertions.assertThat;
+import static org.mockito.ArgumentMatchers.isNull;
 import static org.mockito.ArgumentMatchers.any;
+import static org.mockito.ArgumentMatchers.eq;
 import static org.mockito.ArgumentMatchers.anyBoolean;
 import static org.mockito.Mockito.never;
 import static org.mockito.Mockito.verify;
@@ -85,7 +90,7 @@ class UserControllerTest extends WebMvcTestSupport {
     void alunoNaoAcessaAListagemDeUsuarios() throws Exception {
         mvc.perform(get("/api/users").with(student())).andExpect(status().isForbidden());
 
-        verify(findUserUseCase, never()).findAll();
+        verify(findUserUseCase, never()).findPage(any(), any());
     }
 
     @Test
@@ -93,27 +98,43 @@ class UserControllerTest extends WebMvcTestSupport {
         mvc.perform(get("/api/users")).andExpect(status().isUnauthorized());
     }
 
+    /// A listagem vem paginada: a tela carrega conforme o admin rola, então o
+    /// corpo é uma página, não um array solto.
     @Test
     void semRouteIdListaTodos() throws Exception {
-        when(findUserUseCase.findAll()).thenReturn(List.of(aluno));
+        when(findUserUseCase.findPage(isNull(), any()))
+                .thenReturn(new PageImpl<>(List.of(aluno)));
 
         mvc.perform(get("/api/users").with(admin()))
                 .andExpect(status().isOk())
-                .andExpect(jsonPath("$.data[0].fullName").value("Fernanda Lima"))
-                .andExpect(jsonPath("$.data[0].institution").value("Unifor"));
-
-        verify(findUserUseCase, never()).findByRoute(any());
+                .andExpect(jsonPath("$.data.content[0].fullName").value("Fernanda Lima"))
+                .andExpect(jsonPath("$.data.content[0].institution").value("Unifor"));
     }
 
     @Test
     void comRouteIdFiltraPelaRota() throws Exception {
-        when(findUserUseCase.findByRoute(ROUTE_ID)).thenReturn(List.of(aluno));
+        when(findUserUseCase.findPage(eq(ROUTE_ID), any()))
+                .thenReturn(new PageImpl<>(List.of(aluno)));
 
         mvc.perform(get("/api/users").param("routeId", ROUTE_ID.toString()).with(admin()))
-                .andExpect(status().isOk());
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.data.content.length()").value(1));
 
-        verify(findUserUseCase).findByRoute(ROUTE_ID);
-        verify(findUserUseCase, never()).findAll();
+        verify(findUserUseCase).findPage(eq(ROUTE_ID), any());
+    }
+
+    /// Sem tamanho no pedido, o backend decide: cliente pedindo tudo de uma vez
+    /// derrubaria o ponto de paginar.
+    @Test
+    void aPaginaTemTamanhoPadrao() throws Exception {
+        when(findUserUseCase.findPage(any(), any()))
+                .thenReturn(new PageImpl<>(List.of(aluno)));
+
+        mvc.perform(get("/api/users").with(admin())).andExpect(status().isOk());
+
+        var captor = org.mockito.ArgumentCaptor.forClass(Pageable.class);
+        verify(findUserUseCase).findPage(any(), captor.capture());
+        assertThat(captor.getValue().getPageSize()).isEqualTo(30);
     }
 
     @Test
@@ -320,7 +341,7 @@ class UserControllerTest extends WebMvcTestSupport {
                 .andExpect(status().isOk())
                 .andExpect(jsonPath("$.data.count").value(2));
 
-        verify(findUserUseCase, never()).findAll();
+        verify(findUserUseCase, never()).findPage(any(), any());
     }
 
     @Test
@@ -377,7 +398,7 @@ class UserControllerTest extends WebMvcTestSupport {
 
         mvc.perform(comBearerReal(get("/api/users"))).andExpect(status().isUnauthorized());
 
-        verify(findUserUseCase, never()).findAll();
+        verify(findUserUseCase, never()).findPage(any(), any());
     }
 
     @Test
@@ -390,7 +411,7 @@ class UserControllerTest extends WebMvcTestSupport {
 
         mvc.perform(comBearerReal(get("/api/users"))).andExpect(status().isUnauthorized());
 
-        verify(findUserUseCase, never()).findAll();
+        verify(findUserUseCase, never()).findPage(any(), any());
     }
 
     /// Banco fora não pode virar 500 cru em toda requisição autenticada — nem
@@ -406,7 +427,7 @@ class UserControllerTest extends WebMvcTestSupport {
         mvc.perform(comBearerReal(get("/api/users")))
                 .andExpect(status().isServiceUnavailable());
 
-        verify(findUserUseCase, never()).findAll();
+        verify(findUserUseCase, never()).findPage(any(), any());
     }
 
     /// O contraponto dos três acima: o mesmo caminho de Bearer real, com o papel
@@ -419,7 +440,8 @@ class UserControllerTest extends WebMvcTestSupport {
         when(userDetailsService.loadUserByUsername("naiara@admin.com")).thenReturn(
                 User.builder().id(ADMIN_ID).email("naiara@admin.com").fullName("Naiara")
                         .role(Role.ADMIN).isActive(true).build());
-        when(findUserUseCase.findAll()).thenReturn(List.of(aluno));
+        when(findUserUseCase.findPage(any(), any()))
+                .thenReturn(new PageImpl<>(List.of(aluno)));
 
         mvc.perform(comBearerReal(get("/api/users"))).andExpect(status().isOk());
     }

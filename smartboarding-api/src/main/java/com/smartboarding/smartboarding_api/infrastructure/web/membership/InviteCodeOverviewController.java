@@ -2,15 +2,21 @@ package com.smartboarding.smartboarding_api.infrastructure.web.membership;
 
 import com.smartboarding.smartboarding_api.domain.institution.entity.Institution;
 import com.smartboarding.smartboarding_api.domain.institution.port.out.InstitutionRepositoryPort;
+import com.smartboarding.smartboarding_api.domain.membership.entity.RouteInviteCode;
 import com.smartboarding.smartboarding_api.domain.membership.port.in.ManageRouteInviteCodeUseCase;
 import com.smartboarding.smartboarding_api.domain.route.entity.Route;
 import com.smartboarding.smartboarding_api.domain.route.port.out.RouteRepositoryPort;
 import com.smartboarding.smartboarding_api.infrastructure.web.common.AdminGuard;
+import com.smartboarding.smartboarding_api.infrastructure.web.membership.dto.ArchiveCodesRequest;
 import com.smartboarding.smartboarding_api.infrastructure.web.membership.dto.RouteInviteCodeResponse;
+import com.smartboarding.smartboarding_api.shared.exception.ForbiddenException;
 import com.smartboarding.smartboarding_api.shared.web.ApiResponse;
+import jakarta.validation.Valid;
 import org.springframework.http.ResponseEntity;
 import org.springframework.security.core.Authentication;
+import org.springframework.web.bind.annotation.DeleteMapping;
 import org.springframework.web.bind.annotation.GetMapping;
+import org.springframework.web.bind.annotation.RequestBody;
 import org.springframework.web.bind.annotation.RequestMapping;
 import org.springframework.web.bind.annotation.RestController;
 
@@ -79,5 +85,35 @@ public class InviteCodeOverviewController {
                 .toList();
 
         return ResponseEntity.ok(ApiResponse.data(codes));
+    }
+
+    /// Tira os códigos da tela do admin. O registro fica: quem entrou por eles
+    /// mantém a origem no relatório.
+    ///
+    /// Cada código é conferido contra o alcance de quem pede — um id alheio no
+    /// meio da lista não pode entrar de carona no lote.
+    @DeleteMapping
+    public ResponseEntity<ApiResponse<Map<String, Integer>>> archive(
+            @RequestBody @Valid ArchiveCodesRequest request, Authentication auth) {
+        Set<UUID> minhasRotas = guard.routes(auth);
+        Set<UUID> minhasInstituicoes = guard.institutions(auth);
+
+        List<RouteInviteCode> codigos = useCase.findAllById(request.codeIds());
+        for (RouteInviteCode c : codigos) {
+            if (!minhasRotas.contains(c.getRouteId())) {
+                throw new ForbiddenException("NOT_YOUR_ROUTE",
+                        "Um dos códigos é de uma rota que você não administra.");
+            }
+            if (c.getInstitutionId() != null
+                    && !minhasInstituicoes.contains(c.getInstitutionId())) {
+                throw new ForbiddenException("NOT_YOUR_INSTITUTION",
+                        "Um dos códigos é de uma instituição que você não administra.");
+            }
+        }
+
+        int arquivados = useCase.archive(codigos.stream()
+                .map(RouteInviteCode::getId)
+                .toList());
+        return ResponseEntity.ok(ApiResponse.data(Map.of("archived", arquivados)));
     }
 }
