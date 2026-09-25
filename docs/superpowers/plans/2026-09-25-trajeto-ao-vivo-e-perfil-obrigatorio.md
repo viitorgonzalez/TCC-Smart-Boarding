@@ -42,38 +42,57 @@ endereço estruturado, por isso o endereço subiu pra primeira posição.
 
 ---
 
-### Task 1: Endereço estruturado — backend
+### Task 1: Endereço estruturado — backend ✅
 
 Base de tudo: a carteirinha mostra rua/bairro/número, e esses campos não existem ainda.
 
-- [ ] Migration `V31__structured_address.sql`: adiciona `zip_code`, `street`, `neighborhood`,
-      `city`, `state`, `street_number`, `complement` em `users`.
-- [ ] **Renomeia** `address` → `address_legacy` em vez de dropar. Texto livre não dá pra quebrar
-      com segurança, e adivinhar rua e número produz endereço errado com cara de certo — que é o
-      motorista parando no lugar errado. Quem já tinha endereço preenche de novo.
-- [ ] Campos novos no `User`, com `structuredAddressComplete()` no domínio (não no controller:
-      a Task 3 vai precisar da mesma resposta).
-- [ ] Teste: falta `streetNumber` → incompleto; tudo menos `complement` → completo
-      (`complement` é opcional, nem todo endereço tem).
-- [ ] Expor em `StudentProfileResponse` e no `/me`.
-- [ ] `./mvnw test`
+> **Escopo ajustado durante a execução.** A Task 1 absorveu "o endereço sai da fila de
+> aprovação", que estava na Task 3. Motivo: sem caminho de escrita as colunas novas nunca se
+> preenchem, e o único caminho que existia era a fila do admin. Deixar os dois no ar faria uma
+> aprovação escrever em `address_legacy` — coluna que nada lê. A Task 3 fica só com `phone`/
+> `course` e a regra do `AddEntryUseCase`.
+
+- [x] Migration `V31__structured_address.sql`: `zip_code`, `street`, `neighborhood`, `city`,
+      `state`, `street_number`, `complement` em `users`.
+- [x] **Renomeia** `address` → `address_legacy` em vez de dropar.
+- [x] `Address` como `@Embeddable` em vez de 7 campos soltos no `User` — dá casa natural pro
+      `isComplete()` e pro `shortForm()` da carteirinha, e evita duas versões da mesma linha
+      (uma em Java, outra em Dart).
+- [x] `shortForm()` (rua, número — bairro) e `fullForm()` (com cidade e CEP, pro admin).
+      14 testes em `AddressTest`, incluindo o que prova que o CEP **não** vaza no `shortForm`.
+- [x] `PUT /api/me/address` — salva direto, sem aprovação. É o que torna as colunas preenchíveis.
+- [x] Endereço sai de `ProfileUpdateRequestDto` e do `approve()`. Pedido aberto **antes** disso
+      ainda cai em `address_legacy` em vez de sumir calado.
+- [x] `AddressResponse` em `MeResponse`, `UserResponse` e `StudentProfileResponse`.
+- [x] Salvar incompleto é permitido de propósito: quem cobra completude é a entrada na lista,
+      num lugar só.
+- [x] Mutação: 5 mutações (checagem do CEP, `limpo()`, UF, formato do CEP, id do dono) mataram
+      **exatamente** os testes certos.
+- [x] `./mvnw verify` — 546 unit + 3 IT verdes, `ProductionMigrationsIT` incluso.
 
 ---
 
-### Task 2: Endereço por CEP — app
+### Task 2: Endereço por CEP — app ✅
 
-- [ ] `CepService` consumindo `https://viacep.com.br/ws/{cep}/json/`. Sem chave.
-- [ ] Devolve `null` em erro, timeout **e** no `{"erro": true}` que o ViaCEP responde com
-      **HTTP 200** pra CEP inexistente — tratar só o status deixaria passar resposta vazia como
-      se fosse endereço bom.
-- [ ] Teste com HTTP falso: CEP válido → campos preenchidos; CEP inexistente (200 + `erro`) →
-      `null`; timeout → `null`.
-- [ ] No formulário de perfil: digitou 8 dígitos → busca e preenche rua/bairro/cidade/UF.
-- [ ] Os campos preenchidos ficam **editáveis**. CEP genérico de cidade pequena erra, e ninguém
-      deve ficar preso a um endereço errado que o app escolheu.
-- [ ] Teste de widget: ViaCEP fora do ar → o formulário continua preenchível e envia.
-- [ ] Foco pula pro campo "número" depois do preenchimento — é o único que falta.
-- [ ] `flutter test`
+- [x] `CepService` consumindo `https://viacep.com.br/ws/{cep}/json/`. Sem chave.
+- [x] **Cliente HTTP próprio, nunca o `DioClient`.** Aquele injeta o Bearer da sessão em toda
+      requisição — reaproveitá-lo entregaria o token do aluno a um host de terceiro. Há teste
+      pra isso, e ele morre se alguém trocar pelo cliente autenticado.
+- [x] `null` em erro, timeout, corpo vazio **e** no `{"erro": true}` que vem com **HTTP 200**.
+      Trata o campo como booleano **e** como string — já veio das duas formas.
+- [x] CEP com menos de 8 dígitos nem chega a consultar: o campo consulta enquanto se digita, e
+      seria um request por tecla.
+- [x] `AddressCard` com card e botão próprios, fora do formulário de aprovação — duas semânticas
+      de salvar num botão só fariam o aluno não saber o que já valeu.
+- [x] Campos vindos do CEP continuam **editáveis**, e CEP que falha **não apaga** o que já foi
+      digitado à mão (o teste que prova isso digita antes e consulta depois — a ordem é o ponto).
+- [x] Foco pula pro "número" depois do preenchimento.
+- [x] Aviso nomeando o que falta, e `AppTextField` ganhou `inputFormatters`/`focusNode`
+      (máscara de CEP e o pulo de foco).
+- [x] Mutação: 5 mutações no card + 4 no serviço. **Uma sobreviveu** e expôs teste vacuoso —
+      `textContaining('Bairro')` casava com o rótulo do campo, não com o aviso. Corrigido pra
+      asserção no key do aviso; agora mata.
+- [x] 237 testes verdes, `coverage-gate.sh` exit 0, `flutter analyze` limpo.
 
 ---
 
