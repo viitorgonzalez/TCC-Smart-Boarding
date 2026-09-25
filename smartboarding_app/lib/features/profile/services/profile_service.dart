@@ -7,11 +7,11 @@ class ProfileService {
 
   /// Manda só o que mudou: campo ausente significa "não pedi mudança nele".
   ///
-  /// Endereço não passa por aqui — ele tem [updateAddress], que salva direto.
+  /// Sobrou pouco: endereço, telefone e curso têm caminhos diretos
+  /// ([updateAddress] e [updateOwnProfile]). O que passa por aqui é o que
+  /// decide em qual transporte a pessoa entra.
   Future<ProfileUpdate> requestUpdate({
     String? fullName,
-    String? phone,
-    String? course,
     String? institutionId,
     String? birthDate,
   }) async {
@@ -19,8 +19,6 @@ class ProfileService {
       '/api/me/profile-requests',
       data: {
         'fullName': ?fullName,
-        'phone': ?phone,
-        'course': ?course,
         'institutionId': ?institutionId,
         'birthDate': ?birthDate,
       },
@@ -77,6 +75,15 @@ class ProfileService {
       data: endereco.toJson(),
     );
     return Address.fromJson(response.data['data'] as Map<String, dynamic>);
+  }
+
+  /// Telefone e curso, salvos direto. Mesma razão do endereço: alcançam a
+  /// pessoa ou a descrevem, mas não decidem em qual transporte ela entra.
+  Future<void> updateOwnProfile({String? phone, String? course}) async {
+    await _dio.put(
+      '/api/me/profile',
+      data: {'phone': ?phone, 'course': ?course},
+    );
   }
 
   Future<Me> me() async {

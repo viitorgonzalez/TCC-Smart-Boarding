@@ -96,31 +96,30 @@ Base de tudo: a carteirinha mostra rua/bairro/número, e esses campos não exist
 
 ---
 
-### Task 3: Perfil completo como pré-requisito da lista
+### Task 3: Perfil completo como pré-requisito da lista ✅
 
 Backend. A regra mora no use case porque só no app seria decorativa.
 
-- [ ] **Antes de tudo:** `phone`, endereço e `course` passam a salvar **direto**, sem aprovação
-      do admin. Ver spec §1 "beco sem saída" — sem isso a regra nova vira parede: o aluno
-      preenche e fica esperando aprovação enquanto perde a viagem.
-- [ ] Teste: aluno altera `phone` → aplica na hora, **sem** criar `ProfileUpdateRequest`.
-- [ ] Teste de não-regressão: aluno altera `fullName` → **continua** criando solicitação.
-      O que decide em qual transporte a pessoa entra segue passando pelo admin.
-- [ ] Escrever teste em `AddEntryUseCaseImplTest`: aluno sem `phone` é recusado com
-      `PROFILE_INCOMPLETE_FOR_LIST`. **Rode e veja falhar.**
-- [ ] Testes irmãos: endereço incompleto recusa; sem instituição recusa; sem `fullName` recusa;
-      com tudo preenchido **entra**.
-- [ ] Teste do conteúdo: o erro lista **quais** campos faltam, não só que falta algo.
-- [ ] Teste de não-regressão: `birthDate` e `course` vazios **não** impedem — opcionais por
-      decisão de design.
-- [ ] Implementar em `AddEntryUseCaseImpl`, reusando `structuredAddressComplete()` da Task 1.
-- [ ] `ForbiddenException` não serve (é permissão). `BadRequestException` com o código novo, e
-      estender o corpo de erro pra carregar `missing`.
-- [ ] Mutação: comente a checagem e confirme que **exatamente** os testes novos falham.
-- [ ] `./mvnw test`
+- [x] `PUT /me/profile` salva `phone` e `course` **direto**. Com o endereço (Task 1), a fila de
+      aprovação ficou só com o que decide em qual transporte a pessoa entra: nome e instituição.
+- [x] `User.missingForList()` no domínio, devolvendo a lista **toda de uma vez** — a mensagem
+      genérica faria o aluno descobrir por tentativa, um campo por viagem perdida.
+- [x] `AppException` ganhou `details`, e o handler o despeja no mesmo nível de `code`/`error`.
+      Mecanismo geral, não gambiarra pra um erro só.
+- [x] A regra em `ListUseCaseImpl.add`, **só pra quem ainda não está na lista**: quem já entrou o
+      fez quando era permitido, e barrar ali expulsaria quem só troca ida por volta.
+- [x] Admin não passa pela trava (ele não entra em lista).
+- [x] Teste em `WarningUseCaseImplTest` travando que `/entries/admin` **não** herda a regra —
+      inclusão tardia é justamente pra quem tem cadastro pela metade.
+- [x] App: `OwnDataCard` (telefone + curso) com botão próprio; o formulário de aprovação ficou
+      só com o nome.
+- [x] Mutação: 4 no use case + 4 no card. **Uma sobreviveu** — admin com `course` herdado de
+      quando era aluno reenviaria o campo. Teste novo, e agora mata.
+- [x] `./mvnw verify` (572 unit + 3 IT) e 244 testes no app, gate exit 0, analyze limpo.
 
-**Verificação:** o admin que inscreve aluno pela folha (`/entries/admin`) **não** passa por esta
-trava — inclusão tardia é decisão dele, com o aluno na frente. Confirme com um teste.
+**Descoberto ao rodar:** o `stubList` do `ListUseCaseImplTest` montava um aluno sem perfil
+nenhum, então a regra nova quebrou dois testes de **horário**. Dei perfil completo ao aluno do
+stub — sem isso, todo teste de horário passaria a falhar por um motivo que não é o dele.
 
 ---
 

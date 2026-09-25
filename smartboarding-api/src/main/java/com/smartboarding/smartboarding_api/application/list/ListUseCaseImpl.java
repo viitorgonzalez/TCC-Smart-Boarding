@@ -25,6 +25,7 @@ import java.time.Clock;
 import java.time.LocalDate;
 import java.time.LocalTime;
 import java.util.List;
+import java.util.Map;
 import java.util.Optional;
 import java.util.Set;
 import java.util.UUID;
@@ -57,6 +58,24 @@ public class ListUseCaseImpl implements FindListUseCase, AddEntryUseCase, Remove
 
     // Filtrar a listagem não basta: sem esta checagem a API continuaria aceitando
     // um POST direto na lista de outra rota.
+    /// O motorista precisa saber onde a pessoa embarca e como falar com ela.
+    /// Sem isso ele tem um nome na lista e mais nada.
+    ///
+    /// Mora aqui e não no app porque no app seria decorativa: quem chamasse a
+    /// API direto passaria.
+    private void assertProfileComplete(User user) {
+        if (user.getRole() != Role.STUDENT) {
+            return;
+        }
+        List<String> faltando = user.missingForList();
+        if (faltando.isEmpty()) {
+            return;
+        }
+        throw new BadRequestException("PROFILE_INCOMPLETE_FOR_LIST",
+                "Complete seu perfil para entrar na lista.",
+                Map.of("missing", faltando));
+    }
+
     private void assertBelongsToRoute(User user, DailyList list) {
         if (user.getRole() != Role.STUDENT) {
             return;
@@ -146,6 +165,13 @@ public class ListUseCaseImpl implements FindListUseCase, AddEntryUseCase, Remove
         assertBelongsToRoute(user, dailyList);
 
         Optional<ListEntry> existing = listEntryRepository.findByUserIdAndDailyListId(userId, listId);
+
+        // Só pra quem ainda não está na lista: quem já entrou o fez quando era
+        // permitido, e a direção segue editável enquanto a lista está aberta.
+        // Barrar aqui expulsaria de volta quem só quer trocar ida por volta.
+        if (existing.isEmpty()) {
+            assertProfileComplete(user);
+        }
 
         if (existing.isPresent()) {
             // Já existe: reativa (se saiu antes) e/ou atualiza a direção.

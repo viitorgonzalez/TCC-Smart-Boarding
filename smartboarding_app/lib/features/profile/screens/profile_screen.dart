@@ -12,6 +12,7 @@ import '../models/profile_update_model.dart';
 import '../services/profile_service.dart';
 import '../widgets/address_card.dart';
 import '../widgets/my_institutions_card.dart';
+import '../widgets/own_data_card.dart';
 import '../widgets/password_card.dart';
 
 /// Perfil do próprio usuário.
@@ -30,8 +31,6 @@ class _ProfileScreenState extends State<ProfileScreen> {
   final _service = ProfileService();
   final _formKey = GlobalKey<FormState>();
   final _nameCtrl = TextEditingController();
-  final _phoneCtrl = TextEditingController();
-  final _courseCtrl = TextEditingController();
 
   ProfileUpdate? _pendente;
   Me? _me;
@@ -48,8 +47,6 @@ class _ProfileScreenState extends State<ProfileScreen> {
   @override
   void dispose() {
     _nameCtrl.dispose();
-    _phoneCtrl.dispose();
-    _courseCtrl.dispose();
     super.dispose();
   }
 
@@ -84,23 +81,15 @@ class _ProfileScreenState extends State<ProfileScreen> {
     if (!_formKey.currentState!.validate()) return;
     final auth = context.read<AuthProvider>();
     final nome = _mudou(_nameCtrl, auth.token?.fullName);
-    final telefone = _mudou(_phoneCtrl, null);
-    // O campo nem aparece pra quem administra; ler o controller assim mesmo
-    // mandaria curso de uma sessao anterior que trocou de papel.
-    final curso = auth.isStudent ? _mudou(_courseCtrl, null) : null;
 
-    if (nome == null && telefone == null && curso == null) {
-      showErrorSnackBar(context, 'Altere ao menos um campo antes de enviar.');
+    if (nome == null) {
+      showErrorSnackBar(context, 'Altere o nome antes de enviar.');
       return;
     }
 
     setState(() => _saving = true);
     try {
-      final p = await _service.requestUpdate(
-        fullName: nome,
-        phone: telefone,
-        course: curso,
-      );
+      final p = await _service.requestUpdate(fullName: nome);
       if (!mounted) return;
       setState(() => _pendente = p);
       showSuccessSnackBar(context, 'Solicitação enviada para o administrador');
@@ -165,6 +154,13 @@ class _ProfileScreenState extends State<ProfileScreen> {
                   // vale na hora, e o nome ainda espera o admin. Misturar as
                   // duas semanticas num botao so faria o aluno nao saber o que
                   // ja valeu e o que foi so pedido.
+                  OwnDataCard(
+                    phone: me.phone,
+                    course: me.course,
+                    isStudent: auth.isStudent,
+                    onSaved: _load,
+                  ),
+                  const SizedBox(height: 20),
                   AddressCard(initial: me.address, onSaved: _load),
                   const SizedBox(height: 20),
                   PasswordCard(changing: me.hasPassword, onSaved: _load),
@@ -227,6 +223,9 @@ class _ProfileScreenState extends State<ProfileScreen> {
                   const SizedBox(height: 20),
                 ],
 
+                // So o nome sobrou aqui: ele identifica na chamada do
+                // motorista, entao troca-lo e virar outra pessoa na lista --
+                // e a unica coisa que ainda justifica um admin no meio.
                 Form(
                   key: _formKey,
                   child: Column(
@@ -239,27 +238,6 @@ class _ProfileScreenState extends State<ProfileScreen> {
                         icon: Icons.person_outline,
                         readOnly: emAnalise,
                       ),
-                      const SizedBox(height: 16),
-                      AppTextField(
-                        key: const Key('profile_phone_field'),
-                        label: 'Telefone',
-                        controller: _phoneCtrl,
-                        icon: Icons.phone_outlined,
-                        keyboardType: TextInputType.phone,
-                        readOnly: emAnalise,
-                      ),
-                      // Curso descreve quem estuda. Quem administra declara a
-                      // instituicao pra vincular a rota, e mais nada.
-                      if (auth.isStudent) ...[
-                        const SizedBox(height: 16),
-                        AppTextField(
-                          key: const Key('profile_course_field'),
-                          label: 'Curso',
-                          controller: _courseCtrl,
-                          icon: Icons.school_outlined,
-                          readOnly: emAnalise,
-                        ),
-                      ],
                       const SizedBox(height: 24),
                       // Campo travado durante a analise: deixar editavel sugere
                       // que da pra enviar outro, e o backend recusa com 409.

@@ -68,8 +68,10 @@ class ProfileUpdateUseCaseImplTest {
 
     @Test
     void pedidoNasceePendenteEAmarradoAoUsuarioDoToken() {
+        // fullName e nao phone: telefone saiu da fila (PUT /me/profile), e um
+        // pedido so com ele agora e um pedido vazio.
         var p = useCase.request(ALUNO,
-                ProfileUpdateRequest.builder().phone("37988887777").build());
+                ProfileUpdateRequest.builder().fullName("Fernanda Lima Souza").build());
 
         assertThat(p.getStatus()).isEqualTo(ProfileUpdateStatus.PENDING);
         assertThat(p.getUserId()).isEqualTo(ALUNO);
@@ -82,6 +84,18 @@ class ProfileUpdateUseCaseImplTest {
 
         assertThat(aluno.getFullName()).isEqualTo("Fernanda Lima");
         verify(userRepository, never()).save(any());
+    }
+
+    /// Telefone e curso saíram da fila. Um pedido só com eles não muda nada
+    /// que o admin decida, então é tão vazio quanto um sem campo nenhum.
+    @Test
+    void pedidoSoComTelefoneOuCursoEVazio() {
+        assertThatThrownBy(() -> useCase.request(ALUNO,
+                ProfileUpdateRequest.builder().phone("37988887777").course("Direito").build()))
+                .isInstanceOf(BadRequestException.class)
+                .hasMessageContaining("ao menos um campo");
+
+        verify(requestRepository, never()).save(any());
     }
 
     @Test
@@ -101,7 +115,7 @@ class ProfileUpdateUseCaseImplTest {
                 Optional.of(ProfileUpdateRequest.builder().userId(ALUNO).build()));
 
         assertThatThrownBy(() -> useCase.request(ALUNO,
-                ProfileUpdateRequest.builder().phone("37988887777").build()))
+                ProfileUpdateRequest.builder().fullName("Fernanda Lima Souza").build()))
                 .isInstanceOf(ConflictException.class)
                 .hasMessageContaining("em análise");
     }

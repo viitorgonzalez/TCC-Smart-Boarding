@@ -46,6 +46,8 @@ class ProfileControllerTest extends WebMvcTestSupport {
             changePasswordUseCase;
     @MockitoBean com.smartboarding.smartboarding_api.domain.user.port.in.UpdateAddressUseCase
             updateAddressUseCase;
+    @MockitoBean com.smartboarding.smartboarding_api.domain.user.port.in.UpdateOwnProfileUseCase
+            updateOwnProfileUseCase;
 
     @BeforeEach
     void setUp() {

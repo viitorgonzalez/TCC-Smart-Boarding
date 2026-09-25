@@ -17,6 +17,7 @@ import org.springframework.web.bind.MissingServletRequestParameterException;
 import org.springframework.web.method.annotation.MethodArgumentTypeMismatchException;
 import org.springframework.web.servlet.resource.NoResourceFoundException;
 
+import java.util.LinkedHashMap;
 import java.util.Map;
 
 @Slf4j
@@ -24,27 +25,27 @@ import java.util.Map;
 public class GlobalExceptionHandler {
 
     @ExceptionHandler(NotFoundException.class)
-    public ResponseEntity<Map<String, String>> handleNotFound(NotFoundException ex) {
+    public ResponseEntity<Map<String, Object>> handleNotFound(NotFoundException ex) {
         return ResponseEntity.status(404).body(errorBody(ex));
     }
 
     @ExceptionHandler(ConflictException.class)
-    public ResponseEntity<Map<String, String>> handleConflict(ConflictException ex) {
+    public ResponseEntity<Map<String, Object>> handleConflict(ConflictException ex) {
         return ResponseEntity.status(409).body(errorBody(ex));
     }
 
     @ExceptionHandler(ForbiddenException.class)
-    public ResponseEntity<Map<String, String>> handleForbidden(ForbiddenException ex) {
+    public ResponseEntity<Map<String, Object>> handleForbidden(ForbiddenException ex) {
         return ResponseEntity.status(403).body(errorBody(ex));
     }
 
     @ExceptionHandler(UnauthorizedException.class)
-    public ResponseEntity<Map<String, String>> handleUnauthorized(UnauthorizedException ex) {
+    public ResponseEntity<Map<String, Object>> handleUnauthorized(UnauthorizedException ex) {
         return ResponseEntity.status(401).body(errorBody(ex));
     }
 
     @ExceptionHandler(com.smartboarding.smartboarding_api.shared.exception.BadRequestException.class)
-    public ResponseEntity<Map<String, String>> handleBadRequest(
+    public ResponseEntity<Map<String, Object>> handleBadRequest(
             com.smartboarding.smartboarding_api.shared.exception.BadRequestException ex) {
         return ResponseEntity.status(400).body(errorBody(ex));
     }
@@ -125,7 +126,14 @@ public class GlobalExceptionHandler {
         return ResponseEntity.status(500).body(Map.of("code", "INTERNAL_SERVER_ERROR", "error", "Erro interno no servidor"));
     }
 
-    private Map<String, String> errorBody(AppException ex) {
-        return Map.of("code", ex.getCode(), "error", ex.getMessage());
+    /// O details da exceção entra no mesmo nível de code e error. Aninhar num
+    /// objeto "details" obrigaria todo cliente a saber que existe um nível a
+    /// mais só pra ler um campo que quase sempre está ausente.
+    private Map<String, Object> errorBody(AppException ex) {
+        Map<String, Object> body = new LinkedHashMap<>();
+        body.put("code", ex.getCode());
+        body.put("error", ex.getMessage());
+        body.putAll(ex.getDetails());
+        return body;
     }
 }

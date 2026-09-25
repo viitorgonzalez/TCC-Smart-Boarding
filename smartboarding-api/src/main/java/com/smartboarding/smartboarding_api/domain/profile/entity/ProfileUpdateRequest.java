@@ -71,12 +71,11 @@ public class ProfileUpdateRequest {
 
     /// Pedido sem nenhum campo preenchido não muda nada e só ocuparia a fila.
     ///
-    /// [address] ficou de fora: ninguém mais consegue abrir pedido com ele (o
-    /// endereço tem PUT /me/address próprio), e mantê-lo aqui seria uma
-    /// condição que nunca é verdadeira.
+    /// [address], [phone] e [course] ficaram de fora: ninguém mais consegue
+    /// abrir pedido com eles (têm PUT /me/address e PUT /me/profile), e
+    /// mantê-los aqui seriam condições que nunca são verdadeiras.
     public boolean isEmpty() {
-        return fullName == null && phone == null
-                && course == null && institutionId == null && birthDate == null;
+        return fullName == null && institutionId == null && birthDate == null;
     }
 
     @PrePersist

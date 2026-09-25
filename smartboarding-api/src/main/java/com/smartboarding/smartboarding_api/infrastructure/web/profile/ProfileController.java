@@ -6,10 +6,12 @@ import com.smartboarding.smartboarding_api.domain.profile.port.in.ManageProfileU
 import com.smartboarding.smartboarding_api.domain.user.port.in.ChangePasswordUseCase;
 import com.smartboarding.smartboarding_api.domain.user.port.in.SetLocalPasswordUseCase;
 import com.smartboarding.smartboarding_api.domain.user.port.in.UpdateAddressUseCase;
+import com.smartboarding.smartboarding_api.domain.user.port.in.UpdateOwnProfileUseCase;
 import com.smartboarding.smartboarding_api.infrastructure.web.user.dto.ChangePasswordRequest;
 import com.smartboarding.smartboarding_api.infrastructure.web.user.dto.AddressResponse;
 import com.smartboarding.smartboarding_api.infrastructure.web.user.dto.SetPasswordRequest;
 import com.smartboarding.smartboarding_api.infrastructure.web.user.dto.UpdateAddressRequest;
+import com.smartboarding.smartboarding_api.infrastructure.web.user.dto.UpdateOwnProfileRequest;
 import com.smartboarding.smartboarding_api.domain.user.entity.User;
 import com.smartboarding.smartboarding_api.domain.user.port.out.UserRepositoryPort;
 import com.smartboarding.smartboarding_api.infrastructure.web.profile.dto.MeResponse;
@@ -43,19 +45,22 @@ public class ProfileController {
     private final SetLocalPasswordUseCase setLocalPasswordUseCase;
     private final ChangePasswordUseCase changePasswordUseCase;
     private final UpdateAddressUseCase updateAddressUseCase;
+    private final UpdateOwnProfileUseCase updateOwnProfileUseCase;
 
     public ProfileController(ManageProfileUpdateUseCase useCase,
                              UserRepositoryPort userRepository,
                              ManageUserInstitutionsUseCase userInstitutionsUseCase,
                              SetLocalPasswordUseCase setLocalPasswordUseCase,
                              ChangePasswordUseCase changePasswordUseCase,
-                             UpdateAddressUseCase updateAddressUseCase) {
+                             UpdateAddressUseCase updateAddressUseCase,
+                             UpdateOwnProfileUseCase updateOwnProfileUseCase) {
         this.useCase = useCase;
         this.userRepository = userRepository;
         this.userInstitutionsUseCase = userInstitutionsUseCase;
         this.setLocalPasswordUseCase = setLocalPasswordUseCase;
         this.changePasswordUseCase = changePasswordUseCase;
         this.updateAddressUseCase = updateAddressUseCase;
+        this.updateOwnProfileUseCase = updateOwnProfileUseCase;
     }
 
     @PostMapping("/me/profile-requests")
@@ -63,8 +68,8 @@ public class ProfileController {
             @RequestBody @Valid ProfileUpdateRequestDto body, Authentication auth) {
         User me = me(auth);
         var saved = useCase.request(me.getId(), ProfileUpdateRequest.builder()
-                .fullName(body.fullName()).phone(body.phone())
-                .course(body.course()).institutionId(body.institutionId())
+                .fullName(body.fullName())
+                .institutionId(body.institutionId())
                 .birthDate(body.birthDate()).build());
         return ResponseEntity.status(HttpStatus.CREATED)
                 .body(ApiResponse.data(ProfileUpdateResponse.from(saved, me.getFullName())));
@@ -170,6 +175,17 @@ public class ProfileController {
             @RequestBody @Valid UpdateAddressRequest body, Authentication auth) {
         var salvo = updateAddressUseCase.update(me(auth).getId(), body.toDomain());
         return ResponseEntity.ok(ApiResponse.data(AddressResponse.from(salvo)));
+    }
+
+    /// Telefone e curso, salvos direto. Mesma razão do endereço: alcançam a
+    /// pessoa ou a descrevem, mas não decidem em qual transporte ela entra.
+    /// Nome e instituição continuam na fila do admin.
+    @PutMapping("/me/profile")
+    public ResponseEntity<ApiResponse<MeResponse>> updateOwnProfile(
+            @RequestBody @Valid UpdateOwnProfileRequest body, Authentication auth) {
+        User me = me(auth);
+        updateOwnProfileUseCase.update(me.getId(), body.phone(), body.course());
+        return ResponseEntity.ok(ApiResponse.data(MeResponse.from(me(auth))));
     }
 
     private User me(Authentication auth) {
