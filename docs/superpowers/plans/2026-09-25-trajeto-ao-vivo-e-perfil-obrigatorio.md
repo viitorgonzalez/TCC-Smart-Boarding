@@ -147,28 +147,30 @@ manhã e falharia à noite. Agora monta sem `closeTime`.
 
 ---
 
-### Task 5: Carteirinha de estudante virtual
+### Task 5: Carteirinha de estudante virtual ✅
 
 Feature nova. Depende da Task 1 (rua/bairro/número).
 
-- [ ] Tela nova, alcançável do perfil do aluno.
-- [ ] Mostra: nome completo, instituição, curso, e **só rua, bairro e número** do endereço.
+- [x] Tela nova, alcançável do perfil — **só pro aluno**: quem administra não tem vínculo de estudante a atestar.
+- [x] Mostra: nome completo, instituição, curso, e **só rua, bairro e número** do endereço.
       Sem CEP, sem cidade/UF — não identificam ninguém numa conferência e CEP é dado que não
       precisa circular numa tela que se mostra pra outra pessoa.
-- [ ] Avatar por iniciais (padrão já usado no app). **Sem foto** — não há campo em `users`, e
+- [x] Avatar por iniciais (padrão já usado no app). **Sem foto** — não há campo em `users`, e
       adicionar significa upload, storage e moderação: é outra frente.
-- [ ] Validade = estar ativo e vinculado a uma rota. **Não** usar `users.expiry_date`: ela
+- [x] Validade = estar ativo e vinculado a uma rota. **Não** usar `users.expiry_date`: ela
       alimenta `isAccountNonExpired()` do Spring Security, e preenchê-la com validade de
       carteirinha faria o aluno **perder o login** no dia em que ela vencesse.
-- [ ] Rodapé dizendo que **não é documento oficial** nem prova de matrícula — o app sabe o que o
+- [x] Rodapé dizendo que **não é documento oficial** nem prova de matrícula — o app sabe o que o
       aluno declarou, não valida vínculo com a instituição. Sem isso vira documento com aparência
       de oficial que ninguém auditou.
-- [ ] Teste de widget: perfil incompleto → a carteirinha mostra o que falta em vez de campos
-      vazios. Carteirinha com lacuna não serve pra conferência nenhuma.
-- [ ] Teste: aluno sem rota → estado "sem vínculo ativo", não carteirinha em branco.
-- [ ] Teste: o CEP **não** aparece na tela.
-- [ ] Registrar em `docs/PAGES.md` e criar a spec da tela em `docs/specs/aluno/`.
-- [ ] `flutter test`
+- [x] Perfil incompleto → mostra o que falta em vez de campos vazios.
+- [x] Aluno sem rota → "sem vínculo ativo", não carteirinha em branco.
+- [x] Teste provando que CEP, cidade **e e-mail** não aparecem.
+- [x] `/me` passou a devolver o **nome** da instituição — resolver o id no app obrigaria a tela
+      a baixar o catálogo inteiro pra escrever uma linha.
+- [x] Mutação: 5 mutações, 5 alvos certos (inclusive a que vaza o CEP).
+- [x] `docs/PAGES.md` + `docs/specs/aluno/student-card.md`.
+- [x] 257 testes no app, gate exit 0; API 573 unit + 3 IT.
 
 ---
 

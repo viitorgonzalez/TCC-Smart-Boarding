@@ -78,6 +78,11 @@ class Me {
   /// versões da regra pra divergirem.
   final List<String> missingForList;
 
+  /// Nome da instituição principal, não o id: quem lê isso é a carteirinha, e
+  /// resolver o id aqui obrigaria a tela a baixar o catálogo inteiro pra
+  /// escrever uma linha.
+  final String? institution;
+
   const Me({
     required this.id,
     required this.fullName,
@@ -89,6 +94,7 @@ class Me {
     this.course,
     this.address = const Address(),
     this.missingForList = const [],
+    this.institution,
   });
 
   bool get profileCompleteForList => missingForList.isEmpty;
@@ -120,5 +126,6 @@ class Me {
     missingForList:
         (json['missingForList'] as List?)?.map((e) => e as String).toList() ??
         const [],
+    institution: json['institution'] as String?,
   );
 }

@@ -14,9 +14,15 @@ import java.util.UUID;
 public record MeResponse(UUID id, String fullName, String email, String role,
                          boolean hasPassword, boolean hasGoogle,
                          String phone, String course, AddressResponse address,
-                         List<String> missingForList) {
+                         List<String> missingForList, String institution) {
 
     public static MeResponse from(User user) {
+        return from(user, null);
+    }
+
+    /// [institutionName] nulo quando o usuário não declarou instituição — é o
+    /// mesmo estado que `missingForList` já acusa.
+    public static MeResponse from(User user, String institutionName) {
         return new MeResponse(user.getId(), user.getFullName(), user.getEmail(),
                 user.getRole().name(), user.hasPassword(), user.hasGoogle(),
                 user.getPhone(), user.getCourse(),
@@ -24,6 +30,6 @@ public record MeResponse(UUID id, String fullName, String email, String role,
                 // Quem decide o que falta é o domínio, e o app só exibe. Refazer
                 // a conta em Dart daria duas versões da regra pra divergirem, e
                 // a que vale é a do backend -- que é quem recusa a entrada.
-                user.missingForList());
+                user.missingForList(), institutionName);
     }
 }

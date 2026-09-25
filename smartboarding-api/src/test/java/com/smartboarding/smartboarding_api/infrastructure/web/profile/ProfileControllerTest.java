@@ -48,6 +48,8 @@ class ProfileControllerTest extends WebMvcTestSupport {
             updateAddressUseCase;
     @MockitoBean com.smartboarding.smartboarding_api.domain.user.port.in.UpdateOwnProfileUseCase
             updateOwnProfileUseCase;
+    @MockitoBean com.smartboarding.smartboarding_api.domain.institution.port.out.InstitutionRepositoryPort
+            institutionRepository;
 
     @BeforeEach
     void setUp() {

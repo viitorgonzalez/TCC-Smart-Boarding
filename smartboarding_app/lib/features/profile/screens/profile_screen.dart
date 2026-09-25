@@ -12,7 +12,9 @@ import '../../../core/widgets/loading_filled_button.dart';
 import '../../../core/widgets/snackbar_utils.dart';
 import '../models/profile_update_model.dart';
 import '../services/profile_service.dart';
+import '../../membership/providers/membership_provider.dart';
 import '../providers/me_provider.dart';
+import 'student_card_screen.dart';
 import '../widgets/address_card.dart';
 import '../widgets/my_institutions_card.dart';
 import '../widgets/own_data_card.dart';
@@ -151,6 +153,38 @@ class _ProfileScreenState extends State<ProfileScreen> {
                 // provando a atual. Nao ha terceiro caso -- o card so some
                 // enquanto o /me nao respondeu.
                 if (context.watch<MeProvider>().me case final me?) ...[
+                  // So pro aluno: a carteirinha atesta vinculo de estudante,
+                  // e quem administra nao tem um pra atestar.
+                  if (auth.isStudent) ...[
+                    AppCard(
+                      child: ListTile(
+                        key: const Key('profile_open_student_card'),
+                        contentPadding: EdgeInsets.zero,
+                        leading: const Icon(
+                          Icons.badge_outlined,
+                          color: AppColors.deepTeal,
+                        ),
+                        title: const Text('Carteirinha'),
+                        subtitle: const Text(
+                          'Seus dados de estudante, pra mostrar na conferência',
+                        ),
+                        trailing: const Icon(Icons.chevron_right),
+                        onTap: () => Navigator.push<void>(
+                          context,
+                          MaterialPageRoute(
+                            builder: (_) => StudentCardScreen(
+                              me: me,
+                              hasActiveRoute: context
+                                  .read<MembershipProvider>()
+                                  .routes
+                                  .isNotEmpty,
+                            ),
+                          ),
+                        ),
+                      ),
+                    ),
+                    const SizedBox(height: 20),
+                  ],
                   // Fora do formulario de aprovacao de proposito: o endereco
                   // vale na hora, e o nome ainda espera o admin. Misturar as
                   // duas semanticas num botao so faria o aluno nao saber o que

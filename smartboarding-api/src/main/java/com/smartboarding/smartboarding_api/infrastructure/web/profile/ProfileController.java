@@ -1,6 +1,8 @@
 package com.smartboarding.smartboarding_api.infrastructure.web.profile;
 
 import com.smartboarding.smartboarding_api.domain.profile.entity.ProfileUpdateRequest;
+import com.smartboarding.smartboarding_api.domain.institution.entity.Institution;
+import com.smartboarding.smartboarding_api.domain.institution.port.out.InstitutionRepositoryPort;
 import com.smartboarding.smartboarding_api.domain.membership.port.in.ManageUserInstitutionsUseCase;
 import com.smartboarding.smartboarding_api.domain.profile.port.in.ManageProfileUpdateUseCase;
 import com.smartboarding.smartboarding_api.domain.user.port.in.ChangePasswordUseCase;
@@ -46,6 +48,7 @@ public class ProfileController {
     private final ChangePasswordUseCase changePasswordUseCase;
     private final UpdateAddressUseCase updateAddressUseCase;
     private final UpdateOwnProfileUseCase updateOwnProfileUseCase;
+    private final InstitutionRepositoryPort institutionRepository;
 
     public ProfileController(ManageProfileUpdateUseCase useCase,
                              UserRepositoryPort userRepository,
@@ -53,7 +56,8 @@ public class ProfileController {
                              SetLocalPasswordUseCase setLocalPasswordUseCase,
                              ChangePasswordUseCase changePasswordUseCase,
                              UpdateAddressUseCase updateAddressUseCase,
-                             UpdateOwnProfileUseCase updateOwnProfileUseCase) {
+                             UpdateOwnProfileUseCase updateOwnProfileUseCase,
+                             InstitutionRepositoryPort institutionRepository) {
         this.useCase = useCase;
         this.userRepository = userRepository;
         this.userInstitutionsUseCase = userInstitutionsUseCase;
@@ -61,6 +65,7 @@ public class ProfileController {
         this.changePasswordUseCase = changePasswordUseCase;
         this.updateAddressUseCase = updateAddressUseCase;
         this.updateOwnProfileUseCase = updateOwnProfileUseCase;
+        this.institutionRepository = institutionRepository;
     }
 
     @PostMapping("/me/profile-requests")
@@ -143,7 +148,17 @@ public class ProfileController {
 
     @GetMapping("/me")
     public ResponseEntity<ApiResponse<MeResponse>> meInfo(Authentication auth) {
-        return ResponseEntity.ok(ApiResponse.data(MeResponse.from(me(auth))));
+        return ResponseEntity.ok(ApiResponse.data(comInstituicao(me(auth))));
+    }
+
+    /// O nome, não o id: quem lê isso é a carteirinha, que se mostra pra outra
+    /// pessoa. Deixar o app resolver o id obrigaria ele a baixar o catálogo
+    /// inteiro só pra escrever uma linha.
+    private MeResponse comInstituicao(User user) {
+        String nome = user.getInstitutionId() == null ? null
+                : institutionRepository.findById(user.getInstitutionId())
+                        .map(Institution::getName).orElse(null);
+        return MeResponse.from(user, nome);
     }
 
     /// Define a senha local de quem entrou pelo Google. A partir daí ele entra
@@ -185,7 +200,7 @@ public class ProfileController {
             @RequestBody @Valid UpdateOwnProfileRequest body, Authentication auth) {
         User me = me(auth);
         updateOwnProfileUseCase.update(me.getId(), body.phone(), body.course());
-        return ResponseEntity.ok(ApiResponse.data(MeResponse.from(me(auth))));
+        return ResponseEntity.ok(ApiResponse.data(comInstituicao(me(auth))));
     }
 
     private User me(Authentication auth) {
