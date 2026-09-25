@@ -46,6 +46,8 @@ public class StopController {
                 .routeId(routeId).name(request.name())
                 .latitude(request.latitude()).longitude(request.longitude())
                 .sequence(request.sequence() == null ? 0 : request.sequence())
+                .institutionId(request.institutionId())
+                .isMainPoint(request.isMainPoint())
                 .build();
         return ResponseEntity.status(HttpStatus.CREATED)
                 .body(ApiResponse.data(StopResponse.from(manageStopsUseCase.add(stop))));
@@ -57,9 +59,15 @@ public class StopController {
                                                             @RequestBody @Valid UpdateStopRequest request,
                                                             Authentication auth) {
         guard.ownsRoute(auth, routeId);
-        return ResponseEntity.ok(ApiResponse.data(StopResponse.from(
-                manageStopsUseCase.update(stopId, request.name(),
-                        request.latitude(), request.longitude()))));
+        // Arrastar o pino no mapa manda só as coordenadas. Chamar a sobrecarga
+        // completa aí passaria institutionId nulo junto e desvincularia a
+        // instituição sem ninguém pedir.
+        Stop salva = request.mexeNoVinculo()
+                ? manageStopsUseCase.update(stopId, request.name(), request.latitude(),
+                        request.longitude(), request.institutionId(), request.isMainPoint())
+                : manageStopsUseCase.update(stopId, request.name(),
+                        request.latitude(), request.longitude());
+        return ResponseEntity.ok(ApiResponse.data(StopResponse.from(salva)));
     }
 
     @DeleteMapping("/{stopId}")

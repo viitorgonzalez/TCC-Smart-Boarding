@@ -216,7 +216,7 @@ App. Base pro bloco do trajeto — sem isso o tempo parte de um ponto que não �
 
 ---
 
-### Task 9: Parada ↔ instituição — **corrige um bug vivo**
+### Task 9: Parada ↔ instituição — **corrige um bug vivo** ✅
 
 Backend. Não é só o que destrava "tempo até a sua instituição": é conserto.
 
@@ -228,30 +228,24 @@ Backend. Não é só o que destrava "tempo até a sua instituição": é consert
 > devolve `STOP_NOT_MAIN_POINT`. Fazer as telas novas (Tasks 12–14) sem isto seria entregar um
 > botão que só dá erro.
 
-- [ ] **Primeiro reproduza:** crie uma rota nova com paradas pela API, inicie o trajeto, tente o
-      checkpoint. Espere `STOP_NOT_MAIN_POINT`. Não implemente antes de ver o erro.
-- [ ] Teste de integração que falha hoje: parada criada pela API → checkpoint aceito.
-- [ ] Migration `V32__stop_institution.sql`: `stops.institution_id UUID NULL REFERENCES institutions(id)`.
-- [ ] Popular pelo mesmo `LIKE` da V20 — uma vez, **como dado**, não como regra viva.
-- [ ] `is_main_point` passa a ser derivado: tem `institution_id`, ou é a rodoviária.
-- [ ] `CreateStopRequest`/`UpdateStopRequest` ganham `institutionId`; `add()` e `update()` gravam.
-      **Esta é a linha que conserta o bug** — sem ela a parada nova continua nascendo comum.
-- [ ] Teste: renomear a parada **não** desfaz o vínculo. (É o que prova que saímos do `LIKE`.)
-- [ ] Teste: parada sem instituição e sem ser rodoviária → segue recusando checkpoint. A RN23
-      continua valendo; o que muda é existir um jeito de marcar a parada como principal.
-- [ ] Campo opcional no editor de paradas do admin — parada comum não tem instituição.
-- [ ] Expor `institutionId` em `StopResponse`.
-- [ ] **Dado existente:** "Campus Unifor" está `is_main_point = f` no banco local porque não
-      casou com "UNIFOR-MG — Formiga". A migration deve corrigir o que o `LIKE` errou, ou o admin
-      corrige na tela. Decida ao implementar, mas não deixe passar em silêncio.
-- [ ] `./mvnw verify`
-
----
-
-### Task 10: Tempo médio por parada principal
-
-Backend. O número é estável — calcular no app faria cada aparelho bater no OSRM pro mesmo resultado.
-
+- [x] **Reproduzido primeiro:** teste em `StopUseCaseImplTest` que falhava — parada criada com
+      instituição não virava ponto principal (o método nem existia).
+- [x] `StopControllerTest`: o `institutionId` do corpo chega no use case e volta na resposta.
+- [x] Migration `V32__stop_institution.sql`:
+- [x] Populada pelo mesmo `LIKE` da V20
+- [x] `Stop.refreshMainPoint()`: quem serve instituição é sempre principal; o resto depende do
+      que o admin marcou — a rodoviária é ponto principal sem ser instituição nenhuma.
+- [x] `CreateStopRequest`/`UpdateStopRequest` ganham `institutionId` e `mainPoint`; `add()` e a
+      sobrecarga de `update()` gravam. **É a linha que conserta o bug.**
+- [x] Teste: renomear **não** desfaz o vínculo.
+- [x] Teste: parada comum segue sem virar ponto principal — a RN23 continua valendo.
+- [x] "Instituição atendida" no menu da parada, no app. Some quando a rota não tem instituição:
+      oferecer escolha sem opção é um beco.
+- [x] `institutionId` e `isMainPoint` em `StopResponse` e no `StopModel` do app.
+- [x] **Dado existente:** a migration **não** tenta adivinhar o que o `LIKE` errou ("Campus
+      Unifor" × "UNIFOR-MG — Formiga") — adivinhar é exatamente o que ela existe pra parar de
+      fazer. Está comentado no SQL e entra na verificação no aparelho.
+- [x] `./mvnw verify` — 582 unit + 3 IT; app com 275 testes e gate exit 0.
 - [ ] Migration `V33__stop_avg_minutes.sql`: `stops.avg_minutes_from_start INTEGER NULL`.
       **Por parada**, não por rota: se o tempo ao vivo é até a instituição do aluno, a média
       também precisa ser. A média do trajeto inteiro pra quem desce na terceira de sete paradas

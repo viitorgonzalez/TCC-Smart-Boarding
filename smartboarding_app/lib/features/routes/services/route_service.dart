@@ -157,6 +157,23 @@ class RouteService {
     );
   }
 
+  /// Declara (ou desfaz) o vínculo da parada com uma instituição.
+  ///
+  /// Chamada separada de [updateStop] porque o backend distingue "mover a
+  /// parada" de "mexer no vínculo": mandar `institutionId: null` junto das
+  /// coordenadas desvincularia a instituição só por arrastar o pino.
+  Future<void> setStopInstitution(
+    String routeId,
+    String stopId, {
+    String? institutionId,
+    bool mainPoint = false,
+  }) async {
+    await _dio.patch(
+      '/api/routes/$routeId/stops/$stopId',
+      data: {'institutionId': institutionId, 'mainPoint': mainPoint},
+    );
+  }
+
   Future<void> deleteStop(String routeId, String stopId) async {
     await _dio.delete('/api/routes/$routeId/stops/$stopId');
   }

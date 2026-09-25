@@ -28,6 +28,10 @@ public class StopUseCaseImpl implements ManageStopsUseCase {
     @Override
     @Transactional
     public Stop add(Stop stop) {
+        // Sem esta linha a parada nasce comum e o trajeto recusa todo
+        // checkpoint nela -- que era o estado de toda rota criada depois da V20.
+        stop.refreshMainPoint(stop.isMainPoint());
+
         List<Stop> existing = stopRepository.findAllByRouteIdOrderBySequenceAsc(stop.getRouteId());
 
         if (stop.getSequence() <= 0) {
@@ -51,6 +55,24 @@ public class StopUseCaseImpl implements ManageStopsUseCase {
     @Override
     @Transactional
     public Stop update(UUID stopId, String name, Double latitude, Double longitude) {
+        Stop stop = aplicar(stopId, name, latitude, longitude);
+        return stopRepository.save(stop);
+    }
+
+    @Override
+    @Transactional
+    public Stop update(UUID stopId, String name, Double latitude, Double longitude,
+                       UUID institutionId, boolean mainPoint) {
+        Stop stop = aplicar(stopId, name, latitude, longitude);
+        stop.setInstitutionId(institutionId);
+        // Desvincular tira o status: a parada deixou de servir alguém, e seguir
+        // aceitando checkpoint marcaria chegada num lugar que não é destino de
+        // ninguém.
+        stop.refreshMainPoint(mainPoint);
+        return stopRepository.save(stop);
+    }
+
+    private Stop aplicar(UUID stopId, String name, Double latitude, Double longitude) {
         Stop stop = stopRepository.findById(stopId)
                 .orElseThrow(() -> new NotFoundException("Parada não encontrada"));
         if (name != null && !name.isBlank()) {
@@ -60,7 +82,7 @@ public class StopUseCaseImpl implements ManageStopsUseCase {
             stop.setLatitude(latitude);
             stop.setLongitude(longitude);
         }
-        return stopRepository.save(stop);
+        return stop;
     }
 
     @Override

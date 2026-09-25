@@ -181,6 +181,9 @@ class _RouteDetailScreenState extends State<RouteDetailScreen> {
                           routeId: widget.route.id,
                           stops: _stops,
                           run: _run,
+                          institutions: context
+                              .read<InstitutionProvider>()
+                              .servedBy(widget.route.id),
                         ),
                       ),
                       _linha(
