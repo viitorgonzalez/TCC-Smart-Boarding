@@ -151,6 +151,10 @@ class _AdminDashboard extends StatelessWidget {
                     crossAxisSpacing: 12,
                     mainAxisSpacing: 12,
                     childAspectRatio: AppGrid.featureAspectRatio,
+                    // Ordem por frequencia de uso, em faixas de proposito:
+                    // operacao do dia, acompanhamento, gestao de gente,
+                    // configuracao. A ordem anterior nasceu por acaso, na
+                    // sequencia em que as telas foram surgindo.
                     children: [
                       FeatureCard(
                         icon: Icons.route_outlined,
@@ -171,15 +175,10 @@ class _AdminDashboard extends StatelessWidget {
                         ),
                       ),
                       FeatureCard(
-                        icon: Icons.notifications_none,
-                        label: 'Avisos enviados',
-                        onTap: () => Navigator.push(
-                          context,
-                          MaterialPageRoute(
-                            builder: (_) =>
-                                const NotificationsInboxScreen(canManage: true),
-                          ),
-                        ),
+                        icon: Icons.bar_chart_outlined,
+                        label: 'Relatórios',
+                        onTap: () =>
+                            _open(context, 'Relatórios', const ReportsScreen()),
                       ),
                       FeatureCard(
                         icon: Icons.report_gmailerrorred_outlined,
@@ -193,18 +192,23 @@ class _AdminDashboard extends StatelessWidget {
                         ),
                       ),
                       FeatureCard(
-                        icon: Icons.bar_chart_outlined,
-                        label: 'Relatórios',
-                        onTap: () =>
-                            _open(context, 'Relatórios', const ReportsScreen()),
-                      ),
-                      FeatureCard(
                         icon: Icons.group_outlined,
                         label: 'Usuários',
                         onTap: () => _open(
                           context,
                           'Usuários',
                           const UserManagementScreen(),
+                        ),
+                      ),
+                      FeatureCard(
+                        icon: Icons.notifications_none,
+                        label: 'Avisos enviados',
+                        onTap: () => Navigator.push(
+                          context,
+                          MaterialPageRoute(
+                            builder: (_) =>
+                                const NotificationsInboxScreen(canManage: true),
+                          ),
                         ),
                       ),
                       FeatureCard(

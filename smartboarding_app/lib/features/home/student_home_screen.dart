@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
 import '../../core/providers/auth_provider.dart';
 import '../../core/theme/app_theme.dart';
+import '../../core/text/names.dart';
 import '../../core/utils/async_value.dart';
 import '../../core/widgets/app_card.dart';
 import '../../core/widgets/app_header.dart';
@@ -44,13 +45,16 @@ class StudentHomeScreen extends StatelessWidget {
     final auth = context.watch<AuthProvider>();
     final name = auth.token?.fullName ?? '';
     final initial = name.isNotEmpty ? name[0].toUpperCase() : '?';
+    // O cabecalho e uma saudacao, nao um documento: o nome completo ocupa
+    // duas linhas e empurra as acoes pra fora da tela.
+    final saudacao = primeiroNome(name, fallback: 'Aluno');
 
     return Scaffold(
       body: Column(
         children: [
           AppHeader(
             overline: _greeting(),
-            title: name.isEmpty ? 'Aluno' : name,
+            title: saudacao,
             leading: CircleAvatar(
               radius: 26,
               backgroundColor: AppColors.mutedTeal,
@@ -76,17 +80,25 @@ class StudentHomeScreen extends StatelessWidget {
                     MaterialPageRoute(builder: (_) => const JoinRouteScreen()),
                   ),
                 ),
-                HeaderIconButton(
-                  icon: Icons.person_outline,
-                  tooltip: 'Meu perfil',
-                  onPressed: () => Navigator.of(context).push(
-                    MaterialPageRoute(builder: (_) => const ProfileScreen()),
-                  ),
-                ),
-                HeaderIconButton(
-                  icon: Icons.logout,
-                  tooltip: 'Sair',
-                  onPressed: auth.logout,
+                // Perfil e sair sao ocasionais: nao precisam de alvo
+                // permanente disputando espaco com a acao do dia.
+                HeaderOverflowMenu(
+                  items: [
+                    HeaderMenuItem(
+                      label: 'Meu perfil',
+                      icon: Icons.person_outline,
+                      onSelected: () => Navigator.of(context).push(
+                        MaterialPageRoute(
+                          builder: (_) => const ProfileScreen(),
+                        ),
+                      ),
+                    ),
+                    HeaderMenuItem(
+                      label: 'Sair',
+                      icon: Icons.logout,
+                      onSelected: auth.logout,
+                    ),
+                  ],
                 ),
               ],
             ),

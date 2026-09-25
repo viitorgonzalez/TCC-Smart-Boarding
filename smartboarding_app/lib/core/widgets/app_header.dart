@@ -94,3 +94,53 @@ class HeaderIconButton extends StatelessWidget {
     );
   }
 }
+
+/// Uma ação por item, atrás de um ⋮.
+///
+/// Existe porque três botões sólidos lado a lado no cabeçalho escuro
+/// competiam entre si com o mesmo peso visual. Abrir o perfil e sair são ações
+/// ocasionais — não precisam de alvo permanente. Só o que se usa todo dia fica
+/// à vista.
+class HeaderMenuItem {
+  final String label;
+  final IconData icon;
+  final VoidCallback onSelected;
+
+  const HeaderMenuItem({
+    required this.label,
+    required this.icon,
+    required this.onSelected,
+  });
+}
+
+class HeaderOverflowMenu extends StatelessWidget {
+  final List<HeaderMenuItem> items;
+
+  const HeaderOverflowMenu({super.key, required this.items});
+
+  @override
+  Widget build(BuildContext context) {
+    return PopupMenuButton<int>(
+      key: const Key('header_overflow_menu'),
+      tooltip: 'Mais opções',
+      // Contorno em vez de preenchido: o cabeçalho já tem um botão sólido (a
+      // ação do dia), e dois blocos cheios voltariam a disputar a atenção.
+      icon: const Icon(Icons.more_vert, color: Colors.white),
+      color: AppColors.surface,
+      onSelected: (i) => items[i].onSelected(),
+      itemBuilder: (_) => [
+        for (final (i, item) in items.indexed)
+          PopupMenuItem<int>(
+            value: i,
+            child: Row(
+              children: [
+                Icon(item.icon, size: 20, color: AppColors.charcoal),
+                const SizedBox(width: 12),
+                Text(item.label),
+              ],
+            ),
+          ),
+      ],
+    );
+  }
+}

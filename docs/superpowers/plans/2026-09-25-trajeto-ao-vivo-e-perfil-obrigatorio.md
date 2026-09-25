@@ -174,25 +174,29 @@ Feature nova. Depende da Task 1 (rua/bairro/número).
 
 ---
 
-### Task 6: Cabeçalho do aluno
+### Task 6: Cabeçalho do aluno ✅
 
 App, só visual. Independente.
 
-- [ ] `AppHeader`: mostrar só o primeiro nome. Cuidado com nome de uma palavra só e espaços extras.
-- [ ] Teste: "Vítor Silva Pastor Gonzalez" → "Vítor"; "Ana" → "Ana"; `"  Ana  Maria "` → "Ana".
-- [ ] Trocar os três botões sólidos por: um botão de ação (entrar com código) + menu de excesso
-      (⋮) com perfil e sair.
-- [ ] Teste: as três ações continuam alcançáveis (a de sair, dentro do menu).
-- [ ] `flutter test` + `flutter analyze`
+- [x] `primeiroNome()` em `core/text/names.dart`, com os casos que quebram: nome de uma palavra,
+      espaço sobrando nas pontas e no meio, vazio e nulo.
+- [x] `HeaderOverflowMenu` (⋮) com perfil e sair; só "entrar com código" fica à vista — é a
+      única ação do dia a dia.
+- [x] Teste: as ações ficam escondidas até abrir o menu, e as duas são alcançáveis lá dentro.
+- [x] `flutter test` + `flutter analyze` limpos.
 
 ---
 
-### Task 7: Ordem dos cards do admin
+### Task 7: Ordem dos cards do admin ✅
 
 App, só visual. Independente.
 
-- [ ] Reordenar o grid conforme a spec §3.
-- [ ] Nenhum teste novo — é ordem visual. Confirme que os testes existentes do painel seguem verdes.
+- [x] Ordem nova: Rotas/Enviar Aviso · Relatórios/Advertências · Usuários/Avisos enviados ·
+      Códigos/Instituições. Faixas de propósito: operação do dia, acompanhamento, gestão de
+      gente, configuração.
+- [x] Comentário no código registrando **por que** essa ordem — a anterior nasceu por acaso, na
+      sequência em que as telas foram surgindo.
+- [x] Sem teste novo (é ordem visual); os 265 testes existentes seguem verdes.
 
 **Verificação no aparelho:** os 8 cards continuam cabendo sem rolar, com o "Resumo de Hoje" visível.
 
