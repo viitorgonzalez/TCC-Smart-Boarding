@@ -10,7 +10,6 @@ import java.util.UUID;
 public record ProfileUpdateRequestDto(
         @Size(max = 150) String fullName,
         @Size(max = 20) String phone,
-        String address,
         @Size(max = 100) String course,
         UUID institutionId,
         LocalDate birthDate

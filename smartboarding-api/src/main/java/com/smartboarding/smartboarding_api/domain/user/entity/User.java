@@ -59,8 +59,15 @@ public class User implements UserDetails {
     @Column(length = 20)
     private String phone;
 
-    @Column(columnDefinition = "TEXT")
-    private String address;
+    @Embedded
+    @Builder.Default
+    private Address address = new Address();
+
+    /// O endereço em texto livre que existia antes da V31. Fica só pra não
+    /// perder o que o aluno já tinha digitado — nada o lê pra operar, e some
+    /// quando todo mundo tiver preenchido o estruturado.
+    @Column(name = "address_legacy", columnDefinition = "TEXT")
+    private String addressLegacy;
 
     @Column(name = "expiry_date")
     private LocalDate expiryDate;
@@ -122,5 +129,16 @@ public class User implements UserDetails {
 
     public boolean hasGoogle() {
         return googleId != null && !googleId.isBlank();
+    }
+
+    /// Hibernate devolve o embutido nulo quando toda coluna está nula, então
+    /// quem pergunta pelo endereço nunca recebe null e não precisa checar.
+    public Address getAddress() {
+        if (address == null) address = new Address();
+        return address;
+    }
+
+    public boolean hasCompleteAddress() {
+        return getAddress().isComplete();
     }
 }

@@ -5,8 +5,11 @@ import com.smartboarding.smartboarding_api.domain.membership.port.in.ManageUserI
 import com.smartboarding.smartboarding_api.domain.profile.port.in.ManageProfileUpdateUseCase;
 import com.smartboarding.smartboarding_api.domain.user.port.in.ChangePasswordUseCase;
 import com.smartboarding.smartboarding_api.domain.user.port.in.SetLocalPasswordUseCase;
+import com.smartboarding.smartboarding_api.domain.user.port.in.UpdateAddressUseCase;
 import com.smartboarding.smartboarding_api.infrastructure.web.user.dto.ChangePasswordRequest;
+import com.smartboarding.smartboarding_api.infrastructure.web.user.dto.AddressResponse;
 import com.smartboarding.smartboarding_api.infrastructure.web.user.dto.SetPasswordRequest;
+import com.smartboarding.smartboarding_api.infrastructure.web.user.dto.UpdateAddressRequest;
 import com.smartboarding.smartboarding_api.domain.user.entity.User;
 import com.smartboarding.smartboarding_api.domain.user.port.out.UserRepositoryPort;
 import com.smartboarding.smartboarding_api.infrastructure.web.profile.dto.MeResponse;
@@ -39,17 +42,20 @@ public class ProfileController {
     private final ManageUserInstitutionsUseCase userInstitutionsUseCase;
     private final SetLocalPasswordUseCase setLocalPasswordUseCase;
     private final ChangePasswordUseCase changePasswordUseCase;
+    private final UpdateAddressUseCase updateAddressUseCase;
 
     public ProfileController(ManageProfileUpdateUseCase useCase,
                              UserRepositoryPort userRepository,
                              ManageUserInstitutionsUseCase userInstitutionsUseCase,
                              SetLocalPasswordUseCase setLocalPasswordUseCase,
-                             ChangePasswordUseCase changePasswordUseCase) {
+                             ChangePasswordUseCase changePasswordUseCase,
+                             UpdateAddressUseCase updateAddressUseCase) {
         this.useCase = useCase;
         this.userRepository = userRepository;
         this.userInstitutionsUseCase = userInstitutionsUseCase;
         this.setLocalPasswordUseCase = setLocalPasswordUseCase;
         this.changePasswordUseCase = changePasswordUseCase;
+        this.updateAddressUseCase = updateAddressUseCase;
     }
 
     @PostMapping("/me/profile-requests")
@@ -57,7 +63,7 @@ public class ProfileController {
             @RequestBody @Valid ProfileUpdateRequestDto body, Authentication auth) {
         User me = me(auth);
         var saved = useCase.request(me.getId(), ProfileUpdateRequest.builder()
-                .fullName(body.fullName()).phone(body.phone()).address(body.address())
+                .fullName(body.fullName()).phone(body.phone())
                 .course(body.course()).institutionId(body.institutionId())
                 .birthDate(body.birthDate()).build());
         return ResponseEntity.status(HttpStatus.CREATED)
@@ -153,6 +159,17 @@ public class ProfileController {
         changePasswordUseCase.changePassword(
                 me(auth).getId(), body.currentPassword(), body.newPassword());
         return ResponseEntity.ok(ApiResponse.success());
+    }
+
+    /// Endereço do próprio usuário, salvo direto. Fora da fila de aprovação
+    /// de propósito: ele diz onde a pessoa embarca, não em qual transporte ela
+    /// entra -- e é pré-requisito pra entrar na lista, então depender de um
+    /// admin deixaria o aluno travado esperando.
+    @PutMapping("/me/address")
+    public ResponseEntity<ApiResponse<AddressResponse>> updateAddress(
+            @RequestBody @Valid UpdateAddressRequest body, Authentication auth) {
+        var salvo = updateAddressUseCase.update(me(auth).getId(), body.toDomain());
+        return ResponseEntity.ok(ApiResponse.data(AddressResponse.from(salvo)));
     }
 
     private User me(Authentication auth) {

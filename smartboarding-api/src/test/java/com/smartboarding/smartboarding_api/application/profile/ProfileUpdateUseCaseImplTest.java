@@ -52,7 +52,7 @@ class ProfileUpdateUseCaseImplTest {
                 Clock.fixed(AGORA.toInstant(ZoneOffset.UTC), ZoneOffset.UTC));
         aluno = User.builder().id(ALUNO).email("fernanda@edu.unifor.br")
                 .fullName("Fernanda Lima").phone("37999990000")
-                .course("Engenharia").address("Rua A, 1").build();
+                .course("Engenharia").addressLegacy("Rua A, 1").build();
         when(userRepository.findById(ALUNO)).thenReturn(Optional.of(aluno));
         when(userRepository.save(any())).thenAnswer(i -> i.getArgument(0));
         when(requestRepository.save(any())).thenAnswer(i -> i.getArgument(0));
@@ -142,7 +142,22 @@ class ProfileUpdateUseCaseImplTest {
 
         assertThat(aluno.getPhone()).isEqualTo("37999990000");
         assertThat(aluno.getCourse()).isEqualTo("Engenharia");
-        assertThat(aluno.getAddress()).isEqualTo("Rua A, 1");
+        assertThat(aluno.getAddressLegacy()).isEqualTo("Rua A, 1");
+    }
+
+    /// O endereço saiu da fila de aprovação (tem PUT /me/address agora), mas
+    /// pedido aberto ANTES disso ainda chega aqui. Vai pro campo legado em vez
+    /// de sumir calado -- e NÃO pro estruturado, que só o próprio aluno escreve.
+    @Test
+    void enderecoDePedidoAntigoVaiProCampoLegadoENaoProEstruturado() {
+        var p = pedidoDe(UUID.randomUUID(), ProfileUpdateStatus.PENDING);
+        p.setAddress("Rua Nova, 42");
+
+        useCase.approve(p.getId(), ADMIN);
+
+        assertThat(aluno.getAddressLegacy()).isEqualTo("Rua Nova, 42");
+        assertThat(aluno.getAddress().isComplete()).isFalse();
+        assertThat(aluno.getAddress().getStreet()).isNull();
     }
 
     @Test

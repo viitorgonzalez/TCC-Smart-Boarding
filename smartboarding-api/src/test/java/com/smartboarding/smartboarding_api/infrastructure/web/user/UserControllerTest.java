@@ -3,6 +3,7 @@ package com.smartboarding.smartboarding_api.infrastructure.web.user;
 import com.smartboarding.smartboarding_api.domain.institution.entity.Institution;
 import com.smartboarding.smartboarding_api.domain.institution.port.out.InstitutionRepositoryPort;
 import com.smartboarding.smartboarding_api.domain.list.port.out.ListEntryRepositoryPort;
+import com.smartboarding.smartboarding_api.domain.user.entity.Address;
 import com.smartboarding.smartboarding_api.domain.user.entity.Role;
 import com.smartboarding.smartboarding_api.domain.user.entity.User;
 import com.smartboarding.smartboarding_api.domain.user.port.in.FindUserUseCase;
@@ -66,13 +67,18 @@ class UserControllerTest extends WebMvcTestSupport {
     @MockitoBean UserRepositoryPort userRepository;
     @MockitoBean ListEntryRepositoryPort listEntryRepository;
 
+    private static final Address ENDERECO = Address.builder()
+            .zipCode("35570-000").street("Av. Dr. Arnaldo de Senna")
+            .neighborhood("Água Vermelha").city("Formiga").state("MG")
+            .streetNumber("328").build();
+
     private User aluno;
 
     @BeforeEach
     void setUp() {
         aluno = User.builder().id(STUDENT_ID).email("fernanda@edu.unifor.br")
                 .fullName("Fernanda Lima").course("Engenharia").role(Role.STUDENT)
-                .phone("37999990000").address("Rua X, 123")
+                .phone("37999990000").address(ENDERECO)
                 .birthDate(java.time.LocalDate.of(2004, 5, 10))
                 .password("$2a$10$hashQueNaoPodeVazar")
                 .institutionId(INSTITUTION_ID).isActive(true).build();
@@ -156,7 +162,12 @@ class UserControllerTest extends WebMvcTestSupport {
                 .andExpect(jsonPath("$.data.fullName").value("Fernanda Lima"))
                 .andExpect(jsonPath("$.data.email").value("fernanda@edu.unifor.br"))
                 .andExpect(jsonPath("$.data.phone").value("37999990000"))
-                .andExpect(jsonPath("$.data.address").value("Rua X, 123"))
+                .andExpect(jsonPath("$.data.address.street").value("Av. Dr. Arnaldo de Senna"))
+                .andExpect(jsonPath("$.data.address.streetNumber").value("328"))
+                .andExpect(jsonPath("$.data.address.zipCode").value("35570-000"))
+                .andExpect(jsonPath("$.data.address.complete").value(true))
+                .andExpect(jsonPath("$.data.address.shortForm")
+                        .value("Av. Dr. Arnaldo de Senna, 328 — Água Vermelha"))
                 .andExpect(jsonPath("$.data.birthDate").value("2004-05-10"))
                 .andExpect(jsonPath("$.data.course").value("Engenharia"))
                 .andExpect(jsonPath("$.data.institution").value("Unifor"));

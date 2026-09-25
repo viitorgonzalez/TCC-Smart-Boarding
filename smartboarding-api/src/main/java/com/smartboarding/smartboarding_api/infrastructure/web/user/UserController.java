@@ -9,6 +9,7 @@ import com.smartboarding.smartboarding_api.domain.user.port.in.FindUserUseCase;
 import com.smartboarding.smartboarding_api.domain.user.port.in.ManageUserStatusUseCase;
 import com.smartboarding.smartboarding_api.domain.user.port.out.UserRepositoryPort;
 import com.smartboarding.smartboarding_api.infrastructure.web.user.dto.AdminCountResponse;
+import com.smartboarding.smartboarding_api.infrastructure.web.user.dto.AddressResponse;
 import com.smartboarding.smartboarding_api.infrastructure.web.user.dto.StudentProfileResponse;
 import com.smartboarding.smartboarding_api.infrastructure.web.user.dto.UpdateUserRoleRequest;
 import com.smartboarding.smartboarding_api.infrastructure.web.user.dto.UpdateUserStatusRequest;
@@ -144,7 +145,7 @@ public class UserController {
 
         return new StudentProfileResponse(
                 user.getId(), user.getFullName(), user.getEmail(),
-                user.getPhone(), user.getAddress(), user.getBirthDate(),
+                user.getPhone(), AddressResponse.from(user.getAddress()), user.getBirthDate(),
                 user.getCourse(), institutionNames().get(user.getInstitutionId()),
                 user.isActive(), user.getRole().name(), attendance, changes);
     }
