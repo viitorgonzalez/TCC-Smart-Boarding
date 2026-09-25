@@ -256,24 +256,21 @@ Backend. Não é só o que destrava "tempo até a sua instituição": é consert
 - [x] OSRM indisponível **ou resposta truncada** → nulo. Completar com zero daria um tempo que
       parece certo e não é.
 - [x] `./mvnw verify` — 595 unit + 3 IT.
-- [ ] `GET /api/trip/{listId}` já devolve o estado. Conferir se traz parada atual, paradas
-      alcançadas e se está em andamento; estender com o que faltar.
-- [ ] Resolver **a parada do aluno**: a que tem `institution_id` = instituição declarada dele.
-- [ ] Aluno com duas instituições na mesma rota → vale a **primeira declarada**, que já é a
-      "principal" hoje (decide em que contagem ele entra, ver `my_institutions_card.dart`).
-      Uma regra só no app inteiro.
-- [ ] Aluno cuja instituição não tem parada → devolve a **última** parada e diz qual é. Omitir
-      seria pior: ele fica sem nenhuma noção de quando chega.
-- [ ] Testes dos três casos acima.
-- [ ] **Escopo:** o aluno só lê o trajeto de rota em que ele está. Teste: aluno de outra rota
-      toma 403.
-- [ ] Teste: trajeto não iniciado → estado "não começou", não erro.
-- [ ] `./mvnw test`
-
----
-
-### Task 12: Trajeto ao vivo — tela do admin
-
+- [x] **`/api/trip/**` inteiro era `hasRole("ADMIN")`** — o aluno não lia nada. O GET passou a
+      aceitar qualquer autenticado; conduzir (start/checkpoint/finish) segue do admin (RN23).
+- [x] `myStop` na resposta: a parada com `institution_id` = a instituição declarada dele.
+- [x] Aluno com duas instituições → vale a **principal** (`user.institutionId`), a mesma que já
+      decide em que contagem ele entra. Uma regra só no app inteiro.
+- [x] Instituição sem parada → devolve a última **com `fallback: true`**, pra tela avisar.
+- [x] **O ETA não chama o OSRM.** Sai da diferença entre os `avg_minutes_from_start` já
+      calculados: parada dele menos a última alcançada. Bater no OSRM por consulta seria uma
+      requisição por aluno a cada 20s, e o resultado seria o mesmo número.
+- [x] **Escopo:** aluno de outra rota toma 403 — sem isso, abrir a leitura deixaria qualquer um
+      ler o trajeto de qualquer rota.
+- [x] Admin não tem `myStop`: quem conduz o ônibus não viaja nele.
+- [x] Mutação: 6 mutações. **Uma sobreviveu** — faltava o caso do admin pular um checkpoint,
+      que dava `-7 min` na tela. Teste novo, e agora mata.
+- [x] `./mvnw verify` — 596 unit + 3 IT.
 - [ ] Simplificar `trip_screen.dart`: próxima parada em destaque, um botão "Cheguei nesta
       parada", quantas faltam, encerrar.
 - [ ] Sai da tela: mapa de edição, lista de inscritos, qualquer coisa que não seja a decisão do
