@@ -59,6 +59,13 @@ public class Stop {
         this.isMainPoint = institutionId != null || marcadoPeloAdmin;
     }
 
+    /// Minutos do início do trajeto até esta parada, embarque incluso.
+    ///
+    /// Nulo é "não sei" -- o OSRM público não tem SLA, e a tela omite em vez
+    /// de mostrar zero, que o aluno leria como "o ônibus já chegou".
+    @Column(name = "avg_minutes_from_start")
+    private Integer avgMinutesFromStart;
+
     @Column(name = "created_at", updatable = false)
     private LocalDateTime createdAt;
 

@@ -246,25 +246,16 @@ Backend. Não é só o que destrava "tempo até a sua instituição": é consert
       Unifor" × "UNIFOR-MG — Formiga") — adivinhar é exatamente o que ela existe pra parar de
       fazer. Está comentado no SQL e entra na verificação no aparelho.
 - [x] `./mvnw verify` — 582 unit + 3 IT; app com 275 testes e gate exit 0.
-- [ ] Migration `V33__stop_avg_minutes.sql`: `stops.avg_minutes_from_start INTEGER NULL`.
-      **Por parada**, não por rota: se o tempo ao vivo é até a instituição do aluno, a média
-      também precisa ser. A média do trajeto inteiro pra quem desce na terceira de sete paradas
-      é um número que não é sobre a viagem dele.
-- [ ] Porta de saída nova pro OSRM (`RoutePlannerPort`) + adapter HTTP. Porta, não chamada
-      direta: o serviço troca (spec §4c) e o use case não pode saber disso.
-- [ ] `duration` do OSRM + **1 min por parada** até ali (tempo de embarque).
-- [ ] Recalcular quando as paradas mudarem (criar/mover/remover/reordenar). Não na leitura.
-- [ ] Teste com a porta mockada: 3 paradas, 600s de OSRM até a terceira → 10 + 3 = 13 min.
-- [ ] Teste: OSRM indisponível → fica **nulo** e nada quebra. Nulo é "não sei", e a tela omite —
-      melhor que um número inventado.
-- [ ] `./mvnw test`
-
----
-
-### Task 11: Trajeto ao vivo — backend
-
-O ciclo já existe. Falta o que o aluno precisa ler.
-
+- [x] Migration `V33__stop_avg_minutes.sql`: `stops.avg_minutes_from_start`, **por parada**
+- [x] `RoutePlannerPort` + `OsrmRoutePlannerAdapter` (RestClient), com `GeoPoint` no domínio pra
+      a porta não falar em `Stop`.
+- [x] `duration` do OSRM + **1 min por parada** (embarque). 3 paradas, 600s → 13 min.
+- [x] Recalcula a cada escrita de parada, em `try/catch`: o OSRM não tem SLA, e o admin criou a
+      parada — serviço externo fora não pode desfazer isso.
+- [x] 6 testes do cálculo + 5 do adapter. Mutação: 5 mutações, 5 alvos certos.
+- [x] OSRM indisponível **ou resposta truncada** → nulo. Completar com zero daria um tempo que
+      parece certo e não é.
+- [x] `./mvnw verify` — 595 unit + 3 IT.
 - [ ] `GET /api/trip/{listId}` já devolve o estado. Conferir se traz parada atual, paradas
       alcançadas e se está em andamento; estender com o que faltar.
 - [ ] Resolver **a parada do aluno**: a que tem `institution_id` = instituição declarada dele.

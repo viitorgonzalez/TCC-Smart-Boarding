@@ -16,6 +16,7 @@ import java.util.UUID;
 
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.mockito.ArgumentMatchers.any;
+import static org.mockito.Mockito.verify;
 import static org.mockito.Mockito.when;
 
 @ExtendWith(MockitoExtension.class)
@@ -25,6 +26,11 @@ class StopUseCaseImplTest {
     private static final UUID ROUTE = UUID.randomUUID();
 
     @Mock StopRepositoryPort repository;
+    @Mock com.smartboarding.smartboarding_api.domain.route.port.in.RouteTimingUseCase routeTiming;
+
+    private StopUseCaseImpl useCase() {
+        return new StopUseCaseImpl(repository, routeTiming);
+    }
 
     private Stop stop(String name, int seq) {
         return Stop.builder().id(UUID.randomUUID()).routeId(ROUTE).name(name).sequence(seq).build();
@@ -42,7 +48,7 @@ class StopUseCaseImplTest {
         route(stop("A", 1), stop("B", 2));
         var nova = Stop.builder().routeId(ROUTE).name("C").build();
 
-        var saved = new StopUseCaseImpl(repository).add(nova);
+        var saved = useCase().add(nova);
 
         assertThat(saved.getSequence()).isEqualTo(3);
     }
@@ -55,7 +61,7 @@ class StopUseCaseImplTest {
         route(a, b, c);
         var nova = Stop.builder().routeId(ROUTE).name("Nova").sequence(2).build();
 
-        new StopUseCaseImpl(repository).add(nova);
+        useCase().add(nova);
 
         assertThat(a.getSequence()).isEqualTo(1);
         assertThat(b.getSequence()).isEqualTo(3);
@@ -68,7 +74,7 @@ class StopUseCaseImplTest {
         when(repository.findById(a.getId())).thenReturn(Optional.of(a));
         when(repository.save(any())).thenAnswer(inv -> inv.getArgument(0));
 
-        var moved = new StopUseCaseImpl(repository).update(a.getId(), null, -20.5, -45.5);
+        var moved = useCase().update(a.getId(), null, -20.5, -45.5);
 
         assertThat(moved.getName()).isEqualTo("A");
         assertThat(moved.getLatitude()).isEqualTo(-20.5);
@@ -82,7 +88,7 @@ class StopUseCaseImplTest {
         when(repository.findAllByRouteIdOrderBySequenceAsc(ROUTE)).thenReturn(new ArrayList<>(List.of(c)));
         when(repository.save(any())).thenAnswer(inv -> inv.getArgument(0));
 
-        new StopUseCaseImpl(repository).remove(a.getId());
+        useCase().remove(a.getId());
 
         assertThat(c.getSequence()).isEqualTo(1);
     }
@@ -101,7 +107,7 @@ class StopUseCaseImplTest {
         Stop nova = stop("UNIFOR-MG", 0);
         nova.setInstitutionId(instituicao);
 
-        Stop salva = new StopUseCaseImpl(repository).add(nova);
+        Stop salva = useCase().add(nova);
 
         assertThat(salva.isMainPoint()).isTrue();
         assertThat(salva.getInstitutionId()).isEqualTo(instituicao);
@@ -114,7 +120,7 @@ class StopUseCaseImplTest {
     void paradaComumNaoViraPontoPrincipal() {
         route();
 
-        Stop salva = new StopUseCaseImpl(repository).add(stop("Av. Jair Leite", 0));
+        Stop salva = useCase().add(stop("Av. Jair Leite", 0));
 
         assertThat(salva.isMainPoint()).isFalse();
     }
@@ -128,7 +134,7 @@ class StopUseCaseImplTest {
         Stop rodoviaria = stop("Rodoviária de Pimenta", 0);
         rodoviaria.setMainPoint(true);
 
-        assertThat(new StopUseCaseImpl(repository).add(rodoviaria).isMainPoint()).isTrue();
+        assertThat(useCase().add(rodoviaria).isMainPoint()).isTrue();
     }
 
     /// O vínculo era adivinhado por `s.name LIKE i.name || '%'`. Renomear a
@@ -143,7 +149,7 @@ class StopUseCaseImplTest {
         when(repository.findById(existente.getId())).thenReturn(Optional.of(existente));
         when(repository.save(any())).thenAnswer(inv -> inv.getArgument(0));
 
-        Stop renomeada = new StopUseCaseImpl(repository)
+        Stop renomeada = useCase()
                 .update(existente.getId(), "Portão 2 da UNIFOR", null, null);
 
         assertThat(renomeada.getInstitutionId()).isEqualTo(instituicao);
@@ -161,10 +167,34 @@ class StopUseCaseImplTest {
         when(repository.findById(existente.getId())).thenReturn(Optional.of(existente));
         when(repository.save(any())).thenAnswer(inv -> inv.getArgument(0));
 
-        Stop solta = new StopUseCaseImpl(repository)
+        Stop solta = useCase()
                 .update(existente.getId(), null, null, null, null, false);
 
         assertThat(solta.getInstitutionId()).isNull();
         assertThat(solta.isMainPoint()).isFalse();
+    }
+
+    /// Mexer numa parada muda o tempo de todas as seguintes, então o
+    /// recálculo acompanha cada escrita.
+    @Test
+    void mexerNaParadaRecalculaOsTemposDaRota() {
+        route();
+
+        useCase().add(stop("Centro", 0));
+
+        verify(routeTiming).recalculate(ROUTE);
+    }
+
+    /// O recálculo bate no OSRM, que não tem SLA. O admin criou a parada -- o
+    /// serviço externo estar fora não pode desfazer isso.
+    @Test
+    void osrmForaDoArNaoImpedeCriarParada() {
+        route();
+        org.mockito.Mockito.doThrow(new RuntimeException("OSRM fora"))
+                .when(routeTiming).recalculate(ROUTE);
+
+        Stop salva = useCase().add(stop("Centro", 0));
+
+        assertThat(salva.getName()).isEqualTo("Centro");
     }
 }
