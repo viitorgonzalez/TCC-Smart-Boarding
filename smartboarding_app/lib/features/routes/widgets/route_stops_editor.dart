@@ -7,6 +7,7 @@ import '../../../core/widgets/app_card.dart';
 import '../../../core/widgets/text_prompt_dialog.dart';
 import '../models/map_stop.dart';
 import '../models/stop_model.dart';
+import '../services/road_route_service.dart';
 import '../services/route_service.dart';
 import 'route_map.dart';
 
@@ -22,19 +23,27 @@ class RouteStopsEditor extends StatefulWidget {
   /// recarregamento é compartilhado com as outras seções.
   final Future<void> Function(Future<void> Function(), String) run;
 
+  /// Injetáveis pro teste; em produção cada um constrói o seu.
+  final RouteService? service;
+  final RoadRouteService? roadService;
+
   const RouteStopsEditor({
     super.key,
     required this.routeId,
     required this.stops,
     required this.run,
+    this.service,
+    this.roadService,
   });
 
   @override
-  State<RouteStopsEditor> createState() => _RouteStopsEditorState();
+  RouteStopsEditorState createState() => RouteStopsEditorState();
 }
 
-class _RouteStopsEditorState extends State<RouteStopsEditor> {
-  final _service = RouteService();
+@visibleForTesting
+class RouteStopsEditorState extends State<RouteStopsEditor> {
+  late final RouteService _service = widget.service ?? RouteService();
+  late final RoadRouteService _road = widget.roadService ?? RoadRouteService();
 
   /// Parada sendo reposicionada, ou depois da qual a próxima será inserida.
   StopModel? _pendingStop;
@@ -125,7 +134,20 @@ class _RouteStopsEditorState extends State<RouteStopsEditor> {
 
   /// O toque no mapa muda de significado conforme o modo ativo.
 
-  Future<void> _onMapPoint(LatLng point) async {
+  /// Exposto pro teste porque simular um toque dentro do mapa exigiria
+  /// controlar a camera do flutter_map — e o que importa aqui e o que sai
+  /// daqui pro backend, nao o gesto.
+  @visibleForTesting
+  Future<void> onMapPoint(LatLng point) => _onMapPoint(point);
+
+  /// Gruda na via antes de qualquer coisa: as tres acoes (criar, mover,
+  /// inserir) saem deste mesmo ponto, e corrigir aqui cobre as tres.
+  ///
+  /// OSRM fora do ar devolve o ponto do toque -- parada no lugar aproximado e
+  /// melhor que nenhuma parada.
+  Future<void> _onMapPoint(LatLng tocado) async {
+    final point = await _road.snapToRoad(tocado) ?? tocado;
+    if (!mounted) return;
     final action = _pendingAction;
     final target = _pendingStop;
     if (action == null) {
