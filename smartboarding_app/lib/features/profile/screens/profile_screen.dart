@@ -10,6 +10,7 @@ import '../../../core/widgets/loading_filled_button.dart';
 import '../../../core/widgets/snackbar_utils.dart';
 import '../models/profile_update_model.dart';
 import '../services/profile_service.dart';
+import '../widgets/address_card.dart';
 import '../widgets/my_institutions_card.dart';
 import '../widgets/password_card.dart';
 
@@ -30,7 +31,6 @@ class _ProfileScreenState extends State<ProfileScreen> {
   final _formKey = GlobalKey<FormState>();
   final _nameCtrl = TextEditingController();
   final _phoneCtrl = TextEditingController();
-  final _addressCtrl = TextEditingController();
   final _courseCtrl = TextEditingController();
 
   ProfileUpdate? _pendente;
@@ -49,7 +49,6 @@ class _ProfileScreenState extends State<ProfileScreen> {
   void dispose() {
     _nameCtrl.dispose();
     _phoneCtrl.dispose();
-    _addressCtrl.dispose();
     _courseCtrl.dispose();
     super.dispose();
   }
@@ -86,12 +85,11 @@ class _ProfileScreenState extends State<ProfileScreen> {
     final auth = context.read<AuthProvider>();
     final nome = _mudou(_nameCtrl, auth.token?.fullName);
     final telefone = _mudou(_phoneCtrl, null);
-    final endereco = _mudou(_addressCtrl, null);
     // O campo nem aparece pra quem administra; ler o controller assim mesmo
     // mandaria curso de uma sessao anterior que trocou de papel.
     final curso = auth.isStudent ? _mudou(_courseCtrl, null) : null;
 
-    if (nome == null && telefone == null && endereco == null && curso == null) {
+    if (nome == null && telefone == null && curso == null) {
       showErrorSnackBar(context, 'Altere ao menos um campo antes de enviar.');
       return;
     }
@@ -101,7 +99,6 @@ class _ProfileScreenState extends State<ProfileScreen> {
       final p = await _service.requestUpdate(
         fullName: nome,
         phone: telefone,
-        address: endereco,
         course: curso,
       );
       if (!mounted) return;
@@ -164,6 +161,12 @@ class _ProfileScreenState extends State<ProfileScreen> {
                 // provando a atual. Nao ha terceiro caso -- o card so some
                 // enquanto o /me nao respondeu.
                 if (_me case final me?) ...[
+                  // Fora do formulario de aprovacao de proposito: o endereco
+                  // vale na hora, e o nome ainda espera o admin. Misturar as
+                  // duas semanticas num botao so faria o aluno nao saber o que
+                  // ja valeu e o que foi so pedido.
+                  AddressCard(initial: me.address, onSaved: _load),
+                  const SizedBox(height: 20),
                   PasswordCard(changing: me.hasPassword, onSaved: _load),
                   const SizedBox(height: 20),
                 ],
@@ -243,14 +246,6 @@ class _ProfileScreenState extends State<ProfileScreen> {
                         controller: _phoneCtrl,
                         icon: Icons.phone_outlined,
                         keyboardType: TextInputType.phone,
-                        readOnly: emAnalise,
-                      ),
-                      const SizedBox(height: 16),
-                      AppTextField(
-                        key: const Key('profile_address_field'),
-                        label: 'Endereço',
-                        controller: _addressCtrl,
-                        icon: Icons.place_outlined,
                         readOnly: emAnalise,
                       ),
                       // Curso descreve quem estuda. Quem administra declara a

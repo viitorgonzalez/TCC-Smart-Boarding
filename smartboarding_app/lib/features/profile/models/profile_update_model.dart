@@ -1,3 +1,5 @@
+import 'address_model.dart';
+
 /// Solicitação de alteração de perfil. Campo nulo = não foi pedida mudança
 /// nele — distinguir "não pedi" de "pedi vazio" é o que evita apagar dado que
 /// o aluno não quis mexer.
@@ -67,6 +69,9 @@ class Me {
   final String role;
   final bool hasPassword;
   final bool hasGoogle;
+  final String? phone;
+  final String? course;
+  final Address address;
 
   const Me({
     required this.id,
@@ -75,6 +80,9 @@ class Me {
     required this.role,
     required this.hasPassword,
     required this.hasGoogle,
+    this.phone,
+    this.course,
+    this.address = const Address(),
   });
 
   factory Me.fromJson(Map<String, dynamic> json) => Me(
@@ -84,5 +92,10 @@ class Me {
     role: json['role'] as String,
     hasPassword: json['hasPassword'] as bool? ?? true,
     hasGoogle: json['hasGoogle'] as bool? ?? false,
+    phone: json['phone'] as String?,
+    course: json['course'] as String?,
+    address: json['address'] == null
+        ? const Address()
+        : Address.fromJson(json['address'] as Map<String, dynamic>),
   );
 }

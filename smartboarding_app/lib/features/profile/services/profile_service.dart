@@ -1,14 +1,16 @@
 import '../../../core/services/dio_client.dart';
+import '../models/address_model.dart';
 import '../models/profile_update_model.dart';
 
 class ProfileService {
   final _dio = DioClient.instance;
 
   /// Manda só o que mudou: campo ausente significa "não pedi mudança nele".
+  ///
+  /// Endereço não passa por aqui — ele tem [updateAddress], que salva direto.
   Future<ProfileUpdate> requestUpdate({
     String? fullName,
     String? phone,
-    String? address,
     String? course,
     String? institutionId,
     String? birthDate,
@@ -18,7 +20,6 @@ class ProfileService {
       data: {
         'fullName': ?fullName,
         'phone': ?phone,
-        'address': ?address,
         'course': ?course,
         'institutionId': ?institutionId,
         'birthDate': ?birthDate,
@@ -65,6 +66,17 @@ class ProfileService {
     return data == null
         ? null
         : ProfileUpdate.fromJson(data as Map<String, dynamic>);
+  }
+
+  /// Salva o endereço direto, sem passar pela fila do admin: ele diz onde o
+  /// aluno embarca, não em qual transporte ele entra. Como é pré-requisito pra
+  /// entrar na lista, depender de aprovação deixaria a pessoa travada esperando.
+  Future<Address> updateAddress(Address endereco) async {
+    final response = await _dio.put(
+      '/api/me/address',
+      data: endereco.toJson(),
+    );
+    return Address.fromJson(response.data['data'] as Map<String, dynamic>);
   }
 
   Future<Me> me() async {

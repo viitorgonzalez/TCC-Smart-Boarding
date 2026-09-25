@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import 'package:flutter/services.dart';
 import '../theme/app_theme.dart';
 
 /// Rótulo fica **acima** da caixa, não flutuante como o padrão do Material.
@@ -34,6 +35,14 @@ class AppTextField extends StatelessWidget {
   /// formulario de quatro campos isso e um toque a mais por campo.
   final TextInputAction? textInputAction;
 
+  /// Formata enquanto se digita (mascara de CEP, telefone). Sem isso o campo
+  /// mostra 35570000 enquanto todo mundo le CEP como 35570-000.
+  final List<TextInputFormatter>? inputFormatters;
+
+  /// Deixa outra tela mandar o foco pra ca. E o que permite ao CEP, depois de
+  /// preencher rua e bairro sozinho, pular direto pro unico campo que sobrou.
+  final FocusNode? focusNode;
+
   /// Chamado quando a tecla de acao e apertada. E o que faz o `done` enviar o
   /// formulario em vez de so fechar o teclado.
   final VoidCallback? onSubmitted;
@@ -56,6 +65,8 @@ class AppTextField extends StatelessWidget {
     this.autofillHints,
     this.textInputAction,
     this.onSubmitted,
+    this.inputFormatters,
+    this.focusNode,
   });
 
   @override
@@ -74,6 +85,8 @@ class AppTextField extends StatelessWidget {
         const SizedBox(height: 8),
         TextFormField(
           controller: controller,
+          focusNode: focusNode,
+          inputFormatters: inputFormatters,
           obscureText: obscureText,
           readOnly: readOnly,
           maxLines: maxLines,
@@ -86,6 +99,10 @@ class AppTextField extends StatelessWidget {
           textInputAction: textInputAction,
           onFieldSubmitted: onSubmitted == null ? null : (_) => onSubmitted!(),
           decoration: InputDecoration(
+            // O contador "0/9" embaixo do campo so faz sentido onde o limite
+            // e a informacao (uma bio, um motivo). Em CEP e UF ele e ruido:
+            // o formato ja diz quanto cabe.
+            counterText: maxLength == null ? null : '',
             hintText: hint,
             prefixIcon: icon == null ? null : Icon(icon),
             suffixIcon: suffix,
