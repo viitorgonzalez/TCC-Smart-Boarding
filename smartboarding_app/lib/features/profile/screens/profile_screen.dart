@@ -1,3 +1,5 @@
+import 'dart:async';
+
 import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
 import '../../../core/errors/app_exception.dart';
@@ -10,6 +12,7 @@ import '../../../core/widgets/loading_filled_button.dart';
 import '../../../core/widgets/snackbar_utils.dart';
 import '../models/profile_update_model.dart';
 import '../services/profile_service.dart';
+import '../providers/me_provider.dart';
 import '../widgets/address_card.dart';
 import '../widgets/my_institutions_card.dart';
 import '../widgets/own_data_card.dart';
@@ -33,7 +36,6 @@ class _ProfileScreenState extends State<ProfileScreen> {
   final _nameCtrl = TextEditingController();
 
   ProfileUpdate? _pendente;
-  Me? _me;
   bool _loading = true;
   bool _saving = false;
 
@@ -51,14 +53,13 @@ class _ProfileScreenState extends State<ProfileScreen> {
   }
 
   Future<void> _load() async {
-    // Em catch proprio: o /me so decide se o card de senha aparece. Se ele
-    // falhar, o perfil inteiro ainda tem que abrir.
-    _service
-        .me()
-        .then((m) {
-          if (mounted) setState(() => _me = m);
-        })
-        .catchError((_) {});
+    // Pelo MeProvider e nao por um /me proprio: o card da lista le o mesmo
+    // dado pra decidir se avisa o perfil incompleto. Com duas copias, salvar
+    // aqui deixaria o aviso de la mentindo ate a proxima abertura da tela.
+    //
+    // Sem await e com a falha engolida dentro do provider: o /me so alimenta
+    // avisos, e o perfil inteiro tem que abrir mesmo se ele nao responder.
+    unawaited(context.read<MeProvider>().load());
     try {
       final ultimo = await _service.myLatest();
       if (mounted) setState(() => _pendente = ultimo);
@@ -149,7 +150,7 @@ class _ProfileScreenState extends State<ProfileScreen> {
                 // Quem ainda nao tem senha cria a primeira; quem tem, troca
                 // provando a atual. Nao ha terceiro caso -- o card so some
                 // enquanto o /me nao respondeu.
-                if (_me case final me?) ...[
+                if (context.watch<MeProvider>().me case final me?) ...[
                   // Fora do formulario de aprovacao de proposito: o endereco
                   // vale na hora, e o nome ainda espera o admin. Misturar as
                   // duas semanticas num botao so faria o aluno nao saber o que

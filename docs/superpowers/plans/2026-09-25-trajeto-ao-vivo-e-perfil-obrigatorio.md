@@ -123,16 +123,27 @@ stub — sem isso, todo teste de horário passaria a falhar por um motivo que n�
 
 ---
 
-### Task 4: O app avisa antes de esbarrar
+### Task 4: O app avisa antes de esbarrar ✅
 
 App. Nunca deixe o aluno descobrir o bloqueio só ao tocar no botão.
 
-- [ ] Widget: perfil incompleto → o botão "Entrar na lista" dá lugar a um bloco com **o que
-      falta** e atalho pro perfil.
-- [ ] Teste de widget: perfil incompleto → não há botão de entrar, há o aviso e o atalho.
-- [ ] Teste: perfil completo → botão normal, sem aviso.
-- [ ] Teste: o texto **nomeia** os campos que faltam (não "complete seu perfil" genérico).
-- [ ] `flutter test`
+- [x] `/me` passou a devolver `missingForList`. O app **não** refaz a conta: quem recusa a
+      entrada é o backend, e duas versões da regra divergiriam na primeira mudança.
+- [x] `MeProvider` compartilhado — o card da lista e a tela de perfil leem o mesmo dado.
+- [x] Perfil incompleto → o botão "Entrar na lista" dá lugar a um bloco nomeando o que falta,
+      com atalho pro perfil que recarrega o `/me` na volta.
+- [x] **Quem já está na lista mantém o "Sair"**: entrou quando era permitido, e escondê-lo por
+      um campo em branco o prenderia numa viagem que ele não vai fazer.
+- [x] `ProfileScreen` passou a ler do `MeProvider` em vez de um `/me` próprio. Com duas cópias,
+      salvar pelo cabeçalho deixaria o aviso do card mentindo até a próxima abertura da tela.
+- [x] `my_route_screen` mostrava `e.toString()` cru — um `DioException` aparecia como
+      "DioException [bad response]..." na cara do aluno. Agora usa `AppException.fromError`.
+- [x] Mutação: 4 mutações, 4 alvos certos.
+- [x] 249 testes no app, gate exit 0, analyze limpo; API 573 unit + 3 IT.
+
+**Teste meu que estava errado:** o primeiro montava a lista com `closeTime: '16:00'`. Como
+`acceptsChanges` compara com o relógio, o card sumia inteiro depois das 16h — o teste passaria de
+manhã e falharia à noite. Agora monta sem `closeTime`.
 
 ---
 

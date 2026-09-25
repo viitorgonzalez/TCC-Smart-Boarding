@@ -350,4 +350,16 @@ class ProfileControllerTest extends WebMvcTestSupport {
 
         verify(updateAddressUseCase, never()).update(any(), any());
     }
+
+    /// O app precisa saber o que falta ANTES de o aluno tocar no botão da
+    /// lista. Recalcular isso em Dart daria duas versões da regra, e a que
+    /// vale é a do backend -- que é quem recusa a entrada.
+    @Test
+    void meDizOQueFaltaProPerfilEntrarNaLista() throws Exception {
+        mvc.perform(get("/api/me").with(student()))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.data.missingForList")
+                        .value(org.hamcrest.Matchers.containsInAnyOrder(
+                                "phone", "address", "institution")));
+    }
 }

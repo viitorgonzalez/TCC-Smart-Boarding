@@ -73,6 +73,11 @@ class Me {
   final String? course;
   final Address address;
 
+  /// O que falta pra entrar na lista, pelos nomes dos campos. Vem do backend
+  /// porque é ele quem recusa a entrada: refazer a conta aqui daria duas
+  /// versões da regra pra divergirem.
+  final List<String> missingForList;
+
   const Me({
     required this.id,
     required this.fullName,
@@ -83,7 +88,22 @@ class Me {
     this.phone,
     this.course,
     this.address = const Address(),
+    this.missingForList = const [],
   });
+
+  bool get profileCompleteForList => missingForList.isEmpty;
+
+  /// Os rótulos do que falta, prontos pra tela. Um nome de campo cru na cara
+  /// do aluno ("address") não diz o que ele precisa fazer.
+  static const rotulos = <String, String>{
+    'fullName': 'Nome completo',
+    'phone': 'Telefone',
+    'address': 'Endereço',
+    'institution': 'Instituição',
+  };
+
+  List<String> get faltandoEmPortugues =>
+      [for (final campo in missingForList) rotulos[campo] ?? campo];
 
   factory Me.fromJson(Map<String, dynamic> json) => Me(
     id: json['id'] as String,
@@ -97,5 +117,8 @@ class Me {
     address: json['address'] == null
         ? const Address()
         : Address.fromJson(json['address'] as Map<String, dynamic>),
+    missingForList:
+        (json['missingForList'] as List?)?.map((e) => e as String).toList() ??
+        const [],
   );
 }

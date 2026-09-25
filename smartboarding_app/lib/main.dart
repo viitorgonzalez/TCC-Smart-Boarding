@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
 import 'core/providers/auth_provider.dart';
+import 'features/profile/providers/me_provider.dart';
 import 'features/membership/providers/membership_provider.dart';
 import 'core/theme/app_theme.dart';
 import 'core/navigation/app_navigator.dart';
@@ -21,6 +22,7 @@ class SmartBoardingApp extends StatelessWidget {
       providers: [
         // Auth — global, persiste toda a sessão
         ChangeNotifierProvider(create: (_) => AuthProvider()..init()),
+        ChangeNotifierProvider(create: (_) => MeProvider()..load()),
 
         // Rotas do aluno: recarrega a cada troca de sessao, senao o proximo a
         // logar herdaria as rotas do anterior.

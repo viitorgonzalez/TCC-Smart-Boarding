@@ -16,11 +16,23 @@ class StudentListCard extends StatelessWidget {
   final void Function(String tripType) onEnter;
   final VoidCallback onLeave;
 
+  /// O que falta no perfil, já em português. Vazio = pode entrar.
+  ///
+  /// Chega pronto de fora porque quem decide é o backend: ele é que recusa a
+  /// entrada, e refazer a conta aqui daria duas versões da regra.
+  final List<String> missingProfile;
+
+  /// Atalho pro perfil. Sem ele o aviso diria o problema e deixaria a pessoa
+  /// procurar sozinha onde resolvê-lo.
+  final VoidCallback? onFixProfile;
+
   const StudentListCard({
     super.key,
     required this.item,
     required this.onEnter,
     required this.onLeave,
+    this.missingProfile = const [],
+    this.onFixProfile,
   });
 
   Future<void> _pickAndEnter(BuildContext context, {String? current}) async {
@@ -158,21 +170,92 @@ class StudentListCard extends StatelessWidget {
               CloseCountdown(closeTime: list.closeTime),
             ],
             const SizedBox(height: 18),
-            item.isEnrolled
-                ? OutlinedButton.icon(
-                    style: OutlinedButton.styleFrom(
-                      foregroundColor: AppColors.danger,
-                    ),
-                    onPressed: onLeave,
-                    icon: const Icon(Icons.exit_to_app),
-                    label: const Text('Sair da lista'),
-                  )
-                : FilledButton.icon(
-                    onPressed: () => _pickAndEnter(context),
-                    icon: const Icon(Icons.login),
-                    label: const Text('Entrar na lista'),
-                  ),
+            // Quem já está na lista entrou quando era permitido: o aviso de
+            // perfil não vale pra ele, e esconder o "Sair" por um campo em
+            // branco o prenderia numa viagem que ele não vai fazer.
+            if (item.isEnrolled)
+              OutlinedButton.icon(
+                style: OutlinedButton.styleFrom(
+                  foregroundColor: AppColors.danger,
+                ),
+                onPressed: onLeave,
+                icon: const Icon(Icons.exit_to_app),
+                label: const Text('Sair da lista'),
+              )
+            else if (missingProfile.isNotEmpty)
+              _ProfileWarning(
+                missing: missingProfile,
+                onFix: onFixProfile,
+              )
+            else
+              FilledButton.icon(
+                onPressed: () => _pickAndEnter(context),
+                icon: const Icon(Icons.login),
+                label: const Text('Entrar na lista'),
+              ),
           ],
+        ],
+      ),
+    );
+  }
+}
+
+/// O bloqueio, sinalizado antes do toque.
+///
+/// Aparece no lugar do botão e não como erro depois dele: descobrir a parede
+/// esbarrando nela é o que essa tela existe pra evitar.
+class _ProfileWarning extends StatelessWidget {
+  final List<String> missing;
+  final VoidCallback? onFix;
+
+  const _ProfileWarning({required this.missing, this.onFix});
+
+  @override
+  Widget build(BuildContext context) {
+    return Container(
+      key: const Key('list_profile_warning'),
+      padding: const EdgeInsets.all(14),
+      decoration: BoxDecoration(
+        color: AppColors.danger.withValues(alpha: 0.08),
+        borderRadius: BorderRadius.circular(12),
+      ),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Row(
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              const Icon(Icons.error_outline, size: 18, color: AppColors.danger),
+              const SizedBox(width: 8),
+              Expanded(
+                child: Text(
+                  'Complete seu perfil para entrar na lista.',
+                  style: const TextStyle(
+                    color: AppColors.danger,
+                    fontWeight: FontWeight.w700,
+                  ),
+                ),
+              ),
+            ],
+          ),
+          const SizedBox(height: 6),
+          Padding(
+            padding: const EdgeInsets.only(left: 26),
+            child: Text(
+              'Falta: ${missing.join(', ')}.',
+              style: const TextStyle(color: AppColors.textSecondary),
+            ),
+          ),
+          const SizedBox(height: 10),
+          Align(
+            alignment: Alignment.centerLeft,
+            child: FilledButton.tonalIcon(
+              key: const Key('list_profile_fix_button'),
+              onPressed: onFix,
+              icon: const Icon(Icons.person_outline, size: 18),
+              label: const Text('Completar perfil'),
+            ),
+          ),
         ],
       ),
     );
