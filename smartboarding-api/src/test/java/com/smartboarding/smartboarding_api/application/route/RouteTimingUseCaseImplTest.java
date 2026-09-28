@@ -140,4 +140,38 @@ class RouteTimingUseCaseImplTest {
 
         assertThat(c.getAvgMinutesFromStart()).isNull();
     }
+
+    // ─── Recálculo preguiçoso (rota anterior à V33) ─────────────────────────
+
+    /// A V33 nasceu com a coluna vazia. Rota criada antes dela só ganharia
+    /// tempo se alguém mexesse numa parada -- e até lá o aluno abriria o
+    /// acompanhamento sem nenhum "faltam X min".
+    @Test
+    void rotaSemTempoNenhumEhCalculadaSobDemanda() {
+        var a = parada("Rodoviária", 1, -20.46, -45.42);
+        var b = parada("UNIFOR-MG", 2, -20.48, -45.44);
+        comParadas(a, b);
+        when(planner.legDurationsSeconds(any()))
+                .thenReturn(Optional.of(List.of(600.0)));
+
+        useCase.recalculateIfMissing(ROTA);
+
+        assertThat(b.getAvgMinutesFromStart()).isEqualTo(12);
+    }
+
+    /// Já calculado: repetir gastaria uma requisição num serviço com limite de
+    /// uso pra chegar no mesmo número.
+    @Test
+    void rotaJaCalculadaNaoChamaOPlanejadorDeNovo() {
+        var a = parada("Rodoviária", 1, -20.46, -45.42);
+        var b = parada("UNIFOR-MG", 2, -20.48, -45.44);
+        a.setAvgMinutesFromStart(1);
+        b.setAvgMinutesFromStart(13);
+        comParadas(a, b);
+
+        useCase.recalculateIfMissing(ROTA);
+
+        verify(planner, never()).legDurationsSeconds(any());
+        assertThat(b.getAvgMinutesFromStart()).isEqualTo(13);
+    }
 }

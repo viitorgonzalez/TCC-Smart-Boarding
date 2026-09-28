@@ -5,13 +5,17 @@ import 'package:smartboarding_app/features/lists/models/daily_list_model.dart';
 import 'package:smartboarding_app/features/lists/models/list_with_enrollment.dart';
 
 void main() {
-  ListWithEnrollment listaAberta({bool inscrito = false}) => ListWithEnrollment(
+  ListWithEnrollment listaAberta({
+    bool inscrito = false,
+    bool emTrajeto = false,
+  }) => ListWithEnrollment(
     list: DailyList(
       id: 'l1',
       routeId: 'r1',
       routeName: 'Rota Universitária de Formiga',
       date: '2026-09-25',
       status: 'OPEN',
+      tripInProgress: emTrajeto,
       // Sem closeTime de propósito: com um horário fixo, acceptsChanges vira
       // falso depois dele e o card some inteiro -- o teste passaria de manhã e
       // falharia à noite.
@@ -106,5 +110,53 @@ void main() {
 
     expect(find.text('Sair da lista'), findsOneWidget);
     expect(find.byKey(const Key('list_profile_warning')), findsNothing);
+  });
+
+  // ─── Acompanhar trajeto ───────────────────────────────────────────────────
+
+  Future<void> montarComTrajeto(
+    WidgetTester tester, {
+    required bool emTrajeto,
+    VoidCallback? onFollow,
+  }) async {
+    await tester.pumpWidget(
+      MaterialApp(
+        home: Scaffold(
+          body: SingleChildScrollView(
+            child: StudentListCard(
+              item: listaAberta(emTrajeto: emTrajeto),
+              missingProfile: const [],
+              onEnter: (_) {},
+              onLeave: () {},
+              onFollowTrip: onFollow ?? () {},
+            ),
+          ),
+        ),
+      ),
+    );
+    await tester.pump();
+  }
+
+  /// Oferecer sempre levaria a uma tela que só diz "não começou".
+  testWidgets('trajeto parado nao oferece acompanhar', (tester) async {
+    await montarComTrajeto(tester, emTrajeto: false);
+
+    expect(find.byKey(const Key('student_follow_trip')), findsNothing);
+  });
+
+  testWidgets('trajeto em andamento oferece acompanhar', (tester) async {
+    await montarComTrajeto(tester, emTrajeto: true);
+
+    expect(find.byKey(const Key('student_follow_trip')), findsOneWidget);
+  });
+
+  testWidgets('o botao leva pro acompanhamento', (tester) async {
+    var foi = false;
+    await montarComTrajeto(tester, emTrajeto: true, onFollow: () => foi = true);
+
+    await tester.tap(find.byKey(const Key('student_follow_trip')));
+    await tester.pumpAndSettle();
+
+    expect(foi, isTrue);
   });
 }

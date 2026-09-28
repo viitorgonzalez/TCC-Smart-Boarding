@@ -30,6 +30,9 @@ class DailyList {
   /// Paradas da rota, na ordem — vêm junto pra o card desenhar o trajeto.
   final List<StopPoint> stops;
 
+  /// Trajeto em andamento. Decide se o card oferece "Acompanhar trajeto".
+  final bool tripInProgress;
+
   const DailyList({
     required this.id,
     required this.routeId,
@@ -37,6 +40,7 @@ class DailyList {
     required this.date,
     required this.status,
     required this.totalEntries,
+    this.tripInProgress = false,
     this.enrolled = false,
     this.tripType,
     this.closeTime,
@@ -71,6 +75,7 @@ class DailyList {
       stops: (json['stops'] as List? ?? const [])
           .map((e) => StopPoint.fromJson(e as Map<String, dynamic>))
           .toList(),
+      tripInProgress: json['tripInProgress'] as bool? ?? false,
     );
   }
 

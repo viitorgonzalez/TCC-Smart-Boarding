@@ -26,6 +26,10 @@ class StudentListCard extends StatelessWidget {
   /// procurar sozinha onde resolvê-lo.
   final VoidCallback? onFixProfile;
 
+  /// Abre o acompanhamento do trajeto. Só aparece com o ônibus na rua:
+  /// oferecer sempre levaria a uma tela que só diz "não começou".
+  final VoidCallback? onFollowTrip;
+
   const StudentListCard({
     super.key,
     required this.item,
@@ -33,6 +37,7 @@ class StudentListCard extends StatelessWidget {
     required this.onLeave,
     this.missingProfile = const [],
     this.onFixProfile,
+    this.onFollowTrip,
   });
 
   Future<void> _pickAndEnter(BuildContext context, {String? current}) async {
@@ -164,6 +169,19 @@ class StudentListCard extends StatelessWidget {
               ],
             ),
           ],
+          if (list.tripInProgress && onFollowTrip != null) ...[
+            const SizedBox(height: 18),
+            SizedBox(
+              height: 48,
+              child: FilledButton.tonalIcon(
+                key: const Key('student_follow_trip'),
+                onPressed: onFollowTrip,
+                icon: const Icon(Icons.directions_bus_filled_outlined),
+                label: const Text('Acompanhar trajeto'),
+              ),
+            ),
+          ],
+
           if (acceptingChanges) ...[
             if (hasCloseTime) ...[
               const SizedBox(height: 18),

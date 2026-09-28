@@ -33,6 +33,17 @@ public class RouteTimingUseCaseImpl implements RouteTimingUseCase {
 
     @Override
     @Transactional
+    public void recalculateIfMissing(UUID routeId) {
+        boolean jaTem = stopRepository.findAllByRouteIdOrderBySequenceAsc(routeId).stream()
+                .anyMatch(s -> s.getAvgMinutesFromStart() != null);
+        // Já calculado: repetir gastaria uma requisição num serviço com limite
+        // de uso pra chegar no mesmo número.
+        if (jaTem) return;
+        recalculate(routeId);
+    }
+
+    @Override
+    @Transactional
     public void recalculate(UUID routeId) {
         List<Stop> todas = stopRepository.findAllByRouteIdOrderBySequenceAsc(routeId);
 

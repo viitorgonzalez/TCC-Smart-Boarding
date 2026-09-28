@@ -1,6 +1,7 @@
 package com.smartboarding.smartboarding_api.application.trip;
 
 import com.smartboarding.smartboarding_api.domain.list.entity.DailyList;
+import com.smartboarding.smartboarding_api.domain.route.port.in.RouteTimingUseCase;
 import com.smartboarding.smartboarding_api.domain.list.port.out.DailyListRepositoryPort;
 import com.smartboarding.smartboarding_api.domain.notification.port.in.PublishNotificationUseCase;
 import com.smartboarding.smartboarding_api.domain.stop.entity.Stop;
@@ -32,17 +33,20 @@ public class TripUseCaseImpl implements ConductTripUseCase {
     private final StopRepositoryPort stopRepository;
     private final TripCheckpointRepositoryPort checkpointRepository;
     private final PublishNotificationUseCase publishNotificationUseCase;
+    private final RouteTimingUseCase routeTiming;
     private final Clock clock;
 
     public TripUseCaseImpl(DailyListRepositoryPort dailyListRepository,
                            StopRepositoryPort stopRepository,
                            TripCheckpointRepositoryPort checkpointRepository,
                            PublishNotificationUseCase publishNotificationUseCase,
+                           RouteTimingUseCase routeTiming,
                            Clock clock) {
         this.dailyListRepository = dailyListRepository;
         this.stopRepository = stopRepository;
         this.checkpointRepository = checkpointRepository;
         this.publishNotificationUseCase = publishNotificationUseCase;
+        this.routeTiming = routeTiming;
         this.clock = clock;
     }
 
@@ -55,6 +59,16 @@ public class TripUseCaseImpl implements ConductTripUseCase {
         }
         list.setTripStartedAt(LocalDateTime.now(clock));
         DailyList saved = dailyListRepository.save(list);
+
+        // Rota criada antes da V33 tem a coluna de tempo vazia, e o aluno
+        // abriria o acompanhamento sem nenhum "faltam X min". Aqui é o momento
+        // em que o número passa a importar. Em try/catch: o OSRM não tem SLA, e
+        // não poder calcular o tempo não pode impedir o ônibus de sair.
+        try {
+            routeTiming.recalculateIfMissing(saved.getRoute().getId());
+        } catch (RuntimeException e) {
+            log.warn("Trajeto {} começou sem tempo calculado: {}", listId, e.getMessage());
+        }
 
         announce(saved, "Trajeto iniciado",
                 "O ônibus da %s saiu. Acompanhe as paradas pelo app."

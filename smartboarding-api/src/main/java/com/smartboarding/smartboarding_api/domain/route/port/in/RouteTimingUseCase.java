@@ -11,4 +11,13 @@ import java.util.UUID;
 /// não é.
 public interface RouteTimingUseCase {
     void recalculate(UUID routeId);
+
+    /// Calcula só se ainda não há tempo nenhum na rota.
+    ///
+    /// Existe porque a V33 nasceu com a coluna vazia: rota criada ANTES dela
+    /// só ganharia tempo se alguém mexesse numa parada, e até lá o aluno
+    /// abriria o acompanhamento sem nenhum "faltam X min". Chamado ao iniciar
+    /// o trajeto -- uma vez por dia por rota, que é bem menos que uma
+    /// varredura no boot e chega no momento em que o número passa a importar.
+    void recalculateIfMissing(UUID routeId);
 }

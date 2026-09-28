@@ -43,6 +43,7 @@ class TripUseCaseImplTest {
     @Mock StopRepositoryPort stopRepository;
     @Mock TripCheckpointRepositoryPort checkpointRepository;
     @Mock PublishNotificationUseCase publishNotificationUseCase;
+    @Mock com.smartboarding.smartboarding_api.domain.route.port.in.RouteTimingUseCase routeTiming;
 
     private TripUseCaseImpl useCase;
 
@@ -58,7 +59,8 @@ class TripUseCaseImplTest {
     @BeforeEach
     void setUp() {
         useCase = new TripUseCaseImpl(dailyListRepository, stopRepository, checkpointRepository,
-                publishNotificationUseCase, Clock.fixed(NOW.atZone(ZONE).toInstant(), ZONE));
+                publishNotificationUseCase, routeTiming,
+                Clock.fixed(NOW.atZone(ZONE).toInstant(), ZONE));
         when(dailyListRepository.findById(LIST_ID)).thenReturn(Optional.of(listWith(null, null)));
         when(dailyListRepository.save(any())).thenAnswer(i -> i.getArgument(0));
         when(stopRepository.findById(MAIN_STOP)).thenReturn(Optional.of(
@@ -322,5 +324,27 @@ class TripUseCaseImplTest {
         org.assertj.core.api.Assertions
                 .assertThatCode(() -> useCase.start(LIST_ID))
                 .doesNotThrowAnyException();
+    }
+
+    /// Rota criada antes da V33 tem a coluna de tempo vazia, e o aluno abriria
+    /// o acompanhamento sem nenhum "faltam X min". Iniciar o trajeto é o
+    /// momento em que o número passa a importar.
+    @Test
+    void iniciarOTrajetoCalculaOTempoQueFaltava() {
+        useCase.start(LIST_ID);
+
+        verify(routeTiming).recalculateIfMissing(ROUTE_ID);
+    }
+
+    /// O OSRM não tem SLA. Não poder calcular o tempo não pode impedir o
+    /// ônibus de sair.
+    @Test
+    void osrmForaDoArNaoImpedeOTrajetoDeComecar() {
+        org.mockito.Mockito.doThrow(new RuntimeException("OSRM fora"))
+                .when(routeTiming).recalculateIfMissing(any());
+
+        DailyList saved = useCase.start(LIST_ID);
+
+        assertThat(saved.getTripStartedAt()).isNotNull();
     }
 }

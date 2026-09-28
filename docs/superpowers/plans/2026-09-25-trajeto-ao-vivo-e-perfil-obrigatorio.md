@@ -271,34 +271,37 @@ Backend. Não é só o que destrava "tempo até a sua instituição": é consert
 - [x] Mutação: 6 mutações. **Uma sobreviveu** — faltava o caso do admin pular um checkpoint,
       que dava `-7 min` na tela. Teste novo, e agora mata.
 - [x] `./mvnw verify` — 596 unit + 3 IT.
-- [ ] Simplificar `trip_screen.dart`: próxima parada em destaque, um botão "Cheguei nesta
+> **Já estava feito.** A task #63 ("Simplificar o modo conduzir trajeto") entregou isto antes:
+> próxima parada em `headlineSmall`, um botão `Cheguei aqui` de 56px, quantas faltam no
+> `TripProgressCard`, e nem mapa de edição nem lista de inscritos na tela. Só faltavam os testes.
+>
+> **Não fiz** "última parada → o botão vira Encerrar": ela é uma chegada como as outras, e trocar
+> o botão perderia o registro de que o ônibus chegou lá. Encerrar é o passo seguinte, não o mesmo.
+
+- [x] Simplificar `trip_screen.dart`: próxima parada em destaque, um botão "Cheguei nesta
       parada", quantas faltam, encerrar.
-- [ ] Sai da tela: mapa de edição, lista de inscritos, qualquer coisa que não seja a decisão do
+- [x] Sai da tela: mapa de edição, lista de inscritos, qualquer coisa que não seja a decisão do
       momento. Quem conduz não navega o app — toca uma vez por parada.
-- [ ] Teste de widget: tocar no botão chama o checkpoint da **parada certa** (a atual, não a
+- [x] Teste: `trip.current` é a primeira **não alcançada** — se fosse a primeira da lista, o admin
+      marcaria a rodoviária de novo a cada toque e o trajeto nunca sairia dela. (a atual, não a
       primeira).
-- [ ] Teste: última parada → o botão vira "Encerrar trajeto".
+- [x] Teste: a última parada **mantém** o botão de marcar.
 
 ---
 
-### Task 13: Trajeto ao vivo — tela do aluno
+### Task 13: Trajeto ao vivo — tela do aluno ✅
 
-- [ ] Botão "Acompanhar trajeto" no card da lista, **só quando o trajeto está em andamento**.
-- [ ] Tela nova reaproveitando `RouteMap`: paradas como checklist (alcançadas marcadas, atual
-      destacada) + polilinha real.
-- [ ] A parada da instituição do aluno fica **destacada** — é o ponto que interessa a ele.
-- [ ] Polling a cada 20s **enquanto a tela está aberta**. Cancelar no `dispose` — timer vivo
-      depois de sair é vazamento e gasta bateria.
-- [ ] Teste: trajeto parado → sem botão. Em andamento → com botão.
-- [ ] Teste: a tela pede o estado ao abrir e de novo depois do intervalo.
-- [ ] Teste: sair da tela **cancela** o polling.
-
----
-
-### Task 14: Tempo estimado até a instituição do aluno
-
-Fecha o bloco.
-
+- [x] Botão "Acompanhar trajeto" no card, só com `tripInProgress` — que passou a vir no
+      `ListResponse` (oferecer sempre levaria a uma tela que só diz "não começou").
+- [x] `TripFollowScreen` com as paradas como checklist e a **parada dele destacada**.
+- [x] `TripStepTile` ganhou `highlighted`.
+- [x] Polling de 20s cancelado no `dispose` — timer vivo depois de sair gasta bateria de quem
+      está no ônibus justamente quando ela importa. Falha de polling **não** apaga o que já está
+      na tela.
+- [x] Testes: sem botão parado, com botão em andamento, e o botão leva pra tela.
+- [x] Testes: pede ao abrir e de novo depois do intervalo.
+- [x] Teste: sair cancela o polling.
+- [x] 290 testes no app, gate exit 0, analyze limpo.
 - [ ] `RoadRouteService` passa a ler `duration` além da geometria — **já vem na mesma resposta**.
 - [ ] Estimado = duração(parada atual → parada da instituição dele) + (paradas no meio × 1 min).
 - [ ] O rótulo **nomeia o destino** ("até a UNIFOR"), não "até o destino". Dois alunos no mesmo

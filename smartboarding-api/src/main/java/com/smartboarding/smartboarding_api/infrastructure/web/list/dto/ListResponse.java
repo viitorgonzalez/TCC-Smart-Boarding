@@ -29,7 +29,11 @@ public record ListResponse(
         List<VehicleSummary> proposedVehicles,
         int capacityShortfall,
         // Junto da lista pra o card desenhar o trajeto sem uma segunda chamada.
-        List<StopPoint> stops) {
+        List<StopPoint> stops,
+        /// Trajeto em andamento. O card do aluno usa pra decidir se oferece
+        /// "Acompanhar trajeto" -- oferecer sempre levaria a uma tela que só
+        /// diz "não começou", e esconder sempre esconderia a feature.
+        boolean tripInProgress) {
 
     public record InstitutionCount(String name, long count) {}
 
@@ -62,7 +66,10 @@ public record ListResponse(
                 vehicles,
                 proposedVehicles,
                 capacityShortfall,
-                stops
+                stops,
+                // Em andamento = começou e não acabou. É o único estado em que
+                // acompanhar tem o que mostrar.
+                list.getTripStartedAt() != null && list.getTripFinishedAt() == null
         );
     }
 }

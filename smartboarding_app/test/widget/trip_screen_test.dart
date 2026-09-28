@@ -244,4 +244,67 @@ void main() {
       expect(find.textContaining('Ida em andamento'), findsOneWidget);
     });
   });
+
+  group('qual parada o botao marca', () {
+    /// O botão é único e sempre o mesmo widget. Se ele marcasse a primeira em
+    /// vez da atual, o admin registraria a rodoviária de novo a cada toque e o
+    /// trajeto nunca sairia dela.
+    test('a parada atual e a primeira ainda nao alcancada', () {
+      final trip = viagem(
+        startedAt: '2026-09-25T07:00:00',
+        stops: [
+          parada('Rodoviária', 1, reachedAt: '2026-09-25T07:05:00'),
+          parada('Centro', 2),
+          parada('UNIFOR-MG', 3),
+        ],
+      );
+
+      expect(trip.current!.name, 'Centro');
+      expect(trip.current!.stopId, 'p2');
+    });
+
+    /// Todas marcadas: nenhuma atual, e a tela mostra "tudo marcado" em vez de
+    /// um botão que não tem o que fazer.
+    test('sem pendente nao ha parada atual', () {
+      final trip = viagem(
+        startedAt: '2026-09-25T07:00:00',
+        stops: [
+          parada('Rodoviária', 1, reachedAt: '2026-09-25T07:05:00'),
+          parada('Centro', 2, reachedAt: '2026-09-25T07:20:00'),
+        ],
+      );
+
+      expect(trip.current, isNull);
+    });
+
+    /// Trajeto não iniciado não tem parada atual: marcar chegada antes de sair
+    /// registraria uma viagem que não aconteceu.
+    test('nao iniciado nao tem parada atual', () {
+      final trip = viagem(stops: [parada('Rodoviária', 1)]);
+
+      expect(trip.current, isNull);
+    });
+
+    /// A última parada mantém o botão de marcar: ela é uma chegada como as
+    /// outras, e trocá-lo por "Encerrar" perderia o registro de que o ônibus
+    /// chegou ali. Encerrar é o passo seguinte, não o mesmo.
+    testWidgets('a ultima parada ainda e marcada, nao encerrada', (
+      tester,
+    ) async {
+      final trip = viagem(
+        startedAt: '2026-09-25T07:00:00',
+        stops: [
+          parada('Rodoviária', 1, reachedAt: '2026-09-25T07:05:00'),
+          parada('UNIFOR-MG', 2),
+        ],
+      );
+
+      await tester.pumpWidget(
+        envolve(NextStopCard(stop: trip.current!, onMark: () {})),
+      );
+
+      expect(find.text('Cheguei aqui'), findsOneWidget);
+      expect(find.text('UNIFOR-MG'), findsOneWidget);
+    });
+  });
 }

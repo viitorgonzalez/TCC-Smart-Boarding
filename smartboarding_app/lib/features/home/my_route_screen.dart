@@ -6,6 +6,7 @@ import '../../core/errors/app_exception.dart';
 import '../../core/widgets/snackbar_utils.dart';
 import '../profile/providers/me_provider.dart';
 import '../profile/screens/profile_screen.dart';
+import '../trip/screens/trip_follow_screen.dart';
 import '../lists/models/list_with_enrollment.dart';
 import '../lists/providers/student_list_provider.dart';
 import 'widgets/student_list_card.dart';
@@ -46,6 +47,13 @@ class MyRouteScreen extends StatelessWidget {
                               _enter(context, provider, item, tripType),
                           onLeave: () => _leave(context, provider, item),
                           onFixProfile: () => _abrirPerfil(context, me),
+                          onFollowTrip: () => Navigator.push<void>(
+                            context,
+                            MaterialPageRoute(
+                              builder: (_) =>
+                                  TripFollowScreen(listId: item.list.id),
+                            ),
+                          ),
                         ),
                       ),
                     ),
