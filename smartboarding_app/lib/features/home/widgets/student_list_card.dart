@@ -5,6 +5,7 @@ import '../../../core/widgets/app_card.dart';
 import '../../../core/widgets/institution_breakdown.dart';
 import '../../../core/widgets/status_pill.dart';
 import '../../../core/widgets/trip_type_chip.dart';
+import '../../lists/models/daily_list_model.dart';
 import '../../lists/models/list_with_enrollment.dart';
 import 'close_countdown.dart';
 import 'list_members_sheet.dart';
@@ -139,6 +140,13 @@ class StudentListCard extends StatelessWidget {
             const SizedBox(height: 18),
             RoutePreview(list: list),
           ],
+
+          // Logo abaixo do trajeto de propósito: o mapa mostra o caminho, e a
+          // pergunta seguinte é sempre "quanto tempo isso leva pra mim".
+          if (list.myTripTime case final tempo?) ...[
+            const SizedBox(height: 14),
+            _TempoDeViagem(tempo: tempo),
+          ],
           if (item.isEnrolled) ...[
             const SizedBox(height: 16),
             Row(
@@ -211,6 +219,49 @@ class StudentListCard extends StatelessWidget {
           ],
         ],
       ),
+    );
+  }
+}
+
+/// Quanto a viagem leva até a instituição deste aluno.
+///
+/// O destino vem nomeado porque dois alunos do mesmo ônibus veem números
+/// diferentes: sem dizer até onde, quem compara com o colega conclui que o app
+/// está errado.
+class _TempoDeViagem extends StatelessWidget {
+  final MyTripTime tempo;
+
+  const _TempoDeViagem({required this.tempo});
+
+  @override
+  Widget build(BuildContext context) {
+    return Row(
+      key: const Key('list_trip_time'),
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: [
+        const Icon(Icons.schedule, size: 18, color: AppColors.deepTeal),
+        const SizedBox(width: 8),
+        Expanded(
+          child: Column(
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              Text(
+                'Cerca de ${tempo.avgMinutes} min até ${tempo.stopName}',
+                style: const TextStyle(
+                  fontWeight: FontWeight.w600,
+                  color: AppColors.charcoal,
+                ),
+              ),
+              if (tempo.fallback)
+                Text(
+                  'Sua instituição não tem parada declarada nesta rota — '
+                  'este é o último ponto do trajeto.',
+                  style: Theme.of(context).textTheme.bodySmall,
+                ),
+            ],
+          ),
+        ),
+      ],
     );
   }
 }

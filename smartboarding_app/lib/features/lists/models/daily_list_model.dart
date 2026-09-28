@@ -33,6 +33,10 @@ class DailyList {
   /// Trajeto em andamento. Decide se o card oferece "Acompanhar trajeto".
   final bool tripInProgress;
 
+  /// Quanto a viagem leva até a instituição DESTE aluno. Nulo pro admin e
+  /// quando o tempo ainda não foi calculado.
+  final MyTripTime? myTripTime;
+
   const DailyList({
     required this.id,
     required this.routeId,
@@ -41,6 +45,7 @@ class DailyList {
     required this.status,
     required this.totalEntries,
     this.tripInProgress = false,
+    this.myTripTime,
     this.enrolled = false,
     this.tripType,
     this.closeTime,
@@ -76,6 +81,9 @@ class DailyList {
           .map((e) => StopPoint.fromJson(e as Map<String, dynamic>))
           .toList(),
       tripInProgress: json['tripInProgress'] as bool? ?? false,
+      myTripTime: json['myTripTime'] == null
+          ? null
+          : MyTripTime.fromJson(json['myTripTime'] as Map<String, dynamic>),
     );
   }
 
@@ -138,5 +146,31 @@ class StopPoint {
     sequence: json['sequence'] as int,
     latitude: (json['latitude'] as num?)?.toDouble(),
     longitude: (json['longitude'] as num?)?.toDouble(),
+  );
+}
+
+/// O tempo médio da viagem até a parada do aluno.
+///
+/// O nome do destino vem junto porque dois alunos da mesma rota veem números
+/// diferentes: sem dizer até onde, quem compara com o colega conclui que o app
+/// está errado.
+class MyTripTime {
+  final String stopName;
+  final int avgMinutes;
+
+  /// A instituição do aluno não tem parada declarada e este é o último ponto
+  /// do trajeto — a tela precisa avisar.
+  final bool fallback;
+
+  const MyTripTime({
+    required this.stopName,
+    required this.avgMinutes,
+    this.fallback = false,
+  });
+
+  factory MyTripTime.fromJson(Map<String, dynamic> json) => MyTripTime(
+    stopName: json['stopName'] as String,
+    avgMinutes: json['avgMinutes'] as int,
+    fallback: json['fallback'] as bool? ?? false,
   );
 }

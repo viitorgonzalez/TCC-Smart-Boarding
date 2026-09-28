@@ -3,6 +3,7 @@ package com.smartboarding.smartboarding_api.infrastructure.web.trip;
 import com.smartboarding.smartboarding_api.domain.list.entity.DailyList;
 import com.smartboarding.smartboarding_api.domain.membership.port.out.RouteMemberRepositoryPort;
 import com.smartboarding.smartboarding_api.domain.list.port.in.FindListUseCase;
+import com.smartboarding.smartboarding_api.domain.stop.StudentStop;
 import com.smartboarding.smartboarding_api.domain.stop.entity.Stop;
 import com.smartboarding.smartboarding_api.domain.stop.port.in.ManageStopsUseCase;
 import com.smartboarding.smartboarding_api.domain.trip.entity.TripCheckpoint;
@@ -142,26 +143,19 @@ public class TripController {
                                                    Map<UUID, TripCheckpoint> reached) {
         if (quem == null || quem.getRole() != Role.STUDENT) return null;
 
-        List<Stop> principais = manageStopsUseCase.listByRoute(list.getRoute().getId())
-                .stream().filter(Stop::isMainPoint)
-                .sorted(Comparator.comparingInt(Stop::getSequence))
-                .toList();
-        if (principais.isEmpty()) return null;
+        List<Stop> todas = manageStopsUseCase.listByRoute(list.getRoute().getId());
+        // Mesma regra do card da lista, num lugar só: duas cópias mostrariam
+        // dois destinos diferentes pro mesmo aluno em telas vizinhas.
+        StudentStop resolvida = StudentStop.resolve(todas, quem.getInstitutionId());
+        if (resolvida == null) return null;
 
-        // A instituição declarada como principal é a mesma que decide em que
-        // contagem o aluno entra na lista -- uma regra só no app inteiro.
-        UUID instituicao = quem.getInstitutionId();
-        Stop dele = principais.stream()
-                .filter(s -> s.getInstitutionId() != null
-                        && s.getInstitutionId().equals(instituicao))
-                .findFirst().orElse(null);
-
-        boolean fallback = dele == null;
-        if (fallback) dele = principais.getLast();
-
+        List<Stop> principais = todas.stream().filter(Stop::isMainPoint)
+                .sorted(Comparator.comparingInt(Stop::getSequence)).toList();
+        Stop dele = resolvida.stop();
         boolean alcancada = reached.containsKey(dele.getId());
-        return new TripStatusResponse.MyStop(dele.getId(), dele.getName(), fallback,
-                alcancada, eta(principais, dele, leg, reached, alcancada));
+        return new TripStatusResponse.MyStop(dele.getId(), dele.getName(),
+                resolvida.fallback(), alcancada,
+                eta(principais, dele, leg, reached, alcancada));
     }
 
     /// Nulo é "não sei", e a tela omite.

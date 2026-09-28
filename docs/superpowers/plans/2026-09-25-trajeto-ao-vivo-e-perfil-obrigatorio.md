@@ -344,4 +344,32 @@ Os testes não pegam layout nem fluxo. Esta task é olhar.
 - [ ] Registrar que `phone`/endereço/`course` saem do fluxo de aprovação, e **por quê**.
 - [ ] `smartboarding_app/docs/specs/aluno/`: tela de acompanhamento e carteirinha.
 - [ ] `smartboarding_app/docs/PAGES.md`: as duas telas novas.
-- [ ] `CLAUDE.md` do app: ViaCEP como dependência externa nova, junto do aviso do OSRM.
+- [ ] `CLAUDE.md` do app: ViaCEP como dependência externa nova, junto do aviso do OSRM.### Task 14: Tempo estimado até a instituição do aluno ✅
+
+Fecha o bloco.
+
+> **Mudou de forma.** O plano mandava o app chamar o OSRM na tela. Com polling de 20s isso seria
+> **3 requisições por minuto por aluno**, num serviço com limite de uso — pra chegar no mesmo
+> número que `avg_minutes_from_start` já guarda. O tempo virou uma subtração; o OSRM só é
+> chamado quando as paradas mudam (Task 10) ou ao iniciar o trajeto.
+
+- [x] **ETA ao vivo** (tela de acompanhamento): diferença entre a parada dele e a última
+      alcançada. Feito na Task 11.
+- [x] **Tempo médio** (card da lista): `myTripTime` no `ListResponse`, com nome do destino.
+- [x] O rótulo **nomeia o destino** nos dois lugares — dois alunos do mesmo ônibus veem números
+      diferentes, e sem o nome quem compara com o colega conclui que o app errou.
+- [x] `StudentStop.resolve()` extraído pro domínio: a regra "qual parada é a do aluno" era
+      necessária no trajeto **e** no card, e duas cópias mostrariam dois destinos diferentes pro
+      mesmo aluno em telas vizinhas. 7 testes, e o `TripController` passou a usá-la sem que
+      nenhum dos 24 testes dele mudasse.
+- [x] Ônibus já passou → sem tempo negativo (Task 11).
+- [x] Sem tempo calculado → a tela **omite**; zero o aluno leria como "chega na hora".
+- [x] Instituição sem parada → último ponto, **com aviso** nos dois lugares.
+- [x] Mutação: 4 no card + 1 no controller. **Uma sobreviveu** — o teste do admin passava porque
+      o `findById` dele nem estava stubado (voltava vazio, não "é admin"). Corrigido; agora mata.
+- [x] `./mvnw verify` (619 unit + 3 IT) e 293 testes no app, gate exit 0.
+
+**Verificado no ambiente real:** `fernanda (UNIFOR-MG) → 42 min até UNIFOR-MG — Formiga`,
+`daniela (IFMG) → 47 min até IFMG — Campus Formiga`, admin sem tempo.
+
+

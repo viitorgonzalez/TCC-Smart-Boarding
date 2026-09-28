@@ -9,6 +9,10 @@ import com.smartboarding.smartboarding_api.domain.list.port.in.AddEntryUseCase;
 import com.smartboarding.smartboarding_api.domain.list.port.in.FindListUseCase;
 import com.smartboarding.smartboarding_api.domain.list.port.in.RemoveEntryUseCase;
 import com.smartboarding.smartboarding_api.domain.list.port.out.ListEntryRepositoryPort;
+import com.smartboarding.smartboarding_api.domain.stop.StudentStop;
+import com.smartboarding.smartboarding_api.domain.stop.entity.Stop;
+import com.smartboarding.smartboarding_api.domain.user.entity.Role;
+import com.smartboarding.smartboarding_api.domain.user.entity.User;
 import com.smartboarding.smartboarding_api.domain.user.port.out.UserRepositoryPort;
 import com.smartboarding.smartboarding_api.domain.vehicle.port.out.VehicleRepositoryPort;
 import com.smartboarding.smartboarding_api.infrastructure.web.list.dto.EntryRequest;
@@ -214,6 +218,9 @@ public class ListController {
     private ListResponse montar(DailyList list, UUID userId, Map<UUID, String> names) {
         long confirmados = listEntryRepository.countByDailyListIdAndIsActiveTrue(list.getId());
         ProposedInfo proposta = proposedOf(list, confirmados);
+        // Buscadas uma vez e usadas duas: no desenho do trajeto e no tempo até
+        // a instituição do aluno.
+        var paradas = manageStopsUseCase.listByRoute(list.getRoute().getId());
         return ListResponse.from(
                 list,
                 confirmados,
@@ -222,7 +229,24 @@ public class ListController {
                 vehiclesOf(list.getRoute().getId()),
                 proposta.vehicles(),
                 proposta.shortfall(),
-                stopsOf(list.getRoute().getId()));
+                stopsOf(paradas),
+                myTripTime(userId, paradas));
+    }
+
+    /// Quanto a viagem leva até a instituição deste aluno.
+    ///
+    /// Nulo pro admin: ele conduz o ônibus, não desce em lugar nenhum. Nulo
+    /// também quando o tempo ainda não foi calculado -- e aí a tela omite, em
+    /// vez de mostrar um zero que o aluno leria como "chega na hora".
+    private ListResponse.MyTripTime myTripTime(UUID userId, List<Stop> paradas) {
+        User quem = userRepository.findById(userId).orElse(null);
+        if (quem == null || quem.getRole() != Role.STUDENT) return null;
+
+        StudentStop dele = StudentStop.resolve(paradas, quem.getInstitutionId());
+        if (dele == null || dele.stop().getAvgMinutesFromStart() == null) return null;
+
+        return new ListResponse.MyTripTime(dele.stop().getName(),
+                dele.stop().getAvgMinutesFromStart(), dele.fallback());
     }
 
     /// Qual veículo leva essa gente (RN16).
@@ -267,8 +291,8 @@ public class ListController {
 
     private record ProposedInfo(List<ListResponse.VehicleSummary> vehicles, int shortfall) {}
 
-    private List<ListResponse.StopPoint> stopsOf(UUID routeId) {
-        return manageStopsUseCase.listByRoute(routeId).stream()
+    private List<ListResponse.StopPoint> stopsOf(List<Stop> paradas) {
+        return paradas.stream()
                 .map(s -> new ListResponse.StopPoint(
                         s.getName(), s.getLatitude(), s.getLongitude(), s.getSequence()))
                 .toList();

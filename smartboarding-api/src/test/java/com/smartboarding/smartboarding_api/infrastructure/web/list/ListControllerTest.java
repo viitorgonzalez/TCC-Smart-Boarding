@@ -75,8 +75,12 @@ class ListControllerTest extends WebMvcTestSupport {
 
     @BeforeEach
     void setUp() {
+        // O papel importa: quem conduz o ônibus não desce em lugar nenhum, e
+        // sem ele aqui o aluno não se distingue do admin.
         aluno = User.builder().id(STUDENT_ID).email("fernanda@edu.unifor.br")
-                .fullName("Fernanda Lima").institutionId(INSTITUTION_ID).build();
+                .fullName("Fernanda Lima").institutionId(INSTITUTION_ID)
+                .role(com.smartboarding.smartboarding_api.domain.user.entity.Role.STUDENT)
+                .build();
         when(userRepository.findByEmail("fernanda@edu.unifor.br")).thenReturn(Optional.of(aluno));
         when(userRepository.findByEmail("naiara@admin.com")).thenReturn(Optional.of(
                 User.builder().id(ADMIN_ID).email("naiara@admin.com").fullName("Naiara").build()));
@@ -87,6 +91,29 @@ class ListControllerTest extends WebMvcTestSupport {
         when(listEntryRepository.findAllByDailyListIdAndIsActiveTrue(any())).thenReturn(List.of());
         when(listEntryRepository.findByUserIdAndDailyListId(any(), any())).thenReturn(Optional.empty());
         when(reportRepository.findByDailyListId(any())).thenReturn(Optional.empty());
+        when(userRepository.findById(STUDENT_ID)).thenReturn(Optional.of(aluno));
+        // O admin tambem precisa existir aqui: sem isso o findById devolve
+        // vazio e o teste "o admin nao tem tempo de viagem" passaria por nao
+        // achar o usuario, nao por ele ser admin. Levou uma mutacao pra
+        // aparecer.
+        when(userRepository.findById(ADMIN_ID)).thenReturn(Optional.of(
+                User.builder().id(ADMIN_ID).email("naiara@admin.com").fullName("Naiara")
+                        .institutionId(INSTITUTION_ID)
+                        .role(com.smartboarding.smartboarding_api.domain.user.entity.Role.ADMIN)
+                        .build()));
+    }
+
+    /// A rota com as duas instituições, cada uma com seu tempo — é aqui que
+    /// dois alunos da mesma lista passam a ver números diferentes.
+    private void rotaComDuasInstituicoes() {
+        when(manageStopsUseCase.listByRoute(any())).thenReturn(List.of(
+                com.smartboarding.smartboarding_api.domain.stop.entity.Stop.builder()
+                        .id(UUID.randomUUID()).name("Rodoviária").sequence(1)
+                        .isMainPoint(true).avgMinutesFromStart(1).build(),
+                com.smartboarding.smartboarding_api.domain.stop.entity.Stop.builder()
+                        .id(UUID.randomUUID()).name("Unifor").sequence(2)
+                        .isMainPoint(true).institutionId(INSTITUTION_ID)
+                        .avgMinutesFromStart(42).build()));
     }
 
     private DailyList lista() {
@@ -567,5 +594,48 @@ class ListControllerTest extends WebMvcTestSupport {
         mvc.perform(get("/api/lists/today").with(student()))
                 .andExpect(jsonPath("$.data[0].proposedVehicles.length()").value(0))
                 .andExpect(jsonPath("$.data[0].capacityShortfall").value(0));
+    }
+
+    // ─── Tempo médio até a instituição do aluno ──────────────────────────────
+
+    /// O card mostrava o trajeto sem dizer quanto tempo leva. E o tempo é DELE:
+    /// a média do trajeto inteiro, pra quem desce no meio, é um número que não
+    /// é sobre a viagem dele.
+    @Test
+    void oCardTrazOTempoAteAInstituicaoDoAluno() throws Exception {
+        rotaComDuasInstituicoes();
+        when(findListUseCase.findTodayLists(STUDENT_ID)).thenReturn(List.of(lista()));
+
+        mvc.perform(get("/api/lists/today").with(student()))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.data[0].myTripTime.stopName").value("Unifor"))
+                .andExpect(jsonPath("$.data[0].myTripTime.avgMinutes").value(42))
+                .andExpect(jsonPath("$.data[0].myTripTime.fallback").value(false));
+    }
+
+    /// Nulo é "não sei" e a tela omite. Um zero ali o aluno leria como "chega
+    /// na hora" e perderia o ônibus.
+    @Test
+    void semTempoCalculadoOCampoVemNulo() throws Exception {
+        when(manageStopsUseCase.listByRoute(any())).thenReturn(List.of(
+                com.smartboarding.smartboarding_api.domain.stop.entity.Stop.builder()
+                        .id(UUID.randomUUID()).name("Unifor").sequence(1)
+                        .isMainPoint(true).institutionId(INSTITUTION_ID).build()));
+        when(findListUseCase.findTodayLists(STUDENT_ID)).thenReturn(List.of(lista()));
+
+        mvc.perform(get("/api/lists/today").with(student()))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.data[0].myTripTime").doesNotExist());
+    }
+
+    /// Quem conduz o ônibus não desce em lugar nenhum.
+    @Test
+    void oAdminNaoTemTempoDeViagem() throws Exception {
+        rotaComDuasInstituicoes();
+        when(findListUseCase.findTodayLists(ADMIN_ID)).thenReturn(List.of(lista()));
+
+        mvc.perform(get("/api/lists/today").with(admin()))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.data[0].myTripTime").doesNotExist());
     }
 }

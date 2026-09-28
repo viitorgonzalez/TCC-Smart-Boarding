@@ -8,6 +8,7 @@ void main() {
   ListWithEnrollment listaAberta({
     bool inscrito = false,
     bool emTrajeto = false,
+    MyTripTime? tempo,
   }) => ListWithEnrollment(
     list: DailyList(
       id: 'l1',
@@ -16,6 +17,7 @@ void main() {
       date: '2026-09-25',
       status: 'OPEN',
       tripInProgress: emTrajeto,
+      myTripTime: tempo,
       // Sem closeTime de propósito: com um horário fixo, acceptsChanges vira
       // falso depois dele e o card some inteiro -- o teste passaria de manhã e
       // falharia à noite.
@@ -160,5 +162,61 @@ void main() {
     await tester.pumpAndSettle();
 
     expect(foi, isTrue);
+  });
+
+  // ─── Tempo médio até a instituição do aluno ───────────────────────────────
+
+  Future<void> montarComTempo(WidgetTester tester, MyTripTime? tempo) async {
+    await tester.pumpWidget(
+      MaterialApp(
+        home: Scaffold(
+          body: SingleChildScrollView(
+            child: StudentListCard(
+              item: listaAberta(tempo: tempo),
+              missingProfile: const [],
+              onEnter: (_) {},
+              onLeave: () {},
+            ),
+          ),
+        ),
+      ),
+    );
+    await tester.pump();
+  }
+
+  /// O card mostrava o trajeto sem dizer quanto tempo leva — e o tempo é DELE:
+  /// a média do trajeto inteiro, pra quem desce no meio, não é sobre a viagem
+  /// dele.
+  testWidgets('mostra o tempo nomeando a instituicao', (tester) async {
+    await montarComTempo(
+      tester,
+      const MyTripTime(stopName: 'UNIFOR-MG', avgMinutes: 42),
+    );
+
+    expect(find.byKey(const Key('list_trip_time')), findsOneWidget);
+    expect(find.textContaining('42 min'), findsOneWidget);
+    expect(find.textContaining('UNIFOR-MG'), findsWidgets);
+  });
+
+  /// Nulo é "não sei" e a tela omite. Um zero o aluno leria como "chega na
+  /// hora" e perderia o ônibus.
+  testWidgets('sem tempo calculado o card nao inventa numero', (tester) async {
+    await montarComTempo(tester, null);
+
+    expect(find.byKey(const Key('list_trip_time')), findsNothing);
+    expect(find.textContaining('min até'), findsNothing);
+  });
+
+  /// Um tempo até um lugar que não é o dele, sem aviso, é pior que tempo
+  /// nenhum.
+  testWidgets('avisa quando a parada nao e da instituicao dele', (
+    tester,
+  ) async {
+    await montarComTempo(
+      tester,
+      const MyTripTime(stopName: 'IFMG', avgMinutes: 47, fallback: true),
+    );
+
+    expect(find.textContaining('não tem parada declarada'), findsOneWidget);
   });
 }
