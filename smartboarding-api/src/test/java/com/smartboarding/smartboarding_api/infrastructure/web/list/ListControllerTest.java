@@ -70,6 +70,8 @@ class ListControllerTest extends WebMvcTestSupport {
     @MockitoBean ManageStopsUseCase manageStopsUseCase;
     @MockitoBean ManageDailyListUseCase manageDailyListUseCase;
     @MockitoBean EnrollByAdminUseCase enrollByAdminUseCase;
+    @MockitoBean com.smartboarding.smartboarding_api.domain.membership.port.out.RouteMemberRepositoryPort
+            routeMemberRepository;
 
     private User aluno;
 
@@ -92,6 +94,7 @@ class ListControllerTest extends WebMvcTestSupport {
         when(listEntryRepository.findByUserIdAndDailyListId(any(), any())).thenReturn(Optional.empty());
         when(reportRepository.findByDailyListId(any())).thenReturn(Optional.empty());
         when(userRepository.findById(STUDENT_ID)).thenReturn(Optional.of(aluno));
+        when(routeMemberRepository.existsByUserIdAndRouteId(STUDENT_ID, ROUTE_ID)).thenReturn(true);
         // O admin tambem precisa existir aqui: sem isso o findById devolve
         // vazio e o teste "o admin nao tem tempo de viagem" passaria por nao
         // achar o usuario, nao por ele ser admin. Levou uma mutacao pra
@@ -637,5 +640,57 @@ class ListControllerTest extends WebMvcTestSupport {
         mvc.perform(get("/api/lists/today").with(admin()))
                 .andExpect(status().isOk())
                 .andExpect(jsonPath("$.data[0].myTripTime").doesNotExist());
+    }
+
+    // ─── IDOR em GET /lists/{id} ─────────────────────────────────────────────
+
+    /// A lista carrega nome da rota, total de inscritos, divisão por instituição
+    /// e as paradas. `findTodayLists` filtra por rota, mas buscar pelo id não
+    /// filtrava nada -- qualquer aluno lia a lista de qualquer rota.
+    ///
+    /// O trajeto da MESMA lista já devolvia 403. Guardar um e deixar o outro
+    /// aberto, sendo que este carrega mais dado, é a pior das duas opções.
+    @Test
+    void alunoNaoLeAListaDeUmaRotaQueNaoEDele() throws Exception {
+        when(routeMemberRepository.existsByUserIdAndRouteId(STUDENT_ID, ROUTE_ID))
+                .thenReturn(false);
+        when(findListUseCase.findById(LIST_ID)).thenReturn(lista());
+
+        mvc.perform(get("/api/lists/{id}", LIST_ID).with(student()))
+                .andExpect(status().isForbidden());
+    }
+
+    @Test
+    void alunoDaRotaLeAListaNormalmente() throws Exception {
+        when(findListUseCase.findById(LIST_ID)).thenReturn(lista());
+
+        mvc.perform(get("/api/lists/{id}", LIST_ID).with(student()))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.data.routeName").value("Rota Universitária"));
+    }
+
+    /// O admin vê qualquer lista: é ele quem opera o transporte inteiro.
+    @Test
+    void oAdminLeQualquerLista() throws Exception {
+        when(routeMemberRepository.existsByUserIdAndRouteId(ADMIN_ID, ROUTE_ID))
+                .thenReturn(false);
+        when(findListUseCase.findById(LIST_ID)).thenReturn(lista());
+
+        mvc.perform(get("/api/lists/{id}", LIST_ID).with(admin()))
+                .andExpect(status().isOk());
+    }
+
+    /// O usuário é resolvido UMA vez por requisição, não por lista: o admin com
+    /// várias listas do dia pagaria uma busca do mesmo usuário em cada uma.
+    @Test
+    void naoBuscaOUsuarioUmaVezPorLista() throws Exception {
+        rotaComDuasInstituicoes();
+        when(findListUseCase.findTodayLists(STUDENT_ID))
+                .thenReturn(List.of(lista(), lista(), lista()));
+
+        mvc.perform(get("/api/lists/today").with(student()))
+                .andExpect(status().isOk());
+
+        verify(userRepository, org.mockito.Mockito.times(1)).findById(STUDENT_ID);
     }
 }

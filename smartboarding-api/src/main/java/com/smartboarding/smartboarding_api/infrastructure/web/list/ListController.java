@@ -12,6 +12,7 @@ import com.smartboarding.smartboarding_api.domain.list.port.out.ListEntryReposit
 import com.smartboarding.smartboarding_api.domain.stop.StudentStop;
 import com.smartboarding.smartboarding_api.domain.stop.entity.Stop;
 import com.smartboarding.smartboarding_api.domain.user.entity.Role;
+import com.smartboarding.smartboarding_api.shared.exception.ForbiddenException;
 import com.smartboarding.smartboarding_api.domain.user.entity.User;
 import com.smartboarding.smartboarding_api.domain.user.port.out.UserRepositoryPort;
 import com.smartboarding.smartboarding_api.domain.vehicle.port.out.VehicleRepositoryPort;
@@ -53,6 +54,8 @@ public class ListController {
     private final com.smartboarding.smartboarding_api.domain.stop.port.in.ManageStopsUseCase manageStopsUseCase;
     private final com.smartboarding.smartboarding_api.domain.list.port.in.ManageDailyListUseCase manageDailyListUseCase;
     private final EnrollByAdminUseCase enrollByAdminUseCase;
+    private final com.smartboarding.smartboarding_api.domain.membership.port.out.RouteMemberRepositoryPort
+            routeMemberRepository;
 
     public ListController(FindListUseCase findListUseCase,
                           AddEntryUseCase addEntryUseCase,
@@ -65,7 +68,9 @@ public class ListController {
                           com.fasterxml.jackson.databind.ObjectMapper objectMapper,
                           com.smartboarding.smartboarding_api.domain.stop.port.in.ManageStopsUseCase manageStopsUseCase,
                           com.smartboarding.smartboarding_api.domain.list.port.in.ManageDailyListUseCase manageDailyListUseCase,
-                          EnrollByAdminUseCase enrollByAdminUseCase) {
+                          EnrollByAdminUseCase enrollByAdminUseCase,
+                          com.smartboarding.smartboarding_api.domain.membership.port.out.RouteMemberRepositoryPort
+                                  routeMemberRepository) {
         this.findListUseCase = findListUseCase;
         this.addEntryUseCase = addEntryUseCase;
         this.removeEntryUseCase = removeEntryUseCase;
@@ -78,14 +83,16 @@ public class ListController {
         this.manageStopsUseCase = manageStopsUseCase;
         this.manageDailyListUseCase = manageDailyListUseCase;
         this.enrollByAdminUseCase = enrollByAdminUseCase;
+        this.routeMemberRepository = routeMemberRepository;
     }
 
     @GetMapping("/today")
     public ResponseEntity<ApiResponse<List<ListResponse>>> getTodayLists(Authentication auth) {
         UUID userId = extractUserId(auth);
+        User quem = userRepository.findById(userId).orElse(null);
         Map<UUID, String> names = institutionNames();
         List<ListResponse> lists = findListUseCase.findTodayLists(userId).stream()
-                .map(list -> montar(list, userId, names))
+                .map(list -> montar(list, userId, names, quem))
                 .toList();
         return ResponseEntity.ok(ApiResponse.data(lists));
     }
@@ -94,9 +101,10 @@ public class ListController {
     public ResponseEntity<ApiResponse<List<ListResponse>>> byDate(
             @RequestParam LocalDate date, Authentication auth) {
         UUID userId = extractUserId(auth);
+        User quem = userRepository.findById(userId).orElse(null);
         Map<UUID, String> names = institutionNames();
         List<ListResponse> lists = manageDailyListUseCase.findByDate(date).stream()
-                .map(list -> montar(list, userId, names))
+                .map(list -> montar(list, userId, names, quem))
                 .toList();
         return ResponseEntity.ok(ApiResponse.data(lists));
     }
@@ -135,8 +143,27 @@ public class ListController {
     public ResponseEntity<ApiResponse<ListResponse>> findById(@PathVariable UUID id, Authentication auth) {
         UUID userId = extractUserId(auth);
         DailyList list = findListUseCase.findById(id);
+        assertPodeLer(userId, list);
         return ResponseEntity.ok(ApiResponse.data(
                 montar(list, userId, institutionNames())));
+    }
+
+    /// O aluno lê a lista da rota em que ele está, e só dela.
+    ///
+    /// `findTodayLists` já filtrava por rota, mas buscar pelo id não filtrava
+    /// nada: qualquer aluno lia a lista de qualquer rota -- com nome da rota,
+    /// total de inscritos, divisão por instituição e as paradas. O trajeto da
+    /// MESMA lista já devolvia 403, então era guardar um e deixar aberto o que
+    /// carrega mais dado.
+    private void assertPodeLer(UUID userId, DailyList list) {
+        User quem = userRepository.findById(userId).orElse(null);
+        // Admin opera o transporte inteiro; sem usuário, quem barra é o filtro
+        // de autenticação, não este guard.
+        if (quem == null || quem.getRole() == Role.ADMIN) return;
+        if (!routeMemberRepository.existsByUserIdAndRouteId(userId, list.getRoute().getId())) {
+            throw new ForbiddenException("NOT_IN_ROUTE",
+                    "Você não faz parte da rota dessa lista.");
+        }
     }
 
     @PostMapping("/{id}/entries")
@@ -215,7 +242,15 @@ public class ListController {
     /// Monta a resposta de uma lista. Junto porque a proposta de veículo
     /// depende do total de confirmados: separado, cada chamador contava de
     /// novo e a alocação rodava duas vezes por lista.
+    /// [quem] resolvido uma vez pelo chamador: buscá-lo aqui dentro faria uma
+    /// consulta por lista, e o admin com vinte listas do dia pagaria vinte
+    /// buscas do mesmo usuário.
     private ListResponse montar(DailyList list, UUID userId, Map<UUID, String> names) {
+        return montar(list, userId, names, userRepository.findById(userId).orElse(null));
+    }
+
+    private ListResponse montar(DailyList list, UUID userId, Map<UUID, String> names,
+                                User quem) {
         long confirmados = listEntryRepository.countByDailyListIdAndIsActiveTrue(list.getId());
         ProposedInfo proposta = proposedOf(list, confirmados);
         // Buscadas uma vez e usadas duas: no desenho do trajeto e no tempo até
@@ -230,7 +265,7 @@ public class ListController {
                 proposta.vehicles(),
                 proposta.shortfall(),
                 stopsOf(paradas),
-                myTripTime(userId, paradas));
+                myTripTime(quem, paradas));
     }
 
     /// Quanto a viagem leva até a instituição deste aluno.
@@ -238,8 +273,7 @@ public class ListController {
     /// Nulo pro admin: ele conduz o ônibus, não desce em lugar nenhum. Nulo
     /// também quando o tempo ainda não foi calculado -- e aí a tela omite, em
     /// vez de mostrar um zero que o aluno leria como "chega na hora".
-    private ListResponse.MyTripTime myTripTime(UUID userId, List<Stop> paradas) {
-        User quem = userRepository.findById(userId).orElse(null);
+    private ListResponse.MyTripTime myTripTime(User quem, List<Stop> paradas) {
         if (quem == null || quem.getRole() != Role.STUDENT) return null;
 
         StudentStop dele = StudentStop.resolve(paradas, quem.getInstitutionId());
