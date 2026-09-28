@@ -11,7 +11,8 @@ import '../services/profile_service.dart';
 class MeProvider extends ChangeNotifier {
   final ProfileService _service;
 
-  MeProvider([ProfileService? service]) : _service = service ?? ProfileService();
+  MeProvider([ProfileService? service])
+    : _service = service ?? ProfileService();
 
   Me? _me;
   Me? get me => _me;

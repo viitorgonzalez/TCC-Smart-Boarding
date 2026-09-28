@@ -19,9 +19,9 @@ void main() {
   setUp(() {
     cep = _MockCepService();
     profile = _MockProfileService();
-    when(() => profile.updateAddress(any())).thenAnswer(
-      (i) async => i.positionalArguments.first as Address,
-    );
+    when(
+      () => profile.updateAddress(any()),
+    ).thenAnswer((i) async => i.positionalArguments.first as Address);
   });
 
   const doViaCep = Address(

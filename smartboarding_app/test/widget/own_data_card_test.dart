@@ -59,7 +59,10 @@ void main() {
     await salvar(tester);
 
     verify(
-      () => profile.updateOwnProfile(phone: '37988887777', course: any(named: 'course')),
+      () => profile.updateOwnProfile(
+        phone: '37988887777',
+        course: any(named: 'course'),
+      ),
     ).called(1);
     verifyNever(
       () => profile.requestUpdate(

@@ -19,8 +19,10 @@ void main() {
     when(
       () => dio.get(any(), queryParameters: any(named: 'queryParameters')),
     ).thenAnswer(
-      (_) async =>
-          Response(data: corpo, requestOptions: RequestOptions(path: '')),
+      (_) async => Response(
+        data: corpo,
+        requestOptions: RequestOptions(path: ''),
+      ),
     );
   }
 
@@ -38,9 +40,7 @@ void main() {
       ],
     });
 
-    final grudado = await service.snapToRoad(
-      const LatLng(-20.4650, -45.4270),
-    );
+    final grudado = await service.snapToRoad(const LatLng(-20.4650, -45.4270));
 
     expect(grudado!.latitude, closeTo(-20.4644, 1e-6));
     expect(grudado.longitude, closeTo(-45.4267, 1e-6));

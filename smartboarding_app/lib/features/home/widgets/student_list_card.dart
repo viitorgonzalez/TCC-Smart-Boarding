@@ -201,10 +201,7 @@ class StudentListCard extends StatelessWidget {
                 label: const Text('Sair da lista'),
               )
             else if (missingProfile.isNotEmpty)
-              _ProfileWarning(
-                missing: missingProfile,
-                onFix: onFixProfile,
-              )
+              _ProfileWarning(missing: missingProfile, onFix: onFixProfile)
             else
               FilledButton.icon(
                 onPressed: () => _pickAndEnter(context),
@@ -243,7 +240,11 @@ class _ProfileWarning extends StatelessWidget {
           Row(
             crossAxisAlignment: CrossAxisAlignment.start,
             children: [
-              const Icon(Icons.error_outline, size: 18, color: AppColors.danger),
+              const Icon(
+                Icons.error_outline,
+                size: 18,
+                color: AppColors.danger,
+              ),
               const SizedBox(width: 8),
               Expanded(
                 child: Text(

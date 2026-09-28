@@ -67,10 +67,7 @@ class RoadRouteService {
       // [longitude, latitude] — invertido em relação ao LatLng. Trocar a ordem
       // põe a parada em outro continente sem erro nenhum.
       final local = waypoints.first['location'] as List;
-      return LatLng(
-        (local[1] as num).toDouble(),
-        (local[0] as num).toDouble(),
-      );
+      return LatLng((local[1] as num).toDouble(), (local[0] as num).toDouble());
     } catch (_) {
       return null;
     }

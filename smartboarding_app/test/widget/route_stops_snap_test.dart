@@ -37,9 +37,7 @@ void main() {
         longitude: any(named: 'longitude'),
         sequence: any(named: 'sequence'),
       ),
-    ).thenAnswer(
-      (_) async => StopModel(id: 's1', name: 'Nova', sequence: 1),
-    );
+    ).thenAnswer((_) async => StopModel(id: 's1', name: 'Nova', sequence: 1));
   });
 
   Future<void> montar(WidgetTester tester) async {

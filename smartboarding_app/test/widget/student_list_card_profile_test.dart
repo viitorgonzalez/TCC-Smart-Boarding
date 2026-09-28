@@ -70,7 +70,9 @@ void main() {
 
     final aviso = find.byKey(const Key('list_profile_warning'));
     final textos = tester
-        .widgetList<Text>(find.descendant(of: aviso, matching: find.byType(Text)))
+        .widgetList<Text>(
+          find.descendant(of: aviso, matching: find.byType(Text)),
+        )
         .map((t) => t.data ?? '')
         .join(' ');
 

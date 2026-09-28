@@ -70,10 +70,7 @@ class ProfileService {
   /// aluno embarca, não em qual transporte ele entra. Como é pré-requisito pra
   /// entrar na lista, depender de aprovação deixaria a pessoa travada esperando.
   Future<Address> updateAddress(Address endereco) async {
-    final response = await _dio.put(
-      '/api/me/address',
-      data: endereco.toJson(),
-    );
+    final response = await _dio.put('/api/me/address', data: endereco.toJson());
     return Address.fromJson(response.data['data'] as Map<String, dynamic>);
   }
 

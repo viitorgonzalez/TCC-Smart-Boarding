@@ -108,8 +108,9 @@ class Me {
     'institution': 'Instituição',
   };
 
-  List<String> get faltandoEmPortugues =>
-      [for (final campo in missingForList) rotulos[campo] ?? campo];
+  List<String> get faltandoEmPortugues => [
+    for (final campo in missingForList) rotulos[campo] ?? campo,
+  ];
 
   factory Me.fromJson(Map<String, dynamic> json) => Me(
     id: json['id'] as String,

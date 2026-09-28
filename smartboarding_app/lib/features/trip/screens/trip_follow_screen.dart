@@ -156,9 +156,7 @@ class _MinhaParada extends StatelessWidget {
           children: [
             const Icon(Icons.check_circle, color: AppColors.positiveFg),
             const SizedBox(width: 12),
-            Expanded(
-              child: Text('O ônibus já passou por ${minha.stopName}.'),
-            ),
+            Expanded(child: Text('O ônibus já passou por ${minha.stopName}.')),
           ],
         ),
       );
@@ -185,11 +183,7 @@ class _MinhaParada extends StatelessWidget {
             Row(
               key: const Key('trip_follow_eta'),
               children: [
-                const Icon(
-                  Icons.schedule,
-                  size: 18,
-                  color: AppColors.deepTeal,
-                ),
+                const Icon(Icons.schedule, size: 18, color: AppColors.deepTeal),
                 const SizedBox(width: 8),
                 Text(
                   'Cerca de $min min até ${minha.stopName}',

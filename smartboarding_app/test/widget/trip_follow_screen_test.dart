@@ -54,7 +54,9 @@ void main() {
   Future<void> montar(WidgetTester tester, TripStatus estado) async {
     when(() => service.status('l1')).thenAnswer((_) async => estado);
     await tester.pumpWidget(
-      MaterialApp(home: TripFollowScreen(listId: 'l1', service: service)),
+      MaterialApp(
+        home: TripFollowScreen(listId: 'l1', service: service),
+      ),
     );
     await tester.pumpAndSettle();
   }
@@ -78,7 +80,10 @@ void main() {
 
     expect(find.text('Rodoviária'), findsOneWidget);
     expect(find.text('Centro'), findsOneWidget);
-    expect(find.byKey(const Key('trip_follow_stop_p1_reached')), findsOneWidget);
+    expect(
+      find.byKey(const Key('trip_follow_stop_p1_reached')),
+      findsOneWidget,
+    );
     expect(find.byKey(const Key('trip_follow_stop_p2_reached')), findsNothing);
   });
 
@@ -121,7 +126,10 @@ void main() {
       ),
     );
 
-    expect(find.byKey(const Key('trip_follow_fallback_warning')), findsOneWidget);
+    expect(
+      find.byKey(const Key('trip_follow_fallback_warning')),
+      findsOneWidget,
+    );
   });
 
   testWidgets('depois de passar diz que o trecho dele acabou', (tester) async {
@@ -138,7 +146,10 @@ void main() {
       ),
     );
 
-    expect(find.byKey(const Key('trip_follow_already_reached')), findsOneWidget);
+    expect(
+      find.byKey(const Key('trip_follow_already_reached')),
+      findsOneWidget,
+    );
   });
 
   testWidgets('trajeto nao iniciado nao inventa progresso', (tester) async {

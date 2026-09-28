@@ -41,7 +41,8 @@ class _AddressCardState extends State<AddressCard> {
   static const _digitosDoCep = 8;
 
   late final CepService _cep = widget.cepService ?? CepService();
-  late final ProfileService _profile = widget.profileService ?? ProfileService();
+  late final ProfileService _profile =
+      widget.profileService ?? ProfileService();
 
   final _cepCtrl = TextEditingController();
   final _ruaCtrl = TextEditingController();
@@ -155,10 +156,7 @@ class _AddressCardState extends State<AddressCard> {
         children: [
           Row(
             children: [
-              Text(
-                'Endereço',
-                style: Theme.of(context).textTheme.titleSmall,
-              ),
+              Text('Endereço', style: Theme.of(context).textTheme.titleSmall),
               const Spacer(),
               if (_buscando)
                 const SizedBox(
