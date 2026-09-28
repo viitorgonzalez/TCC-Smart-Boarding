@@ -25,6 +25,7 @@
 | Meu perfil | 🎓🧑‍💼 | Dados cadastrais, instituições, pedido de alteração, criar senha local | `GET /api/me`, `/api/me/institutions`, `/api/me/profile-requests`, `POST /api/me/password` | — |
 | Minha rota | 🎓 | Paradas da rota no mapa | `GET /api/routes/{id}/stops` | — |
 | Minhas idas | 🎓 | Histórico de presença dos últimos 6 meses | `GET /api/users/me/attendance` | — |
+| Acompanhar trajeto | 🎓 | Checklist das paradas e tempo até a instituição do aluno | `GET /api/trip/{listId}` | [`trip-follow.md`](./specs/aluno/trip-follow.md) |
 | Carteirinha | 🎓 | Nome, instituição, curso e endereço curto pra conferência presencial | `GET /api/me` | [`student-card.md`](./specs/aluno/student-card.md) |
 | Relatórios (aluno) | 🎓 | Histórico dos últimos 7 dias | `GET /api/reports` (filtrado) | [`reports.md`](./specs/relatorios/reports.md) |
 

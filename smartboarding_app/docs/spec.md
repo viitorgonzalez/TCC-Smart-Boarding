@@ -313,3 +313,43 @@ mensagens em foreground via `flutter_local_notifications`, trata background/term
 - Não bloquear a notificação de trajeto por status de lista fechada (§3.4).
 - Não passar de 300 linhas por arquivo `.dart` tocado num PR (§7).
 - Não mergear integração externa (Resend/R2/Google/Maps) só testada localmente/mockada.
+
+## Perfil, endereço e carteirinha (set/2026)
+
+### Entrar na lista exige perfil completo
+
+`fullName`, `phone`, endereço completo e ao menos uma instituição (RN29 do backend). O card da
+lista **avisa antes** de o aluno tocar no botão, nomeando o que falta — descobrir o bloqueio só
+ao tocar é fazer a pessoa esbarrar numa parede que dava pra sinalizar.
+
+Quem decide o que falta é o backend (`GET /api/me` → `missingForList`). Refazer a conta em Dart
+daria duas versões da regra, e a que vale é a de quem recusa a entrada.
+
+`MeProvider` é compartilhado entre o perfil e o card da lista: com duas cópias do `/me`, salvar
+o telefone pelo cabeçalho deixaria o aviso do card mentindo até alguém reabrir a tela.
+
+### Endereço por CEP
+
+O aluno digita **CEP e número**; rua, bairro, cidade e UF chegam do ViaCEP.
+
+O `CepService` constrói um **Dio próprio**, nunca o `DioClient`: aquele injeta o Bearer da sessão
+em toda requisição, e reaproveitá-lo entregaria o token do aluno a um host de terceiro. Há teste
+pra isso.
+
+Armadilha do serviço: **CEP inexistente responde HTTP 200 com `{"erro": true}`** — e o campo já
+veio como booleano e como string em versões diferentes. Olhar só o status deixaria o aluno salvar
+endereço em branco achando que preencheu.
+
+Sem SLA: falha devolve `null`, os campos seguem editáveis à mão, e um CEP que falha **não apaga**
+o que já foi digitado.
+
+### Onde cada coisa salva
+
+| Campo | Caminho |
+|---|---|
+| Endereço | `PUT /me/address` — direto |
+| Telefone, curso | `PUT /me/profile` — direto |
+| Nome, instituição | fila de aprovação do admin |
+
+Por isso `AddressCard` e `OwnDataCard` têm botão próprio: duas semânticas de salvar num botão só
+fariam o aluno não saber o que já valeu e o que foi só pedido.

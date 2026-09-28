@@ -71,11 +71,24 @@ class _AddressCardState extends State<AddressCard> {
     _complementoCtrl.text = widget.initial.complement ?? '';
     _ultimoConsultado = _soDigitos(_cepCtrl.text);
     _cepCtrl.addListener(_aoDigitarCep);
+    // Os campos que alimentam o aviso precisam reconstruí-lo enquanto se
+    // digita. Sem isto, quem preenche o número à mão continua vendo "falta
+    // preencher: Número" em vermelho e conclui que o app está quebrado -- o
+    // CEP atualizava porque a busca dele já chamava setState, e os outros não.
+    for (final c in [_cepCtrl, _ruaCtrl, _bairroCtrl, _numeroCtrl]) {
+      c.addListener(_aoDigitar);
+    }
   }
+
+  /// Só reconstrói: o texto já está nos controllers.
+  void _aoDigitar() => setState(() {});
 
   @override
   void dispose() {
     _cepCtrl.removeListener(_aoDigitarCep);
+    for (final c in [_cepCtrl, _ruaCtrl, _bairroCtrl, _numeroCtrl]) {
+      c.removeListener(_aoDigitar);
+    }
     for (final c in [
       _cepCtrl,
       _ruaCtrl,

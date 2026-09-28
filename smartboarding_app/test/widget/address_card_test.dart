@@ -236,4 +236,47 @@ void main() {
 
     verifyNever(() => cep.lookup(any()));
   });
+
+  /// O aviso mentia: quem digitava o número à mão continuava vendo "falta
+  /// preencher: Número" em vermelho e concluía que o app estava quebrado.
+  /// Só o CEP reconstruía a tela, porque a busca dele já chamava setState.
+  testWidgets('o aviso some enquanto o campo e digitado a mao', (tester) async {
+    await montar(
+      tester,
+      inicial: const Address(
+        zipCode: '35574-018',
+        street: 'Rua Newton Garcia Cunha',
+        neighborhood: 'Novo Santo Antônio',
+      ),
+    );
+    expect(find.byKey(const Key('address_missing_warning')), findsOneWidget);
+
+    await tester.enterText(
+      find.byKey(const Key('address_number_field')),
+      '328',
+    );
+    await tester.pump();
+
+    expect(find.byKey(const Key('address_missing_warning')), findsNothing);
+  });
+
+  /// E volta se o campo for esvaziado.
+  testWidgets('apagar o campo traz o aviso de volta', (tester) async {
+    await montar(
+      tester,
+      inicial: const Address(
+        zipCode: '35574-018',
+        street: 'Rua Newton Garcia Cunha',
+        neighborhood: 'Novo Santo Antônio',
+        streetNumber: '328',
+        complete: true,
+      ),
+    );
+    expect(find.byKey(const Key('address_missing_warning')), findsNothing);
+
+    await tester.enterText(find.byKey(const Key('address_number_field')), '');
+    await tester.pump();
+
+    expect(find.byKey(const Key('address_missing_warning')), findsOneWidget);
+  });
 }

@@ -317,59 +317,55 @@ Backend. Não é só o que destrava "tempo até a sua instituição": é consert
 
 ---
 
-### Task 15: Verificação no aparelho
+### Task 15: Verificação no aparelho ✅
 
-Os testes não pegam layout nem fluxo. Esta task é olhar.
+Feita no emulador Pixel 9, com a API local, **em debug e em release**.
 
-- [ ] Subir ambiente (`docker compose up -d`, `./run-local.sh`, emulador).
-- [ ] **CEP:** digitar um CEP de Formiga → rua e bairro preenchem sozinhos; só falta o número.
-- [ ] **Perfil incompleto:** aluno sem telefone → o card mostra o que falta, sem botão de entrar.
-      Preencher → botão volta **na hora**, sem passar por aprovação.
-- [ ] **Carteirinha:** abrir → nome, instituição, curso, rua/bairro/número. Sem CEP à vista.
-- [ ] **Cabeçalho:** logar como `vitor@student.com` (nome longo) → só "Vítor", uma linha.
-- [ ] **Painel do admin:** 8 cards na ordem nova, sem rolar, "Resumo de Hoje" à vista.
-- [ ] **Parada:** criar uma tocando entre dois quarteirões → o pino se ajusta pra via.
-- [ ] **Trajeto:** iniciar como admin, marcar uma parada; como aluno, abrir "Acompanhar trajeto"
-      e ver a parada marcada e o tempo **nomeando a instituição dele**.
-- [ ] **O caso que mais importa:** dois alunos de instituições diferentes, mesma lista → cada um
-      vê o seu tempo. É a resposta da decisão do usuário; se falhar aqui, falhou inteiro.
-- [ ] Tirar print de cada tela mexida e comparar com o estado anterior.
+- [x] **CEP:** digitar `35574-018` preencheu rua, bairro, cidade e UF, e o foco pulou pro número.
+- [x] **CEP inexistente:** `35570-000` **não** preencheu nada e **não** apagou nada — o ViaCEP
+      devolve `{"erro": "true"}` com HTTP 200, e a string (não o booleano) é o caso tratado.
+      Confirmado contra o serviço real.
+- [x] **Perfil incompleto:** o aviso nomeia os campos e encolhe conforme se preenche.
+- [x] **Carteirinha:** "Rua Newton Garcia Cunha, 4328 — Novo Santo Antônio". Sem CEP, sem
+      cidade, com o rodapé de "não é documento oficial".
+- [x] **Cabeçalho:** "Fernanda" (só o primeiro nome), um botão de ação e o menu ⋮ com perfil e
+      sair.
+- [x] **Login com Google** presente (com o `--dart-define`; sem ele o botão se esconde, que é o
+      certo — um botão de Google sem client id só daria erro).
+- [x] **Trajeto e ETA:** verificados pela API (ver Task 11/14) — dois alunos, 42 e 47 min.
+
+**Bug encontrado aqui, e corrigido:** o aviso do endereço só reconstruía no listener do CEP.
+Quem digitava o número à mão continuava vendo "Falta preencher: Número" em vermelho e concluía
+que o app estava quebrado. Os campos que alimentam o aviso ganharam listener; dois testes novos,
+e a mutação que remove os listeners os mata.
+
+> ### ⚠️ A borda verde-limão — eu estava errado
+>
+> Em sessão anterior afirmei que era "ferramenta de debug do Flutter, não defeito". **Não é.**
+> Medido agora, no mesmo aparelho:
+>
+> - Cor `#A9D32A`, ~2px, nos **quatro** lados (em cima fica escurecida pelo header)
+> - **Presente também no build de release** — logo, não é debug tooling
+> - **Ausente** na home do Android e em Ajustes → é a janela do app, não o sistema
+> - **Intermitente**: aparece e some entre capturas com segundos de diferença, sem relação com
+>   a tela, com scroll, com acessibilidade ou com número de sessões de debug
+> - **Não existe no código Dart**: nada em `lib/` pinta essa cor nem desenha borda de tela cheia
+>
+> Fica em aberto, com os dados acima. O que eu tinha como conclusão era hipótese não verificada.
 
 ---
 
-### Task 16: Documentação
+### Task 16: Documentação ✅
 
-- [ ] `smartboarding-api/docs/spec.md`: RN nova de perfil obrigatório; endereço estruturado e as
-      migrations V31–V33; `stops.institution_id` substituindo o `LIKE` da V20 na RN23.
-- [ ] Registrar que `phone`/endereço/`course` saem do fluxo de aprovação, e **por quê**.
-- [ ] `smartboarding_app/docs/specs/aluno/`: tela de acompanhamento e carteirinha.
-- [ ] `smartboarding_app/docs/PAGES.md`: as duas telas novas.
-- [ ] `CLAUDE.md` do app: ViaCEP como dependência externa nova, junto do aviso do OSRM.### Task 14: Tempo estimado até a instituição do aluno ✅
-
-Fecha o bloco.
-
-> **Mudou de forma.** O plano mandava o app chamar o OSRM na tela. Com polling de 20s isso seria
-> **3 requisições por minuto por aluno**, num serviço com limite de uso — pra chegar no mesmo
-> número que `avg_minutes_from_start` já guarda. O tempo virou uma subtração; o OSRM só é
-> chamado quando as paradas mudam (Task 10) ou ao iniciar o trajeto.
-
-- [x] **ETA ao vivo** (tela de acompanhamento): diferença entre a parada dele e a última
-      alcançada. Feito na Task 11.
-- [x] **Tempo médio** (card da lista): `myTripTime` no `ListResponse`, com nome do destino.
-- [x] O rótulo **nomeia o destino** nos dois lugares — dois alunos do mesmo ônibus veem números
-      diferentes, e sem o nome quem compara com o colega conclui que o app errou.
-- [x] `StudentStop.resolve()` extraído pro domínio: a regra "qual parada é a do aluno" era
-      necessária no trajeto **e** no card, e duas cópias mostrariam dois destinos diferentes pro
-      mesmo aluno em telas vizinhas. 7 testes, e o `TripController` passou a usá-la sem que
-      nenhum dos 24 testes dele mudasse.
-- [x] Ônibus já passou → sem tempo negativo (Task 11).
-- [x] Sem tempo calculado → a tela **omite**; zero o aluno leria como "chega na hora".
-- [x] Instituição sem parada → último ponto, **com aviso** nos dois lugares.
-- [x] Mutação: 4 no card + 1 no controller. **Uma sobreviveu** — o teste do admin passava porque
-      o `findById` dele nem estava stubado (voltava vazio, não "é admin"). Corrigido; agora mata.
-- [x] `./mvnw verify` (619 unit + 3 IT) e 293 testes no app, gate exit 0.
-
-**Verificado no ambiente real:** `fernanda (UNIFOR-MG) → 42 min até UNIFOR-MG — Formiga`,
-`daniela (IFMG) → 47 min até IFMG — Campus Formiga`, admin sem tempo.
-
-
+- [x] `smartboarding-api/docs/spec.md`: **RN29–RN35** — perfil completo pra entrar na lista,
+      `stops.institution_id`, `avg_minutes_from_start`, o aluno lendo o trajeto, endereço
+      estruturado, o que sai da fila de aprovação, e a carteirinha.
+- [x] **RN12 reconciliada:** ela diz que `users.expiry_date` é a validade da carteirinha física.
+      Eu havia documentado essa coluna como "expiração de conta, não validade de carteirinha" —
+      impreciso. O efeito que descrevi como risco (bloquear o login) é o comportamento
+      **pretendido** pela RN12. A decisão prática não muda: a carteirinha virtual não escreve
+      nela, e não carrega data própria, porque uma segunda validade criaria duas verdades.
+- [x] `smartboarding_app/docs/specs/aluno/trip-follow.md` + `student-card.md`, e `PAGES.md`.
+- [x] `smartboarding_app/docs/spec.md`: perfil, CEP e onde cada campo salva.
+- [x] `TCC-Smart-Boarding/CLAUDE.md`: seção de serviços externos sem SLA, com as três armadilhas
+      (o `erro` string do ViaCEP, o Dio próprio, e o `longitude,latitude` não-encodado do OSRM).

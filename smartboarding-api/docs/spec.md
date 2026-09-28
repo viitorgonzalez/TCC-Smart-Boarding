@@ -232,6 +232,16 @@ Contextos (`<contexto>`): `user`, `route`, `institution`, `vehicle`, `stop`, `li
   `FROM_CAMPUS`.
 - **RN7** — Ao entrar na lista (criação ou reativação), dispara notificação FCM individual de
   confirmação — best-effort, falha no envio não propaga erro pro cliente.
+- **RN29** — Entrar na lista exige **perfil completo**: `fullName`, `phone`, endereço completo
+  (§4.9) e ao menos uma instituição. Sem isso o motorista fica com um nome na chamada e nenhuma
+  forma de saber onde a pessoa embarca nem como falar com ela. O erro é
+  `PROFILE_INCOMPLETE_FOR_LIST` e carrega **quais** campos faltam em `missing` — a mensagem
+  genérica faria o aluno descobrir por tentativa, um campo por viagem perdida.
+  `birthDate` e `course` **não** entram: descrevem a pessoa, não a operação do transporte.
+  A regra vale **só pra quem ainda não está na lista** — quem já entrou o fez quando era
+  permitido, e barrá-lo ali o expulsaria só por trocar ida por volta. A inclusão pelo admin
+  (`POST /lists/{id}/entries/admin`, RN18) **não** herda a trava: é decisão dele, com o aluno na
+  frente, e quase sempre é exatamente o aluno de cadastro pela metade que precisa dela.
 - **RN12** — `users.expiryDate` é a validade da carteirinha física de transporte. Quando
   expirada, a conta é bloqueada: login retorna erro `ACCOUNT_EXPIRED` em vez de emitir o JWT, e
   entrar na lista revalida `expiryDate` de novo (necessário porque um JWT emitido antes da
@@ -272,6 +282,56 @@ Contextos (`<contexto>`): `user`, `route`, `institution`, `vehicle`, `stop`, `li
   checkpoint, só aparecem no mapa. Cada ação de trajeto dispara notificação FCM aos inscritos
   ativos da lista do dia, independente do `status` da lista (funciona mesmo com a lista já
   fechada — o embarque físico acontece depois do fechamento).
+
+- **RN30** — `stops.institution_id` (V32) diz qual instituição a parada serve, e **quem serve
+  instituição é sempre ponto principal**. Até a V32 esse vínculo era adivinhado dentro de uma
+  migration por `s.name LIKE i.name || '%'`, e nada no código da aplicação sabia recriá-lo:
+  **toda rota criada depois da V20 nascia sem nenhum ponto principal**, e o checkpoint devolvia
+  `STOP_NOT_MAIN_POINT` em todas elas. `is_main_point` continua sendo campo e não puro derivado
+  porque a rodoviária é ponto principal sem ser instituição nenhuma. O `PATCH` da parada
+  distingue "mover" de "mexer no vínculo": mandar as coordenadas sozinhas **não** desvincula a
+  instituição.
+- **RN31** — `stops.avg_minutes_from_start` (V33) guarda quanto o trajeto leva do início até
+  cada parada, somando **1 min de embarque por parada**. Calculado no backend, não no app: o
+  número só muda quando as paradas mudam, e calcular no aparelho faria cada aluno que abre a
+  lista bater no OSRM pro mesmo resultado — o serviço público tem limite de uso. Recalculado a
+  cada escrita de parada e ao **iniciar o trajeto** (rota anterior à V33 nasce com a coluna
+  vazia). **Nulo é "não sei"** e a tela omite: zero o aluno leria como "o ônibus já chegou".
+- **RN32** — O aluno **lê** o trajeto (`GET /api/trip/{listId}`) da rota em que ele está, e só
+  dela — conduzir (iniciar/checkpoint/finalizar) continua exclusivo do `ADMIN` (RN23). A resposta
+  traz `myStop`: **a parada da instituição dele**, com o tempo que falta. Dois alunos da mesma
+  lista veem números diferentes, por isso o nome do destino vem junto — sem ele, quem compara com
+  o colega conclui que o app está errado. Instituição sem parada declarada cai na última, com
+  `fallback: true` pra tela avisar. O tempo sai da **diferença** entre os `avg_minutes_from_start`
+  (RN31), nunca de uma chamada ao OSRM por consulta. Nulo quando não dá pra saber, na volta, e
+  quando a conta daria negativo (o admin pulou um checkpoint) — tempo negativo na tela é pior que
+  tempo nenhum.
+
+### 4.9 Perfil do aluno
+
+- **RN33** — O endereço é **estruturado** (`zip_code`, `street`, `neighborhood`, `city`, `state`,
+  `street_number`, `complement`) desde a V31, preenchido por CEP no app. É dele que sai o ponto de
+  embarque, e de texto livre ninguém deriva uma parada. Completo = CEP + rua + bairro + número;
+  `complement` é opcional. O texto livre anterior virou `address_legacy` em vez de ser quebrado
+  nos campos novos: separar rua de número a partir de texto livre produz endereço errado com cara
+  de certo, que é o motorista parando no lugar errado.
+- **RN34** — O que o aluno muda **sozinho**: endereço (`PUT /me/address`), telefone e curso
+  (`PUT /me/profile`). O que ainda passa pela fila do admin: **nome e instituição** — é o que
+  decide em qual transporte a pessoa entra. A separação existe porque a RN29 tornou o perfil
+  pré-requisito da lista: sem ela, "complete seu perfil pra entrar na lista" seria uma parede que
+  a própria pessoa não destrava, e ela perderia a viagem esperando aprovação de um telefone.
+
+### 4.10 Carteirinha virtual
+
+- **RN35** — A carteirinha mostra nome, instituição, curso e **apenas rua, número e bairro** do
+  endereço. CEP e cidade ficam de fora: não identificam ninguém numa conferência presencial, e é
+  uma tela que se aponta pra outra pessoa. **Não é documento oficial nem prova de matrícula** — o
+  sistema sabe o que o aluno declarou e não valida vínculo com a instituição; a tela diz isso.
+  Perfil incompleto ou aluno sem rota **não** emitem cartão pela metade: dizem o que falta.
+  A carteirinha **não carrega data de validade própria**. `users.expiry_date` (RN12) já é a
+  validade do transporte e já bloqueia a conta inteira quando vence — um aluno vencido não chega
+  nem a abrir a tela. Escrever uma segunda validade ali criaria duas verdades sobre a mesma
+  pergunta.
 
 ### 4.8 Sessão e segurança
 
