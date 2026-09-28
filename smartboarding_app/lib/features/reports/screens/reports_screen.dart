@@ -3,10 +3,12 @@ import 'package:provider/provider.dart';
 import '../../../core/utils/date_format.dart';
 import '../../../core/widgets/async_builder.dart';
 import '../../../core/widgets/empty_state.dart';
-import '../../../core/widgets/entity_list_tile.dart';
 import '../models/report_model.dart';
 import '../providers/report_provider.dart';
 import 'report_detail_screen.dart';
+import '../../../core/text/plural.dart';
+import '../../../core/widgets/app_list_group.dart';
+import '../../../core/theme/app_theme.dart';
 
 class ReportsScreen extends StatelessWidget {
   const ReportsScreen({super.key});
@@ -29,21 +31,24 @@ class ReportsScreen extends StatelessWidget {
                 },
                 child: RefreshIndicator(
                   onRefresh: provider.load,
-                  child: ListView.separated(
-                    padding: const EdgeInsets.all(16),
-                    itemCount: items.length + (provider.hasMore ? 1 : 0),
-                    separatorBuilder: (_, _) => const SizedBox(height: 10),
-                    itemBuilder: (_, i) {
-                      if (i == items.length) {
-                        return const Center(
+                  child: ListView(
+                    padding: const EdgeInsets.all(20),
+                    children: [
+                      AppListGroup(
+                        dividerIndent: 68,
+                        children: [
+                          for (final report in items)
+                            _ReportTile(report: report),
+                        ],
+                      ),
+                      if (provider.hasMore)
+                        const Center(
                           child: Padding(
                             padding: EdgeInsets.all(16),
                             child: CircularProgressIndicator(),
                           ),
-                        );
-                      }
-                      return _ReportTile(report: items[i]);
-                    },
+                        ),
+                    ],
                   ),
                 ),
               ),
@@ -60,19 +65,13 @@ class _ReportTile extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    return EntityListTile(
-      leading: CircleAvatar(
-        backgroundColor: Theme.of(context).colorScheme.secondaryContainer,
-        child: Icon(
-          Icons.bar_chart,
-          color: Theme.of(context).colorScheme.secondary,
-        ),
-      ),
+    return AppListItem(
+      leading: const Icon(Icons.bar_chart_outlined, color: AppColors.deepTeal),
       title: report.routeName,
-      subtitle: Text(
-        '${formatDate(report.listDate)} · ${report.totalEntries} inscrito(s)',
-      ),
-      trailing: const Icon(Icons.chevron_right),
+      subtitle:
+          '${formatDate(report.listDate)} · '
+          '${contagem(report.totalEntries, 'inscrito', 'inscritos')}',
+      trailing: const Icon(Icons.chevron_right, color: AppColors.textSecondary),
       onTap: () => Navigator.push(
         context,
         MaterialPageRoute(

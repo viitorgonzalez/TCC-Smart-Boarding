@@ -14,6 +14,10 @@ class TripStatus {
   final String leg;
   final List<TripStop> stops;
 
+  /// Onde ESTE aluno desce, e quanto falta. Nulo pro admin, que conduz o
+  /// ônibus em vez de viajar nele.
+  final MyStop? myStop;
+
   const TripStatus({
     required this.listId,
     required this.routeName,
@@ -22,6 +26,7 @@ class TripStatus {
     this.startedAt,
     this.outboundFinishedAt,
     this.finishedAt,
+    this.myStop,
   });
 
   bool get onReturn => leg == 'RETURN';
@@ -50,6 +55,9 @@ class TripStatus {
     stops: (json['stops'] as List? ?? const [])
         .map((e) => TripStop.fromJson(e as Map<String, dynamic>))
         .toList(),
+    myStop: json['myStop'] == null
+        ? null
+        : MyStop.fromJson(json['myStop'] as Map<String, dynamic>),
   );
 }
 
@@ -73,5 +81,40 @@ class TripStop {
     name: json['name'] as String,
     sequence: json['sequence'] as int,
     reachedAt: json['reachedAt'] as String?,
+  );
+}
+
+/// A parada do aluno e o tempo até ela.
+///
+/// Dois alunos no mesmo ônibus veem números diferentes — por isso [stopName]
+/// vem junto: sem nomear o destino, quem vê o número do colega conclui que o
+/// app está errado.
+class MyStop {
+  final String stopId;
+  final String stopName;
+
+  /// A instituição do aluno não tem parada declarada, e isto é a última do
+  /// trajeto. A tela precisa dizer isso: um tempo até um lugar que não é o
+  /// dele, sem aviso, é pior que tempo nenhum.
+  final bool fallback;
+  final bool alreadyReached;
+
+  /// Nulo é "não sei", e a tela omite. Um zero viraria "o ônibus chegou".
+  final int? etaMinutes;
+
+  const MyStop({
+    required this.stopId,
+    required this.stopName,
+    this.fallback = false,
+    this.alreadyReached = false,
+    this.etaMinutes,
+  });
+
+  factory MyStop.fromJson(Map<String, dynamic> json) => MyStop(
+    stopId: json['stopId'] as String,
+    stopName: json['stopName'] as String,
+    fallback: json['fallback'] as bool? ?? false,
+    alreadyReached: json['alreadyReached'] as bool? ?? false,
+    etaMinutes: json['etaMinutes'] as int?,
   );
 }

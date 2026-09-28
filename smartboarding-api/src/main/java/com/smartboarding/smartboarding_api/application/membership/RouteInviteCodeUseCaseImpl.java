@@ -4,6 +4,7 @@ import com.smartboarding.smartboarding_api.domain.membership.entity.RouteInviteC
 import com.smartboarding.smartboarding_api.domain.membership.port.in.ManageRouteInviteCodeUseCase;
 import com.smartboarding.smartboarding_api.domain.membership.port.out.RouteInviteCodeRepositoryPort;
 import com.smartboarding.smartboarding_api.domain.membership.port.out.RouteMemberRepositoryPort;
+import com.smartboarding.smartboarding_api.domain.institution.port.out.InstitutionRepositoryPort;
 import com.smartboarding.smartboarding_api.domain.route.port.out.RouteRepositoryPort;
 import com.smartboarding.smartboarding_api.shared.exception.BadRequestException;
 import com.smartboarding.smartboarding_api.shared.exception.NotFoundException;
@@ -33,6 +34,7 @@ public class RouteInviteCodeUseCaseImpl implements ManageRouteInviteCodeUseCase 
     private final RouteInviteCodeRepositoryPort codeRepository;
     private final RouteMemberRepositoryPort memberRepository;
     private final RouteRepositoryPort routeRepository;
+    private final InstitutionRepositoryPort institutionRepository;
     private final Clock clock;
     private final SecureRandom random = new SecureRandom();
     private final int codeLength;
@@ -41,12 +43,14 @@ public class RouteInviteCodeUseCaseImpl implements ManageRouteInviteCodeUseCase 
     public RouteInviteCodeUseCaseImpl(RouteInviteCodeRepositoryPort codeRepository,
                                       RouteMemberRepositoryPort memberRepository,
                                       RouteRepositoryPort routeRepository,
+                                      InstitutionRepositoryPort institutionRepository,
                                       Clock clock,
                                       @Value("${app.route-invite.code-length}") int codeLength,
                                       @Value("${app.route-invite.default-validity-days}") long defaultValidityDays) {
         this.codeRepository = codeRepository;
         this.memberRepository = memberRepository;
         this.routeRepository = routeRepository;
+        this.institutionRepository = institutionRepository;
         this.clock = clock;
         this.codeLength = codeLength;
         this.defaultValidityDays = defaultValidityDays;
@@ -54,9 +58,17 @@ public class RouteInviteCodeUseCaseImpl implements ManageRouteInviteCodeUseCase 
 
     @Override
     @Transactional
-    public RouteInviteCode generate(UUID routeId, LocalDateTime expiresAt, UUID adminId) {
+    public RouteInviteCode generate(UUID routeId, LocalDateTime expiresAt,
+                                    UUID institutionId, UUID adminId) {
         routeRepository.findById(routeId)
                 .orElseThrow(() -> new NotFoundException("Rota não encontrada com ID: " + routeId));
+
+        // Instituição inexistente travaria o código sem ninguém notar: quem
+        // recebesse o convite tomaria "você não estuda nessa instituição" sem
+        // ter como resolver.
+        if (institutionId != null && institutionRepository.findById(institutionId).isEmpty()) {
+            throw new NotFoundException("Instituição não encontrada com ID: " + institutionId);
+        }
 
         LocalDateTime now = LocalDateTime.now(clock);
         LocalDateTime validUntil = expiresAt != null
@@ -71,10 +83,18 @@ public class RouteInviteCodeUseCaseImpl implements ManageRouteInviteCodeUseCase 
                 .routeId(routeId)
                 .code(generateUniqueCode())
                 .expiresAt(validUntil)
+                .institutionId(institutionId)
                 .createdBy(adminId)
                 .build());
         log.info("Código de convite gerado para a rota {}", routeId);
         return saved;
+    }
+
+    @Override
+    @Transactional(readOnly = true)
+    public RouteInviteCode findById(UUID codeId) {
+        return codeRepository.findById(codeId)
+                .orElseThrow(() -> new NotFoundException("Código não encontrado"));
     }
 
     @Override
@@ -95,7 +115,33 @@ public class RouteInviteCodeUseCaseImpl implements ManageRouteInviteCodeUseCase 
     @Override
     @Transactional(readOnly = true)
     public List<RouteInviteCode> listByRoute(UUID routeId) {
-        return codeRepository.findAllByRouteId(routeId);
+        // Arquivado sai da tela: expirado e cancelado se acumulam e escondem o
+        // que ainda vale.
+        return codeRepository.findAllByRouteIdAndArchivedAtIsNull(routeId);
+    }
+
+    @Override
+    @Transactional(readOnly = true)
+    public List<RouteInviteCode> findAllById(List<UUID> codeIds) {
+        return codeRepository.findAllById(codeIds);
+    }
+
+    @Override
+    @Transactional
+    public int archive(List<UUID> codeIds) {
+        LocalDateTime now = LocalDateTime.now(clock);
+        int arquivados = 0;
+        for (RouteInviteCode code : codeRepository.findAllById(codeIds)) {
+            if (code.getArchivedAt() == null) {
+                code.setArchivedAt(now);
+                codeRepository.save(code);
+                arquivados++;
+            }
+        }
+        if (arquivados > 0) {
+            log.info("{} código(s) de convite arquivado(s)", arquivados);
+        }
+        return arquivados;
     }
 
     @Override

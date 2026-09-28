@@ -1,9 +1,12 @@
 package com.smartboarding.smartboarding_api.infrastructure.web.stop;
 
+import com.smartboarding.smartboarding_api.infrastructure.web.common.AdminGuard;
+
 import com.smartboarding.smartboarding_api.domain.stop.entity.Stop;
 import com.smartboarding.smartboarding_api.domain.stop.port.in.ManageStopsUseCase;
 import com.smartboarding.smartboarding_api.infrastructure.web.WebMvcTestSupport;
 import org.junit.jupiter.api.Test;
+import org.mockito.ArgumentCaptor;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.boot.webmvc.test.autoconfigure.WebMvcTest;
 import org.springframework.http.MediaType;
@@ -13,6 +16,8 @@ import org.springframework.test.web.servlet.MockMvc;
 import java.util.List;
 import java.util.UUID;
 
+import static org.assertj.core.api.Assertions.assertThat;
+import static org.mockito.ArgumentMatchers.anyBoolean;
 import static org.mockito.ArgumentMatchers.any;
 import static org.mockito.Mockito.never;
 import static org.mockito.Mockito.verify;
@@ -33,6 +38,7 @@ class StopControllerTest extends WebMvcTestSupport {
     @Autowired MockMvc mvc;
 
     @MockitoBean ManageStopsUseCase manageStopsUseCase;
+    @MockitoBean AdminGuard guard;
 
     private Stop parada() {
         return Stop.builder().id(STOP_ID).routeId(ROUTE_ID).name("Rodoviária")
@@ -131,5 +137,77 @@ class StopControllerTest extends WebMvcTestSupport {
                 .andExpect(status().isOk());
 
         verify(manageStopsUseCase).remove(STOP_ID);
+    }
+
+    // ─── O bug do ponto principal ────────────────────────────────────────────
+
+    /// Nada em src/main escrevia is_main_point antes da V32 -- e o contrato
+    /// HTTP nem tinha o campo. Sem esta entrada, toda parada criada pela API
+    /// nascia comum e o trajeto recusava todo checkpoint nela.
+    @Test
+    void criarParadaComInstituicaoChegaNoUseCase() throws Exception {
+        UUID instituicao = UUID.fromString("cccccccc-0000-0000-0000-000000000001");
+        when(manageStopsUseCase.add(any())).thenAnswer(inv -> inv.getArgument(0));
+
+        mvc.perform(post("/api/routes/{routeId}/stops", ROUTE_ID).with(admin())
+                        .contentType(MediaType.APPLICATION_JSON)
+                        .content("""
+                                {"name":"UNIFOR-MG","latitude":-20.46,"longitude":-45.42,
+                                 "institutionId":"%s"}
+                                """.formatted(instituicao)))
+                .andExpect(status().isCreated());
+
+        ArgumentCaptor<Stop> captor = ArgumentCaptor.forClass(Stop.class);
+        verify(manageStopsUseCase).add(captor.capture());
+        assertThat(captor.getValue().getInstitutionId()).isEqualTo(instituicao);
+    }
+
+    @Test
+    void institutionIdVoltaNaResposta() throws Exception {
+        UUID instituicao = UUID.fromString("cccccccc-0000-0000-0000-000000000001");
+        Stop comVinculo = parada();
+        comVinculo.setInstitutionId(instituicao);
+        when(manageStopsUseCase.listByRoute(ROUTE_ID)).thenReturn(List.of(comVinculo));
+
+        mvc.perform(get("/api/routes/{routeId}/stops", ROUTE_ID).with(student()))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.data[0].institutionId").value(instituicao.toString()));
+    }
+
+    /// Arrastar o pino no mapa manda só as coordenadas. Se isso caísse na
+    /// sobrecarga completa, o institutionId nulo do corpo desvincularia a
+    /// instituição -- e a parada deixaria de aceitar checkpoint sem ninguém
+    /// ter pedido nada disso.
+    @Test
+    void moverAParadaNaoDesfazOVinculoComAInstituicao() throws Exception {
+        when(manageStopsUseCase.update(any(), any(), any(), any()))
+                .thenReturn(parada());
+
+        mvc.perform(patch("/api/routes/{routeId}/stops/{stopId}", ROUTE_ID, STOP_ID)
+                        .with(admin()).contentType(MediaType.APPLICATION_JSON)
+                        .content("""
+                                {"latitude":-20.47,"longitude":-45.43}
+                                """))
+                .andExpect(status().isOk());
+
+        verify(manageStopsUseCase).update(STOP_ID, null, -20.47, -45.43);
+        verify(manageStopsUseCase, never())
+                .update(any(), any(), any(), any(), any(), anyBoolean());
+    }
+
+    @Test
+    void declararOVinculoUsaASobrecargaCompleta() throws Exception {
+        UUID instituicao = UUID.fromString("cccccccc-0000-0000-0000-000000000001");
+        when(manageStopsUseCase.update(any(), any(), any(), any(), any(), anyBoolean()))
+                .thenReturn(parada());
+
+        mvc.perform(patch("/api/routes/{routeId}/stops/{stopId}", ROUTE_ID, STOP_ID)
+                        .with(admin()).contentType(MediaType.APPLICATION_JSON)
+                        .content("""
+                                {"institutionId":"%s"}
+                                """.formatted(instituicao)))
+                .andExpect(status().isOk());
+
+        verify(manageStopsUseCase).update(STOP_ID, null, null, null, instituicao, false);
     }
 }

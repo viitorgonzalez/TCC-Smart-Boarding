@@ -1,5 +1,7 @@
 package com.smartboarding.smartboarding_api.infrastructure.web.vehicle;
 
+import com.smartboarding.smartboarding_api.infrastructure.web.common.AdminGuard;
+
 import com.smartboarding.smartboarding_api.domain.vehicle.entity.Vehicle;
 import com.smartboarding.smartboarding_api.domain.vehicle.port.in.ManageVehiclesUseCase;
 import com.smartboarding.smartboarding_api.infrastructure.web.WebMvcTestSupport;
@@ -32,6 +34,7 @@ class VehicleControllerTest extends WebMvcTestSupport {
     @Autowired MockMvc mvc;
 
     @MockitoBean ManageVehiclesUseCase manageVehiclesUseCase;
+    @MockitoBean AdminGuard guard;
 
     /// A frota é informação operacional do admin — o aluno não precisa saber
     /// quantos ônibus existem nem a capacidade de cada um.

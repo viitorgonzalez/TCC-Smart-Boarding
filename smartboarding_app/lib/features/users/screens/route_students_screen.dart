@@ -30,12 +30,12 @@ class _RouteStudentsScreenState extends State<RouteStudentsScreen> {
   @override
   void initState() {
     super.initState();
-    _future = UserService().getUsers(routeId: widget.routeId);
+    _future = UserService().getAllUsers(routeId: widget.routeId);
   }
 
   Future<void> _reload() async {
     setState(() {
-      _future = UserService().getUsers(routeId: widget.routeId);
+      _future = UserService().getAllUsers(routeId: widget.routeId);
     });
     await _future;
   }

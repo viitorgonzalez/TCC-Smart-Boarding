@@ -35,4 +35,14 @@ public class WarningRepositoryAdapter implements WarningRepositoryPort {
     public void deleteById(UUID id) {
         jpaRepository.deleteById(id);
     }
+
+    @Override public org.springframework.data.domain.Page<Warning> findPage(
+            org.springframework.data.domain.Pageable pageable) {
+        return jpaRepository.findAll(pageable);
+    }
+
+    @Override public org.springframework.data.domain.Page<Warning> findPageByUserId(
+            UUID userId, org.springframework.data.domain.Pageable pageable) {
+        return jpaRepository.findAllByUserId(userId, pageable);
+    }
 }

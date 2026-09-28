@@ -31,10 +31,40 @@ public class Stop {
     @Column(name = "sequence", nullable = false)
     private int sequence;
 
+    /// A instituição que esta parada serve, quando serve alguma.
+    ///
+    /// Explícito, e não adivinhado pelo nome: até a V32 o vínculo saía de
+    /// `s.name LIKE i.name || '%'`, então renomear a parada pra "Portão 2 da
+    /// UNIFOR" o desfazia em silêncio -- e ninguém percebia até o aluno ver o
+    /// tempo da parada errada.
+    @Column(name = "institution_id")
+    private UUID institutionId;
+
     /// RN23: só ponto principal (rodoviária e instituições) aceita checkpoint.
+    ///
+    /// Continua sendo campo e não puro derivado porque a rodoviária é ponto
+    /// principal sem ser instituição nenhuma. Quem serve instituição vira
+    /// principal sozinho (ver [refreshMainPoint]).
     @Builder.Default
     @Column(name = "is_main_point", nullable = false)
     private boolean isMainPoint = false;
+
+    /// Parada que serve instituição é sempre ponto principal; o resto depende
+    /// do que o admin marcou.
+    ///
+    /// Chamado a cada escrita porque até a V32 **nada** em produção escrevia
+    /// esse campo -- só a migration V20, uma vez. Toda rota criada depois dela
+    /// nascia sem nenhum ponto principal, e o trajeto recusava todo checkpoint.
+    public void refreshMainPoint(boolean marcadoPeloAdmin) {
+        this.isMainPoint = institutionId != null || marcadoPeloAdmin;
+    }
+
+    /// Minutos do início do trajeto até esta parada, embarque incluso.
+    ///
+    /// Nulo é "não sei" -- o OSRM público não tem SLA, e a tela omite em vez
+    /// de mostrar zero, que o aluno leria como "o ônibus já chegou".
+    @Column(name = "avg_minutes_from_start")
+    private Integer avgMinutesFromStart;
 
     @Column(name = "created_at", updatable = false)
     private LocalDateTime createdAt;

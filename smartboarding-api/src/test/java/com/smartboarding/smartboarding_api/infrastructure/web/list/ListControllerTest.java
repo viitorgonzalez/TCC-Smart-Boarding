@@ -18,6 +18,7 @@ import com.smartboarding.smartboarding_api.domain.route.entity.Route;
 import com.smartboarding.smartboarding_api.domain.stop.port.in.ManageStopsUseCase;
 import com.smartboarding.smartboarding_api.domain.user.entity.Role;
 import com.smartboarding.smartboarding_api.domain.user.entity.User;
+import com.smartboarding.smartboarding_api.domain.vehicle.entity.Vehicle;
 import com.smartboarding.smartboarding_api.domain.user.port.out.UserRepositoryPort;
 import com.smartboarding.smartboarding_api.domain.vehicle.port.out.VehicleRepositoryPort;
 import com.smartboarding.smartboarding_api.infrastructure.web.WebMvcTestSupport;
@@ -69,13 +70,19 @@ class ListControllerTest extends WebMvcTestSupport {
     @MockitoBean ManageStopsUseCase manageStopsUseCase;
     @MockitoBean ManageDailyListUseCase manageDailyListUseCase;
     @MockitoBean EnrollByAdminUseCase enrollByAdminUseCase;
+    @MockitoBean com.smartboarding.smartboarding_api.domain.membership.port.out.RouteMemberRepositoryPort
+            routeMemberRepository;
 
     private User aluno;
 
     @BeforeEach
     void setUp() {
+        // O papel importa: quem conduz o ônibus não desce em lugar nenhum, e
+        // sem ele aqui o aluno não se distingue do admin.
         aluno = User.builder().id(STUDENT_ID).email("fernanda@edu.unifor.br")
-                .fullName("Fernanda Lima").institutionId(INSTITUTION_ID).build();
+                .fullName("Fernanda Lima").institutionId(INSTITUTION_ID)
+                .role(com.smartboarding.smartboarding_api.domain.user.entity.Role.STUDENT)
+                .build();
         when(userRepository.findByEmail("fernanda@edu.unifor.br")).thenReturn(Optional.of(aluno));
         when(userRepository.findByEmail("naiara@admin.com")).thenReturn(Optional.of(
                 User.builder().id(ADMIN_ID).email("naiara@admin.com").fullName("Naiara").build()));
@@ -86,6 +93,30 @@ class ListControllerTest extends WebMvcTestSupport {
         when(listEntryRepository.findAllByDailyListIdAndIsActiveTrue(any())).thenReturn(List.of());
         when(listEntryRepository.findByUserIdAndDailyListId(any(), any())).thenReturn(Optional.empty());
         when(reportRepository.findByDailyListId(any())).thenReturn(Optional.empty());
+        when(userRepository.findById(STUDENT_ID)).thenReturn(Optional.of(aluno));
+        when(routeMemberRepository.existsByUserIdAndRouteId(STUDENT_ID, ROUTE_ID)).thenReturn(true);
+        // O admin tambem precisa existir aqui: sem isso o findById devolve
+        // vazio e o teste "o admin nao tem tempo de viagem" passaria por nao
+        // achar o usuario, nao por ele ser admin. Levou uma mutacao pra
+        // aparecer.
+        when(userRepository.findById(ADMIN_ID)).thenReturn(Optional.of(
+                User.builder().id(ADMIN_ID).email("naiara@admin.com").fullName("Naiara")
+                        .institutionId(INSTITUTION_ID)
+                        .role(com.smartboarding.smartboarding_api.domain.user.entity.Role.ADMIN)
+                        .build()));
+    }
+
+    /// A rota com as duas instituições, cada uma com seu tempo — é aqui que
+    /// dois alunos da mesma lista passam a ver números diferentes.
+    private void rotaComDuasInstituicoes() {
+        when(manageStopsUseCase.listByRoute(any())).thenReturn(List.of(
+                com.smartboarding.smartboarding_api.domain.stop.entity.Stop.builder()
+                        .id(UUID.randomUUID()).name("Rodoviária").sequence(1)
+                        .isMainPoint(true).avgMinutesFromStart(1).build(),
+                com.smartboarding.smartboarding_api.domain.stop.entity.Stop.builder()
+                        .id(UUID.randomUUID()).name("Unifor").sequence(2)
+                        .isMainPoint(true).institutionId(INSTITUTION_ID)
+                        .avgMinutesFromStart(42).build()));
     }
 
     private DailyList lista() {
@@ -503,5 +534,163 @@ class ListControllerTest extends WebMvcTestSupport {
                 .andExpect(status().isCreated());
 
         verify(addEntryUseCase).add(STUDENT_ID, LIST_ID, TripType.ROUND_TRIP);
+    }
+
+    // ─── Veículo recomendado (RN16) ──────────────────────────────────────────
+
+    private void frota(int... capacidades) {
+        var veiculos = new java.util.ArrayList<Vehicle>();
+        for (int i = 0; i < capacidades.length; i++) {
+            veiculos.add(Vehicle.builder().id(UUID.randomUUID()).routeId(ROUTE_ID)
+                    .label(capacidades[i] >= 40 ? "Ônibus" : "Van")
+                    .capacity(capacidades[i]).build());
+        }
+        when(vehicleRepository.findAllByRouteId(ROUTE_ID)).thenReturn(veiculos);
+    }
+
+    /// O aluno via a frota inteira e tinha que adivinhar em qual veículo ia.
+    /// Com a lista aberta a proposta é calculada na hora, pelo total atual.
+    @Test
+    void listaAbertaJaTrazOVeiculoRecomendado() throws Exception {
+        frota(45, 15);
+        when(findListUseCase.findTodayLists(STUDENT_ID)).thenReturn(List.of(lista()));
+        when(listEntryRepository.countByDailyListIdAndIsActiveTrue(LIST_ID)).thenReturn(10L);
+
+        mvc.perform(get("/api/lists/today").with(student()))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.data[0].proposedVehicles.length()").value(1))
+                .andExpect(jsonPath("$.data[0].proposedVehicles[0].label").value("Van"))
+                .andExpect(jsonPath("$.data[0].capacityShortfall").value(0));
+    }
+
+    /// Dez cabem na van; quarenta não. O algoritmo escolhe o menor que cobre,
+    /// pra não mandar ônibus vazio levar dez.
+    @Test
+    void aRecomendacaoAcompanhaOTotalDeConfirmados() throws Exception {
+        frota(45, 15);
+        when(findListUseCase.findTodayLists(STUDENT_ID)).thenReturn(List.of(lista()));
+        when(listEntryRepository.countByDailyListIdAndIsActiveTrue(LIST_ID)).thenReturn(40L);
+
+        mvc.perform(get("/api/lists/today").with(student()))
+                .andExpect(jsonPath("$.data[0].proposedVehicles.length()").value(1))
+                .andExpect(jsonPath("$.data[0].proposedVehicles[0].label").value("Ônibus"));
+    }
+
+    @Test
+    void frotaInsuficienteAparaceComoFaltaDeLugar() throws Exception {
+        frota(15);
+        when(findListUseCase.findTodayLists(STUDENT_ID)).thenReturn(List.of(lista()));
+        when(listEntryRepository.countByDailyListIdAndIsActiveTrue(LIST_ID)).thenReturn(20L);
+
+        mvc.perform(get("/api/lists/today").with(student()))
+                .andExpect(jsonPath("$.data[0].capacityShortfall").value(5));
+    }
+
+    /// Sem ninguém confirmado não há veículo a recomendar — e isso é diferente
+    /// de "a rota não tem frota".
+    @Test
+    void semConfirmadoNaoRecomendaVeiculo() throws Exception {
+        frota(45, 15);
+        when(findListUseCase.findTodayLists(STUDENT_ID)).thenReturn(List.of(lista()));
+        when(listEntryRepository.countByDailyListIdAndIsActiveTrue(LIST_ID)).thenReturn(0L);
+
+        mvc.perform(get("/api/lists/today").with(student()))
+                .andExpect(jsonPath("$.data[0].proposedVehicles.length()").value(0))
+                .andExpect(jsonPath("$.data[0].capacityShortfall").value(0));
+    }
+
+    // ─── Tempo médio até a instituição do aluno ──────────────────────────────
+
+    /// O card mostrava o trajeto sem dizer quanto tempo leva. E o tempo é DELE:
+    /// a média do trajeto inteiro, pra quem desce no meio, é um número que não
+    /// é sobre a viagem dele.
+    @Test
+    void oCardTrazOTempoAteAInstituicaoDoAluno() throws Exception {
+        rotaComDuasInstituicoes();
+        when(findListUseCase.findTodayLists(STUDENT_ID)).thenReturn(List.of(lista()));
+
+        mvc.perform(get("/api/lists/today").with(student()))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.data[0].myTripTime.stopName").value("Unifor"))
+                .andExpect(jsonPath("$.data[0].myTripTime.avgMinutes").value(42))
+                .andExpect(jsonPath("$.data[0].myTripTime.fallback").value(false));
+    }
+
+    /// Nulo é "não sei" e a tela omite. Um zero ali o aluno leria como "chega
+    /// na hora" e perderia o ônibus.
+    @Test
+    void semTempoCalculadoOCampoVemNulo() throws Exception {
+        when(manageStopsUseCase.listByRoute(any())).thenReturn(List.of(
+                com.smartboarding.smartboarding_api.domain.stop.entity.Stop.builder()
+                        .id(UUID.randomUUID()).name("Unifor").sequence(1)
+                        .isMainPoint(true).institutionId(INSTITUTION_ID).build()));
+        when(findListUseCase.findTodayLists(STUDENT_ID)).thenReturn(List.of(lista()));
+
+        mvc.perform(get("/api/lists/today").with(student()))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.data[0].myTripTime").doesNotExist());
+    }
+
+    /// Quem conduz o ônibus não desce em lugar nenhum.
+    @Test
+    void oAdminNaoTemTempoDeViagem() throws Exception {
+        rotaComDuasInstituicoes();
+        when(findListUseCase.findTodayLists(ADMIN_ID)).thenReturn(List.of(lista()));
+
+        mvc.perform(get("/api/lists/today").with(admin()))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.data[0].myTripTime").doesNotExist());
+    }
+
+    // ─── IDOR em GET /lists/{id} ─────────────────────────────────────────────
+
+    /// A lista carrega nome da rota, total de inscritos, divisão por instituição
+    /// e as paradas. `findTodayLists` filtra por rota, mas buscar pelo id não
+    /// filtrava nada -- qualquer aluno lia a lista de qualquer rota.
+    ///
+    /// O trajeto da MESMA lista já devolvia 403. Guardar um e deixar o outro
+    /// aberto, sendo que este carrega mais dado, é a pior das duas opções.
+    @Test
+    void alunoNaoLeAListaDeUmaRotaQueNaoEDele() throws Exception {
+        when(routeMemberRepository.existsByUserIdAndRouteId(STUDENT_ID, ROUTE_ID))
+                .thenReturn(false);
+        when(findListUseCase.findById(LIST_ID)).thenReturn(lista());
+
+        mvc.perform(get("/api/lists/{id}", LIST_ID).with(student()))
+                .andExpect(status().isForbidden());
+    }
+
+    @Test
+    void alunoDaRotaLeAListaNormalmente() throws Exception {
+        when(findListUseCase.findById(LIST_ID)).thenReturn(lista());
+
+        mvc.perform(get("/api/lists/{id}", LIST_ID).with(student()))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.data.routeName").value("Rota Universitária"));
+    }
+
+    /// O admin vê qualquer lista: é ele quem opera o transporte inteiro.
+    @Test
+    void oAdminLeQualquerLista() throws Exception {
+        when(routeMemberRepository.existsByUserIdAndRouteId(ADMIN_ID, ROUTE_ID))
+                .thenReturn(false);
+        when(findListUseCase.findById(LIST_ID)).thenReturn(lista());
+
+        mvc.perform(get("/api/lists/{id}", LIST_ID).with(admin()))
+                .andExpect(status().isOk());
+    }
+
+    /// O usuário é resolvido UMA vez por requisição, não por lista: o admin com
+    /// várias listas do dia pagaria uma busca do mesmo usuário em cada uma.
+    @Test
+    void naoBuscaOUsuarioUmaVezPorLista() throws Exception {
+        rotaComDuasInstituicoes();
+        when(findListUseCase.findTodayLists(STUDENT_ID))
+                .thenReturn(List.of(lista(), lista(), lista()));
+
+        mvc.perform(get("/api/lists/today").with(student()))
+                .andExpect(status().isOk());
+
+        verify(userRepository, org.mockito.Mockito.times(1)).findById(STUDENT_ID);
     }
 }

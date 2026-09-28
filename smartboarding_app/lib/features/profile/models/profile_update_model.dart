@@ -1,3 +1,5 @@
+import 'address_model.dart';
+
 /// Solicitação de alteração de perfil. Campo nulo = não foi pedida mudança
 /// nele — distinguir "não pedi" de "pedi vazio" é o que evita apagar dado que
 /// o aluno não quis mexer.
@@ -67,6 +69,19 @@ class Me {
   final String role;
   final bool hasPassword;
   final bool hasGoogle;
+  final String? phone;
+  final String? course;
+  final Address address;
+
+  /// O que falta pra entrar na lista, pelos nomes dos campos. Vem do backend
+  /// porque é ele quem recusa a entrada: refazer a conta aqui daria duas
+  /// versões da regra pra divergirem.
+  final List<String> missingForList;
+
+  /// Nome da instituição principal, não o id: quem lê isso é a carteirinha, e
+  /// resolver o id aqui obrigaria a tela a baixar o catálogo inteiro pra
+  /// escrever uma linha.
+  final String? institution;
 
   const Me({
     required this.id,
@@ -75,7 +90,27 @@ class Me {
     required this.role,
     required this.hasPassword,
     required this.hasGoogle,
+    this.phone,
+    this.course,
+    this.address = const Address(),
+    this.missingForList = const [],
+    this.institution,
   });
+
+  bool get profileCompleteForList => missingForList.isEmpty;
+
+  /// Os rótulos do que falta, prontos pra tela. Um nome de campo cru na cara
+  /// do aluno ("address") não diz o que ele precisa fazer.
+  static const rotulos = <String, String>{
+    'fullName': 'Nome completo',
+    'phone': 'Telefone',
+    'address': 'Endereço',
+    'institution': 'Instituição',
+  };
+
+  List<String> get faltandoEmPortugues => [
+    for (final campo in missingForList) rotulos[campo] ?? campo,
+  ];
 
   factory Me.fromJson(Map<String, dynamic> json) => Me(
     id: json['id'] as String,
@@ -84,5 +119,14 @@ class Me {
     role: json['role'] as String,
     hasPassword: json['hasPassword'] as bool? ?? true,
     hasGoogle: json['hasGoogle'] as bool? ?? false,
+    phone: json['phone'] as String?,
+    course: json['course'] as String?,
+    address: json['address'] == null
+        ? const Address()
+        : Address.fromJson(json['address'] as Map<String, dynamic>),
+    missingForList:
+        (json['missingForList'] as List?)?.map((e) => e as String).toList() ??
+        const [],
+    institution: json['institution'] as String?,
   );
 }

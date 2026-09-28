@@ -67,7 +67,7 @@ class _RouteFormScreenState extends State<RouteFormScreen> {
                 controller: _nameCtrl,
                 decoration: const InputDecoration(
                   labelText: 'Nome da rota',
-                  prefixIcon: Icon(Icons.route),
+                  prefixIcon: Icon(Icons.route_outlined),
                 ),
                 textCapitalization: TextCapitalization.words,
                 validator: (v) =>

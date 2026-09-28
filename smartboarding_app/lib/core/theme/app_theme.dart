@@ -7,6 +7,32 @@ class AppRadius {
   static const pill = 20.0;
 }
 
+/// Três níveis de superfície, por intenção — não por gosto.
+///
+/// Quando tudo era caixa branca com fio, um card de rota, um item de menu e um
+/// bloco de estatística tinham o mesmo peso e nada liderava a tela.
+///
+/// - [grouped]: itens de uma lista. Sem fio; o fundo e os divisores separam.
+/// - [card]: conteúdo solto que precisa se destacar do fundo. Fio de 1px.
+/// - [floating]: o que de fato paira sobre o conteúdo (folha, botão). Sombra.
+enum AppSurface { grouped, card, floating }
+
+/// Proporção das grades de navegação (painel do admin, início do aluno).
+///
+/// Token porque estava cravado em duas telas e já tinha divergido: mexer numa
+/// deixava a outra com cartão oco.
+class AppGrid {
+  static const featureAspectRatio = 1.9;
+}
+
+class AppShadow {
+  /// Difusa e quase sem deslocamento: o objetivo é destacar do fundo, não
+  /// simular objeto suspenso.
+  static const floating = [
+    BoxShadow(color: Color(0x14000000), blurRadius: 16, offset: Offset(0, 4)),
+  ];
+}
+
 class AppSpacing {
   static const xs = 4.0;
   static const sm = 8.0;
@@ -19,8 +45,10 @@ class AppSpacing {
 /// claro, stroke e texto secundário — não saem do `ColorScheme`: o Material
 /// deriva outros valores a partir do seed, e o desenho depende destes exatos.
 class AppColors {
-  static const ashGrey = Color(0xFFCAD2C5); // fundo das telas de autenticação
-  static const background = Color(0xFFF4F6F4); // fundo do app autenticado
+  static const ashGrey = Color(
+    0xFFCAD2C5,
+  ); // superfície de destaque sobre o fundo
+  static const background = Color(0xFFF4F6F4); // fundo de todas as telas
   static const mutedTeal = Color(0xFF84A98C);
   static const deepTeal = Color(0xFF52796F); // primária
   static const darkSlate = Color(0xFF354F52);
@@ -133,11 +161,10 @@ class AppTheme {
         hintStyle: const TextStyle(color: AppColors.textSecondary),
         prefixIconColor: AppColors.deepTeal,
       ),
-      dividerTheme: const DividerThemeData(space: 1, color: AppColors.stroke),
-      listTileTheme: const ListTileThemeData(
-        shape: RoundedRectangleBorder(
-          borderRadius: BorderRadius.all(Radius.circular(AppRadius.card)),
-        ),
+      dividerTheme: const DividerThemeData(
+        space: 1,
+        thickness: 1,
+        color: AppColors.stroke,
       ),
     );
 
@@ -166,6 +193,11 @@ class AppTheme {
       ),
       titleMedium: montserrat.titleMedium?.copyWith(
         fontSize: 16,
+        fontWeight: FontWeight.w700,
+        color: AppColors.charcoal,
+      ),
+      titleSmall: montserrat.titleSmall?.copyWith(
+        fontSize: 15,
         fontWeight: FontWeight.w700,
         color: AppColors.charcoal,
       ),

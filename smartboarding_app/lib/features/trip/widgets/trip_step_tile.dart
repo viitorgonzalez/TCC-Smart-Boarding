@@ -11,12 +11,17 @@ class TripStepTile extends StatelessWidget {
   final bool current;
   final String? reachedAt;
 
+  /// A parada que interessa a quem está lendo — na tela do aluno, a da
+  /// instituição dele. Sem marcação ele a procura na lista a cada atualização.
+  final bool highlighted;
+
   const TripStepTile({
     super.key,
     required this.label,
     required this.done,
     required this.current,
     this.reachedAt,
+    this.highlighted = false,
   });
 
   @override
@@ -27,8 +32,14 @@ class TripStepTile extends StatelessWidget {
         ? AppColors.deepTeal
         : AppColors.textSecondary;
 
-    return Padding(
-      padding: const EdgeInsets.symmetric(vertical: 10),
+    return Container(
+      padding: const EdgeInsets.symmetric(vertical: 10, horizontal: 8),
+      decoration: highlighted
+          ? BoxDecoration(
+              color: AppColors.deepTeal.withValues(alpha: 0.06),
+              borderRadius: BorderRadius.circular(8),
+            )
+          : null,
       child: Row(
         children: [
           Icon(

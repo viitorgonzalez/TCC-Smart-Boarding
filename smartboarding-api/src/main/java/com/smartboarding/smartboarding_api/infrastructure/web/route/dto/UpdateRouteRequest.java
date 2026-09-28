@@ -10,5 +10,10 @@ public record UpdateRouteRequest(
         @Size(max = 255) String description,
         /// Nulo mantém o estado atual. Existe pra desfazer o soft-delete do
         /// DELETE, que antes não tinha caminho de volta.
-        Boolean isActive
+        Boolean isActive,
+
+        /// A rota aceita aluno sem instituição declarada. Nulo mantém o que
+        /// está gravado: a tela de dados da rota não conhece essa chave, e
+        /// mandar nulo dali não pode desligá-la sem querer.
+        Boolean admitsNoInstitution
 ) {}

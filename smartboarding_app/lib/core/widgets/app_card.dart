@@ -1,18 +1,22 @@
 import 'package:flutter/material.dart';
 import '../theme/app_theme.dart';
 
+/// Superfície branca sobre o fundo. O [surface] escolhe como ela se separa —
+/// ver [AppSurface].
 class AppCard extends StatelessWidget {
   final Widget child;
   final EdgeInsetsGeometry padding;
   final VoidCallback? onTap;
   final VoidCallback? onLongPress;
+  final AppSurface surface;
 
   const AppCard({
     super.key,
     required this.child,
-    this.padding = const EdgeInsets.all(20),
+    this.padding = const EdgeInsets.all(AppSpacing.lg),
     this.onTap,
     this.onLongPress,
+    this.surface = AppSurface.card,
   });
 
   @override
@@ -21,14 +25,29 @@ class AppCard extends StatelessWidget {
     // Material em vez de Container pintado: com a cor num DecoratedBox solto,
     // o ink de qualquer ListTile com onTap la dentro era pintado ATRAS do fundo
     // -- toque sem retorno visual, e o Flutter reclamando em debug.
-    return Material(
+    final material = Material(
       color: AppColors.surface,
       clipBehavior: Clip.antiAlias,
       shape: RoundedRectangleBorder(
         borderRadius: BorderRadius.circular(AppRadius.card),
-        side: const BorderSide(color: AppColors.stroke),
+        side: surface == AppSurface.card
+            ? const BorderSide(color: AppColors.stroke)
+            : BorderSide.none,
       ),
-      child: onTap == null ? content : InkWell(onTap: onTap, child: content),
+      child: onTap == null
+          ? content
+          : InkWell(onTap: onTap, onLongPress: onLongPress, child: content),
+    );
+
+    if (surface != AppSurface.floating) return material;
+    // A sombra vai num DecoratedBox por fora: no Material ela sai junto com o
+    // recorte e vaza por cima do proprio conteudo.
+    return DecoratedBox(
+      decoration: BoxDecoration(
+        borderRadius: BorderRadius.circular(AppRadius.card),
+        boxShadow: AppShadow.floating,
+      ),
+      child: material,
     );
   }
 }
@@ -64,12 +83,9 @@ class StatBlock extends StatelessWidget {
       children: [
         Text(
           label.toUpperCase(),
-          style: const TextStyle(
-            fontSize: 13,
-            fontWeight: FontWeight.w600,
-            color: AppColors.textSecondary,
-            letterSpacing: 0.4,
-          ),
+          style: Theme.of(
+            context,
+          ).textTheme.labelMedium?.copyWith(letterSpacing: 0.4),
         ),
         const SizedBox(height: 4),
         Row(

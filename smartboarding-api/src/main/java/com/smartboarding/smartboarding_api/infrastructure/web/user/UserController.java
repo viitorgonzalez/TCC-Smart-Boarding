@@ -9,6 +9,7 @@ import com.smartboarding.smartboarding_api.domain.user.port.in.FindUserUseCase;
 import com.smartboarding.smartboarding_api.domain.user.port.in.ManageUserStatusUseCase;
 import com.smartboarding.smartboarding_api.domain.user.port.out.UserRepositoryPort;
 import com.smartboarding.smartboarding_api.infrastructure.web.user.dto.AdminCountResponse;
+import com.smartboarding.smartboarding_api.infrastructure.web.user.dto.AddressResponse;
 import com.smartboarding.smartboarding_api.infrastructure.web.user.dto.StudentProfileResponse;
 import com.smartboarding.smartboarding_api.infrastructure.web.user.dto.UpdateUserRoleRequest;
 import com.smartboarding.smartboarding_api.infrastructure.web.user.dto.UpdateUserStatusRequest;
@@ -17,6 +18,9 @@ import com.smartboarding.smartboarding_api.shared.exception.UnauthorizedExceptio
 import jakarta.validation.Valid;
 import org.springframework.security.core.Authentication;
 import com.smartboarding.smartboarding_api.shared.web.ApiResponse;
+import org.springframework.data.domain.Page;
+import org.springframework.data.domain.Pageable;
+import org.springframework.data.web.PageableDefault;
 import org.springframework.http.ResponseEntity;
 import org.springframework.web.bind.annotation.*;
 
@@ -62,17 +66,14 @@ public class UserController {
     /// [routeId] nulo devolve todos — o app usa o filtro por rota por padrão,
     /// mas a listagem completa continua acessível.
     @GetMapping
-    public ResponseEntity<ApiResponse<List<UserResponse>>> listAll(
-            @org.springframework.web.bind.annotation.RequestParam(required = false) UUID routeId) {
+    public ResponseEntity<ApiResponse<Page<UserResponse>>> listAll(
+            @org.springframework.web.bind.annotation.RequestParam(required = false) UUID routeId,
+            @PageableDefault(size = 30, sort = "fullName") Pageable pageable) {
         // Um mapa único em vez de um findById por usuário — a listagem carrega
         // todo mundo e o N+1 apareceria já no primeiro uso real.
         Map<UUID, String> names = institutionNames();
-        var source = routeId == null
-                ? findUserUseCase.findAll()
-                : findUserUseCase.findByRoute(routeId);
-        List<UserResponse> users = source.stream()
-                .map(user -> UserResponse.from(user, names.get(user.getInstitutionId())))
-                .toList();
+        Page<UserResponse> users = findUserUseCase.findPage(routeId, pageable)
+                .map(user -> UserResponse.from(user, names.get(user.getInstitutionId())));
         return ResponseEntity.ok(ApiResponse.data(users));
     }
 
@@ -144,7 +145,7 @@ public class UserController {
 
         return new StudentProfileResponse(
                 user.getId(), user.getFullName(), user.getEmail(),
-                user.getPhone(), user.getAddress(), user.getBirthDate(),
+                user.getPhone(), AddressResponse.from(user.getAddress()), user.getBirthDate(),
                 user.getCourse(), institutionNames().get(user.getInstitutionId()),
                 user.isActive(), user.getRole().name(), attendance, changes);
     }

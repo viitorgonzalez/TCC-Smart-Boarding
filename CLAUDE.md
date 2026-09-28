@@ -54,6 +54,25 @@ flutter test integration_test/ --dart-define=API_BASE_URL=http://10.0.2.2:8080  
 
 Spec nova vai **neste repo**, não no harness — contrato em `../personal-harness/docs/README.md`, template em `../personal-harness/templates/spec.md`.
 
+## Serviços externos sem SLA
+
+Dois, e ambos seguem a mesma postura: **falha devolve nulo e a tela segue**. Nenhum dos dois pode
+impedir alguém de terminar o cadastro ou pegar o ônibus.
+
+| Serviço | Pra quê | Onde |
+|---|---|---|
+| **OSRM** (demo público) | Caminho por ruas, grudar parada na via, tempo entre paradas | `RoadRouteService` (app), `OsrmRoutePlannerAdapter` (API, `osrm.base-url`) |
+| **ViaCEP** | Preencher o endereço a partir do CEP | `CepService` (app) |
+
+⚠️ **O ViaCEP responde HTTP 200 com `{"erro": true}` pra CEP inexistente** — e o campo já veio
+como booleano e como string. Tratar só o status deixa passar resposta vazia como endereço bom.
+
+⚠️ **O `CepService` usa Dio próprio, nunca o `DioClient`.** Aquele injeta o Bearer da sessão em
+toda requisição; reaproveitá-lo entregaria o token do aluno a um host de terceiro.
+
+⚠️ **O OSRM espera `longitude,latitude`** — invertido em relação ao `LatLng`. E os separadores
+(`,` e `;`) não podem ser URL-encoded: `%2C`/`%3B` no path quebram contra o serviço real.
+
 ## Armadilhas conhecidas
 
 - **`./mvnw spring-boot:run` direto não funciona.** O `docker compose` lê o `.env` sozinho; o Maven **não**. Sem exportar as vars, o Spring recebe `${DB_USER}`/`${JWT_SECRET}` literais e quebra no boot. Use `./run-local.sh`.

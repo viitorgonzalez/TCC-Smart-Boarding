@@ -1,6 +1,8 @@
 package com.smartboarding.smartboarding_api.infrastructure.persistence.user;
 
 import com.smartboarding.smartboarding_api.domain.user.entity.User;
+import org.springframework.data.domain.Page;
+import org.springframework.data.domain.Pageable;
 import org.springframework.data.jpa.repository.JpaRepository;
 import org.springframework.data.jpa.repository.Query;
 import java.util.List;
@@ -40,6 +42,14 @@ public interface UserJpaRepository extends JpaRepository<User, UUID> {
             ORDER BY u.fullName
             """)
     List<User> findByRouteId(@Param("routeId") UUID routeId);
+
+    @Query("""
+            SELECT u FROM User u
+            WHERE u.institutionId IN (
+                SELECT i.id FROM Institution i WHERE i.routeId = :routeId
+            )
+            """)
+    Page<User> findPageByRouteId(@Param("routeId") UUID routeId, Pageable pageable);
     Optional<User> findByEmail(String email);
     boolean existsByEmail(String email);
 

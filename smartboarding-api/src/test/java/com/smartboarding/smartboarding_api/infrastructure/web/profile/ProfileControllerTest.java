@@ -27,6 +27,7 @@ import static org.mockito.Mockito.verify;
 import static org.mockito.Mockito.when;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.get;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.post;
+import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.put;
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.jsonPath;
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.status;
 
@@ -41,6 +42,14 @@ class ProfileControllerTest extends WebMvcTestSupport {
             userInstitutionsUseCase;
     @MockitoBean com.smartboarding.smartboarding_api.domain.user.port.in.SetLocalPasswordUseCase
             setLocalPasswordUseCase;
+    @MockitoBean com.smartboarding.smartboarding_api.domain.user.port.in.ChangePasswordUseCase
+            changePasswordUseCase;
+    @MockitoBean com.smartboarding.smartboarding_api.domain.user.port.in.UpdateAddressUseCase
+            updateAddressUseCase;
+    @MockitoBean com.smartboarding.smartboarding_api.domain.user.port.in.UpdateOwnProfileUseCase
+            updateOwnProfileUseCase;
+    @MockitoBean com.smartboarding.smartboarding_api.domain.institution.port.out.InstitutionRepositoryPort
+            institutionRepository;
 
     @BeforeEach
     void setUp() {
@@ -292,5 +301,67 @@ class ProfileControllerTest extends WebMvcTestSupport {
                 .andReturn().getResponse().getContentAsString();
 
         org.assertj.core.api.Assertions.assertThat(corpo).doesNotContain("$2a$10$hash");
+    }
+
+    // ─── PUT /api/me/address ──────────────────────────────────────────────────
+
+    private static final String ENDERECO_JSON = """
+            {"zipCode":"35570-000","street":"Av. Dr. Arnaldo de Senna",
+             "neighborhood":"Água Vermelha","city":"Formiga","state":"MG",
+             "streetNumber":"328"}
+            """;
+
+    /// O endereço é do aluno e vale sozinho: passar pela fila de aprovação o
+    /// deixaria travado fora da lista até um admin agir.
+    @Test
+    void alunoSalvaOProprioEnderecoSemAbrirSolicitacao() throws Exception {
+        when(updateAddressUseCase.update(eq(STUDENT_ID), any()))
+                .thenAnswer(inv -> inv.getArgument(1));
+
+        mvc.perform(put("/api/me/address").with(student())
+                        .contentType(MediaType.APPLICATION_JSON).content(ENDERECO_JSON))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.data.street").value("Av. Dr. Arnaldo de Senna"))
+                .andExpect(jsonPath("$.data.complete").value(true));
+
+        verify(useCase, never()).request(any(), any());
+    }
+
+    /// O id sai do token. Aceitar um do corpo deixaria um aluno reescrever o
+    /// endereço de outro -- e endereço errado é o ônibus parando no lugar errado.
+    @Test
+    void enderecoVaiSempreProDonoDoToken() throws Exception {
+        when(updateAddressUseCase.update(any(), any())).thenAnswer(inv -> inv.getArgument(1));
+
+        mvc.perform(put("/api/me/address").with(student())
+                        .contentType(MediaType.APPLICATION_JSON)
+                        .content("""
+                                {"userId":"%s","zipCode":"35570-000","street":"Rua A",
+                                 "neighborhood":"Centro","streetNumber":"1"}
+                                """.formatted(ADMIN_ID)))
+                .andExpect(status().isOk());
+
+        verify(updateAddressUseCase).update(eq(STUDENT_ID), any());
+    }
+
+    @Test
+    void enderecoExigeAutenticacao() throws Exception {
+        mvc.perform(put("/api/me/address")
+                        .contentType(MediaType.APPLICATION_JSON).content(ENDERECO_JSON))
+                .andExpect(status().isUnauthorized());
+
+        verify(updateAddressUseCase, never()).update(any(), any());
+    }
+
+    /// O app precisa saber o que falta ANTES de o aluno tocar no botão da
+    /// lista. Recalcular isso em Dart daria duas versões da regra, e a que
+    /// vale é a do backend -- que é quem recusa a entrada.
+    @Test
+    void meDizOQueFaltaProPerfilEntrarNaLista() throws Exception {
+        mvc.perform(get("/api/me").with(student()))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.data.missingForList")
+                        .value(org.hamcrest.Matchers.containsInAnyOrder(
+                                "phone", "address", "institution")));
     }
 }

@@ -22,6 +22,7 @@ import '../users/providers/user_provider.dart';
 import '../../core/utils/async_value.dart';
 import '../institutions/providers/institution_provider.dart';
 import '../institutions/screens/institutions_screen.dart';
+import '../routes/screens/invite_codes_screen.dart';
 import '../profile/screens/profile_screen.dart';
 import '../users/screens/user_management_screen.dart';
 import '../users/services/user_service.dart';
@@ -137,17 +138,23 @@ class _AdminDashboard extends StatelessWidget {
             child: RefreshIndicator(
               onRefresh: () => _refresh(context),
               child: ListView(
-                padding: const EdgeInsets.all(20),
+                padding: const EdgeInsets.fromLTRB(20, 8, 20, 24),
                 children: [
-                  const SectionTitle('Funcionalidades'),
-                  const SizedBox(height: 12),
                   GridView.count(
+                    // Sem padding explicito, uma grade aninhada consome o
+                    // padding do MediaQuery e abre um vao antes da primeira
+                    // linha.
+                    padding: EdgeInsets.zero,
                     crossAxisCount: 2,
                     shrinkWrap: true,
                     physics: const NeverScrollableScrollPhysics(),
                     crossAxisSpacing: 12,
                     mainAxisSpacing: 12,
-                    childAspectRatio: 1.25,
+                    childAspectRatio: AppGrid.featureAspectRatio,
+                    // Ordem por frequencia de uso, em faixas de proposito:
+                    // operacao do dia, acompanhamento, gestao de gente,
+                    // configuracao. A ordem anterior nasceu por acaso, na
+                    // sequencia em que as telas foram surgindo.
                     children: [
                       FeatureCard(
                         icon: Icons.route_outlined,
@@ -168,15 +175,10 @@ class _AdminDashboard extends StatelessWidget {
                         ),
                       ),
                       FeatureCard(
-                        icon: Icons.notifications_none,
-                        label: 'Avisos enviados',
-                        onTap: () => Navigator.push(
-                          context,
-                          MaterialPageRoute(
-                            builder: (_) =>
-                                const NotificationsInboxScreen(canManage: true),
-                          ),
-                        ),
+                        icon: Icons.bar_chart_outlined,
+                        label: 'Relatórios',
+                        onTap: () =>
+                            _open(context, 'Relatórios', const ReportsScreen()),
                       ),
                       FeatureCard(
                         icon: Icons.report_gmailerrorred_outlined,
@@ -190,18 +192,43 @@ class _AdminDashboard extends StatelessWidget {
                         ),
                       ),
                       FeatureCard(
-                        icon: Icons.bar_chart_outlined,
-                        label: 'Relatórios',
-                        onTap: () =>
-                            _open(context, 'Relatórios', const ReportsScreen()),
-                      ),
-                      FeatureCard(
                         icon: Icons.group_outlined,
                         label: 'Usuários',
                         onTap: () => _open(
                           context,
                           'Usuários',
                           const UserManagementScreen(),
+                        ),
+                      ),
+                      FeatureCard(
+                        icon: Icons.notifications_none,
+                        label: 'Avisos enviados',
+                        onTap: () => Navigator.push(
+                          context,
+                          MaterialPageRoute(
+                            builder: (_) =>
+                                const NotificationsInboxScreen(canManage: true),
+                          ),
+                        ),
+                      ),
+                      FeatureCard(
+                        icon: Icons.vpn_key_outlined,
+                        label: 'Códigos de acesso',
+                        // Empurrada direto, e não pelo _open: ela já traz
+                        // Scaffold e botão flutuante próprios, e o _open
+                        // acrescentaria uma segunda barra de título por cima.
+                        onTap: () => Navigator.push(
+                          context,
+                          MaterialPageRoute<void>(
+                            builder: (_) => InviteCodesScreen(
+                              routes: switch (context
+                                  .read<RouteProvider>()
+                                  .state) {
+                                AsyncData(:final value) => value,
+                                _ => const [],
+                              },
+                            ),
+                          ),
                         ),
                       ),
                       FeatureCard(

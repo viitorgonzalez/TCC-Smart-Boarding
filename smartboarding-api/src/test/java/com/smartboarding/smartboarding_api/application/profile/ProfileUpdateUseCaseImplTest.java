@@ -52,7 +52,7 @@ class ProfileUpdateUseCaseImplTest {
                 Clock.fixed(AGORA.toInstant(ZoneOffset.UTC), ZoneOffset.UTC));
         aluno = User.builder().id(ALUNO).email("fernanda@edu.unifor.br")
                 .fullName("Fernanda Lima").phone("37999990000")
-                .course("Engenharia").address("Rua A, 1").build();
+                .course("Engenharia").addressLegacy("Rua A, 1").build();
         when(userRepository.findById(ALUNO)).thenReturn(Optional.of(aluno));
         when(userRepository.save(any())).thenAnswer(i -> i.getArgument(0));
         when(requestRepository.save(any())).thenAnswer(i -> i.getArgument(0));
@@ -68,8 +68,10 @@ class ProfileUpdateUseCaseImplTest {
 
     @Test
     void pedidoNasceePendenteEAmarradoAoUsuarioDoToken() {
+        // fullName e nao phone: telefone saiu da fila (PUT /me/profile), e um
+        // pedido so com ele agora e um pedido vazio.
         var p = useCase.request(ALUNO,
-                ProfileUpdateRequest.builder().phone("37988887777").build());
+                ProfileUpdateRequest.builder().fullName("Fernanda Lima Souza").build());
 
         assertThat(p.getStatus()).isEqualTo(ProfileUpdateStatus.PENDING);
         assertThat(p.getUserId()).isEqualTo(ALUNO);
@@ -82,6 +84,18 @@ class ProfileUpdateUseCaseImplTest {
 
         assertThat(aluno.getFullName()).isEqualTo("Fernanda Lima");
         verify(userRepository, never()).save(any());
+    }
+
+    /// Telefone e curso saíram da fila. Um pedido só com eles não muda nada
+    /// que o admin decida, então é tão vazio quanto um sem campo nenhum.
+    @Test
+    void pedidoSoComTelefoneOuCursoEVazio() {
+        assertThatThrownBy(() -> useCase.request(ALUNO,
+                ProfileUpdateRequest.builder().phone("37988887777").course("Direito").build()))
+                .isInstanceOf(BadRequestException.class)
+                .hasMessageContaining("ao menos um campo");
+
+        verify(requestRepository, never()).save(any());
     }
 
     @Test
@@ -101,7 +115,7 @@ class ProfileUpdateUseCaseImplTest {
                 Optional.of(ProfileUpdateRequest.builder().userId(ALUNO).build()));
 
         assertThatThrownBy(() -> useCase.request(ALUNO,
-                ProfileUpdateRequest.builder().phone("37988887777").build()))
+                ProfileUpdateRequest.builder().fullName("Fernanda Lima Souza").build()))
                 .isInstanceOf(ConflictException.class)
                 .hasMessageContaining("em análise");
     }
@@ -142,7 +156,22 @@ class ProfileUpdateUseCaseImplTest {
 
         assertThat(aluno.getPhone()).isEqualTo("37999990000");
         assertThat(aluno.getCourse()).isEqualTo("Engenharia");
-        assertThat(aluno.getAddress()).isEqualTo("Rua A, 1");
+        assertThat(aluno.getAddressLegacy()).isEqualTo("Rua A, 1");
+    }
+
+    /// O endereço saiu da fila de aprovação (tem PUT /me/address agora), mas
+    /// pedido aberto ANTES disso ainda chega aqui. Vai pro campo legado em vez
+    /// de sumir calado -- e NÃO pro estruturado, que só o próprio aluno escreve.
+    @Test
+    void enderecoDePedidoAntigoVaiProCampoLegadoENaoProEstruturado() {
+        var p = pedidoDe(UUID.randomUUID(), ProfileUpdateStatus.PENDING);
+        p.setAddress("Rua Nova, 42");
+
+        useCase.approve(p.getId(), ADMIN);
+
+        assertThat(aluno.getAddressLegacy()).isEqualTo("Rua Nova, 42");
+        assertThat(aluno.getAddress().isComplete()).isFalse();
+        assertThat(aluno.getAddress().getStreet()).isNull();
     }
 
     @Test

@@ -91,8 +91,15 @@ public class ProfileUpdateUseCaseImpl implements ManageProfileUpdateUseCase {
         // Campo nulo = nao foi pedida mudanca nele. Aplicar tudo sobrescreveria
         // com null o que o aluno nao quis mexer.
         if (pedido.getFullName() != null) user.setFullName(pedido.getFullName());
+        // Telefone e curso saíram da fila (PUT /me/profile). Pedido aberto
+        // ANTES disso ainda pode trazê-los, e aplicá-los é o certo: o aluno
+        // pediu, o admin aprovou.
         if (pedido.getPhone() != null) user.setPhone(pedido.getPhone());
-        if (pedido.getAddress() != null) user.setAddress(pedido.getAddress());
+        // O endereco saiu da fila de aprovacao (tem PUT /me/address agora), mas
+        // pedido aberto ANTES disso ainda pode trazer um. Guardar no campo legado
+        // em vez de descartar: o aluno digitou, e sumir calado seria pior que
+        // guardar num campo que so ele mesmo ve.
+        if (pedido.getAddress() != null) user.setAddressLegacy(pedido.getAddress());
         if (pedido.getCourse() != null) user.setCourse(pedido.getCourse());
         // Institution vai pelo vinculo, nao no campo direto: users.institution_id
         // e derivado de user_institutions por um unico escritor (syncPrimary).

@@ -58,7 +58,7 @@ public class RouteUseCaseImpl implements CreateRouteUseCase, FindRouteUseCase,
 
     @Override
     @Transactional
-    public Route execute(UUID id, Route route, Boolean isActive) {
+    public Route execute(UUID id, Route route, Boolean isActive, Boolean admitsNoInstitution) {
         Route existing = findById(id);
         if (routeRepository.existsByNameAndIdNot(route.getName(), id)) {
             throw new ConflictException("ROUTE_NAME_CONFLICT", "Nome de rota já utilizado: " + route.getName());
@@ -75,6 +75,11 @@ public class RouteUseCaseImpl implements CreateRouteUseCase, FindRouteUseCase,
         // teria caminho de volta.
         if (isActive != null) {
             existing.setActive(isActive);
+        }
+        if (admitsNoInstitution != null) {
+            existing.setAdmitsNoInstitution(admitsNoInstitution);
+            log.info("Rota {} passa a {} aluno sem instituicao", id,
+                    admitsNoInstitution ? "aceitar" : "recusar");
         }
         return routeRepository.save(existing);
     }

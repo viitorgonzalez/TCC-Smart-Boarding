@@ -56,7 +56,7 @@ class _SignupScreenState extends State<SignupScreen> {
   @override
   Widget build(BuildContext context) {
     return Scaffold(
-      backgroundColor: AppColors.ashGrey,
+      backgroundColor: AppColors.background,
       appBar: AppBar(
         backgroundColor: Colors.transparent,
         elevation: 0,
@@ -84,6 +84,8 @@ class _SignupScreenState extends State<SignupScreen> {
                 const SizedBox(height: 28),
                 AppTextField(
                   key: const Key('signup_name_field'),
+                  autofillHints: const [AutofillHints.name],
+                  textInputAction: TextInputAction.next,
                   label: 'Nome completo',
                   controller: _nameCtrl,
                   icon: Icons.person_outline,
@@ -96,6 +98,8 @@ class _SignupScreenState extends State<SignupScreen> {
                 const SizedBox(height: 18),
                 AppTextField(
                   key: const Key('signup_email_field'),
+                  autofillHints: const [AutofillHints.email],
+                  textInputAction: TextInputAction.next,
                   label: 'E-mail',
                   controller: _emailCtrl,
                   icon: Icons.mail_outline,
@@ -114,6 +118,8 @@ class _SignupScreenState extends State<SignupScreen> {
                 const SizedBox(height: 18),
                 AppTextField(
                   key: const Key('signup_password_field'),
+                  autofillHints: const [AutofillHints.newPassword],
+                  textInputAction: TextInputAction.next,
                   label: 'Senha',
                   controller: _passCtrl,
                   icon: Icons.lock_outline,
@@ -137,6 +143,9 @@ class _SignupScreenState extends State<SignupScreen> {
                 const SizedBox(height: 18),
                 AppTextField(
                   key: const Key('signup_confirm_field'),
+                  autofillHints: const [AutofillHints.newPassword],
+                  textInputAction: TextInputAction.done,
+                  onSubmitted: _submit,
                   label: 'Confirmar senha',
                   controller: _confirmCtrl,
                   icon: Icons.lock_outline,

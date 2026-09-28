@@ -11,6 +11,7 @@ import '../widgets/role_meta.dart';
 import '../widgets/user_filter_bar.dart';
 import '../widgets/user_section_header.dart';
 import '../widgets/user_tile.dart';
+import '../../../core/pagination/infinite_list.dart';
 
 class UserManagementScreen extends StatefulWidget {
   const UserManagementScreen({super.key});
@@ -70,7 +71,7 @@ class _UserManagementScreenState extends State<UserManagementScreen> {
                       )
                     : RefreshIndicator(
                         onRefresh: provider.load,
-                        child: _buildList(users),
+                        child: _buildList(users, provider),
                       ),
               ),
             ],
@@ -80,7 +81,7 @@ class _UserManagementScreenState extends State<UserManagementScreen> {
     );
   }
 
-  Widget _buildList(List<UserModel> users) {
+  Widget _buildList(List<UserModel> users, UserProvider provider) {
     final roles = _filter != null ? [_filter!] : roleHierarchy;
 
     final children = <Widget>[];
@@ -100,8 +101,10 @@ class _UserManagementScreenState extends State<UserManagementScreen> {
       );
     }
 
-    return ListView(
+    return InfiniteList(
       padding: const EdgeInsets.fromLTRB(16, 12, 16, 88),
+      hasMore: provider.hasMore,
+      onLoadMore: provider.loadMore,
       children: children,
     );
   }

@@ -52,8 +52,8 @@ public class SecurityConfig {
                         .requestMatchers(HttpMethod.POST, "/api/auth/google").permitAll()
                         .requestMatchers(HttpMethod.POST, "/api/auth/forgot-password").permitAll()
                         .requestMatchers(HttpMethod.POST, "/api/auth/reset-password").permitAll()
-                        .requestMatchers(HttpMethod.GET, "/api/routes").permitAll()
-                        .requestMatchers(HttpMethod.GET, "/api/routes/{id}").permitAll()
+                        .requestMatchers(HttpMethod.GET, "/api/routes").hasRole("ADMIN")
+                        .requestMatchers(HttpMethod.GET, "/api/routes/{id}").authenticated()
                         .requestMatchers(HttpMethod.GET, "/api/institutions").permitAll()
                         .requestMatchers(HttpMethod.GET, "/api/users/**").hasRole("ADMIN")
                         .requestMatchers(HttpMethod.POST, "/api/routes").hasRole("ADMIN")
@@ -67,11 +67,14 @@ public class SecurityConfig {
                         // e um aluno emitiria codigo pra propria rota.
                         .requestMatchers("/api/routes/*/invite-codes/**").hasRole("ADMIN")
                         .requestMatchers("/api/routes/*/invite-codes").hasRole("ADMIN")
+                        .requestMatchers("/api/invite-codes").hasRole("ADMIN")
+                        .requestMatchers(HttpMethod.DELETE, "/api/invite-codes").hasRole("ADMIN")
                         // Usar o codigo e do aluno logado, sobre as rotas DELE.
                         // O proprio perfil e do usuario logado; a fila de
                         // solicitacoes e do admin.
                         .requestMatchers(HttpMethod.GET, "/api/me").authenticated()
                         .requestMatchers(HttpMethod.POST, "/api/me/password").authenticated()
+                        .requestMatchers(HttpMethod.PUT, "/api/me/password").authenticated()
                         .requestMatchers("/api/me/institutions/**").authenticated()
                         .requestMatchers("/api/me/institutions").authenticated()
                         .requestMatchers("/api/me/profile-requests/**").authenticated()
@@ -101,7 +104,11 @@ public class SecurityConfig {
                         // O aluno vê só as próprias advertências (/me); o resto é do admin.
                         .requestMatchers(HttpMethod.GET, "/api/warnings/me").authenticated()
                         .requestMatchers("/api/warnings/**").hasRole("ADMIN")
-                        // RN23: conduzir trajeto e acao de admin, nao de aluno.
+                        // Ler o trajeto e de quem esta na rota: o aluno acompanha
+                        // onde o onibus parou. O controller confere o vinculo --
+                        // aqui so se diz que aluno tambem pode chegar.
+                        .requestMatchers(HttpMethod.GET, "/api/trip/{listId}").authenticated()
+                        // RN23: CONDUZIR o trajeto continua sendo do admin.
                         .requestMatchers("/api/trip/**").hasRole("ADMIN")
                         .requestMatchers(HttpMethod.GET, "/api/users/{id}/profile").hasRole("ADMIN")
                         .requestMatchers(HttpMethod.PATCH, "/api/users/{id}/status").hasRole("ADMIN")

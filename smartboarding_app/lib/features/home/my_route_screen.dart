@@ -2,7 +2,11 @@ import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
 import '../../core/widgets/async_builder.dart';
 import '../../core/widgets/empty_state.dart';
+import '../../core/errors/app_exception.dart';
 import '../../core/widgets/snackbar_utils.dart';
+import '../profile/providers/me_provider.dart';
+import '../profile/screens/profile_screen.dart';
+import '../trip/screens/trip_follow_screen.dart';
 import '../lists/models/list_with_enrollment.dart';
 import '../lists/providers/student_list_provider.dart';
 import 'widgets/student_list_card.dart';
@@ -13,10 +17,10 @@ class MyRouteScreen extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     return Scaffold(
-      appBar: AppBar(title: const Text('Minha rota')),
+      appBar: AppBar(title: const Text('Lista de hoje')),
       body: SafeArea(
-        child: Consumer<StudentListProvider>(
-          builder: (context, provider, _) => AsyncBuilder(
+        child: Consumer2<StudentListProvider, MeProvider>(
+          builder: (context, provider, me, _) => AsyncBuilder(
             value: provider.state,
             onRetry: provider.load,
             builder: (items) => RefreshIndicator(
@@ -38,9 +42,18 @@ class MyRouteScreen extends StatelessWidget {
                         padding: const EdgeInsets.only(bottom: 16),
                         child: StudentListCard(
                           item: item,
+                          missingProfile: me.faltando,
                           onEnter: (tripType) =>
                               _enter(context, provider, item, tripType),
                           onLeave: () => _leave(context, provider, item),
+                          onFixProfile: () => _abrirPerfil(context, me),
+                          onFollowTrip: () => Navigator.push<void>(
+                            context,
+                            MaterialPageRoute(
+                              builder: (_) =>
+                                  TripFollowScreen(listId: item.list.id),
+                            ),
+                          ),
                         ),
                       ),
                     ),
@@ -53,6 +66,16 @@ class MyRouteScreen extends StatelessWidget {
     );
   }
 
+  /// Recarrega o /me na volta: quem foi preencher o que faltava precisa ver o
+  /// botão voltar sem fechar e reabrir a tela.
+  Future<void> _abrirPerfil(BuildContext context, MeProvider me) async {
+    await Navigator.push<void>(
+      context,
+      MaterialPageRoute(builder: (_) => const ProfileScreen()),
+    );
+    await me.load();
+  }
+
   Future<void> _enter(
     BuildContext context,
     StudentListProvider provider,
@@ -62,7 +85,9 @@ class MyRouteScreen extends StatelessWidget {
     try {
       await provider.enter(item.list.id, tripType);
     } catch (e) {
-      if (context.mounted) showErrorSnackBar(context, e.toString());
+      if (context.mounted) {
+        showErrorSnackBar(context, AppException.fromError(e));
+      }
     }
   }
 
@@ -74,7 +99,9 @@ class MyRouteScreen extends StatelessWidget {
     try {
       await provider.leave(item.list.id);
     } catch (e) {
-      if (context.mounted) showErrorSnackBar(context, e.toString());
+      if (context.mounted) {
+        showErrorSnackBar(context, AppException.fromError(e));
+      }
     }
   }
 }

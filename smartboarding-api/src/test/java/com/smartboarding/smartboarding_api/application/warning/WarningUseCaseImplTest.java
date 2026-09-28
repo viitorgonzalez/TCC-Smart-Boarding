@@ -115,4 +115,29 @@ class WarningUseCaseImplTest {
         assertThat(saved.isActive()).isTrue();
         verify(warningRepository).save(any());
     }
+
+    /// Entrar na lista pelo app exige perfil completo. A inclusão pelo admin
+    /// NÃO: é decisão dele, com o aluno na frente, e quase sempre é exatamente
+    /// o aluno com cadastro pela metade que precisa dela. Travar aqui deixaria
+    /// alguém de fora do ônibus por um campo em branco.
+    ///
+    /// O teste existe pra um refactor futuro não rotear esta inclusão pelo
+    /// AddEntryUseCase sem perceber que herdaria a trava junto.
+    @Test
+    void inclusaoPeloAdminNaoExigePerfilCompleto() {
+        UUID semPerfil = UUID.randomUUID();
+        when(userRepository.findById(semPerfil)).thenReturn(Optional.of(
+                User.builder().id(semPerfil).fullName("Sem Cadastro")
+                        .role(com.smartboarding.smartboarding_api.domain.user.entity.Role.STUDENT)
+                        .build()));
+        when(listEntryRepository.findByUserIdAndDailyListId(semPerfil, LIST_ID))
+                .thenReturn(Optional.empty());
+
+        ListEntry entry = useCase.enroll(LIST_ID, semPerfil, TripType.ROUND_TRIP,
+                false, null, ADMIN_ID);
+
+        assertThat(entry.isActive()).isTrue();
+        assertThat(entry.getUser().missingForList())
+                .containsExactly("phone", "address", "institution");
+    }
 }

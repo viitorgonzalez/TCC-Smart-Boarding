@@ -1,3 +1,5 @@
+import 'dart:async';
+
 import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
 import '../../../core/errors/app_exception.dart';
@@ -10,8 +12,13 @@ import '../../../core/widgets/loading_filled_button.dart';
 import '../../../core/widgets/snackbar_utils.dart';
 import '../models/profile_update_model.dart';
 import '../services/profile_service.dart';
+import '../../membership/providers/membership_provider.dart';
+import '../providers/me_provider.dart';
+import 'student_card_screen.dart';
+import '../widgets/address_card.dart';
 import '../widgets/my_institutions_card.dart';
-import '../widgets/set_password_card.dart';
+import '../widgets/own_data_card.dart';
+import '../widgets/password_card.dart';
 
 /// Perfil do próprio usuário.
 ///
@@ -29,12 +36,8 @@ class _ProfileScreenState extends State<ProfileScreen> {
   final _service = ProfileService();
   final _formKey = GlobalKey<FormState>();
   final _nameCtrl = TextEditingController();
-  final _phoneCtrl = TextEditingController();
-  final _addressCtrl = TextEditingController();
-  final _courseCtrl = TextEditingController();
 
   ProfileUpdate? _pendente;
-  Me? _me;
   bool _loading = true;
   bool _saving = false;
 
@@ -48,21 +51,17 @@ class _ProfileScreenState extends State<ProfileScreen> {
   @override
   void dispose() {
     _nameCtrl.dispose();
-    _phoneCtrl.dispose();
-    _addressCtrl.dispose();
-    _courseCtrl.dispose();
     super.dispose();
   }
 
   Future<void> _load() async {
-    // Em catch proprio: o /me so decide se o card de senha aparece. Se ele
-    // falhar, o perfil inteiro ainda tem que abrir.
-    _service
-        .me()
-        .then((m) {
-          if (mounted) setState(() => _me = m);
-        })
-        .catchError((_) {});
+    // Pelo MeProvider e nao por um /me proprio: o card da lista le o mesmo
+    // dado pra decidir se avisa o perfil incompleto. Com duas copias, salvar
+    // aqui deixaria o aviso de la mentindo ate a proxima abertura da tela.
+    //
+    // Sem await e com a falha engolida dentro do provider: o /me so alimenta
+    // avisos, e o perfil inteiro tem que abrir mesmo se ele nao responder.
+    unawaited(context.read<MeProvider>().load());
     try {
       final ultimo = await _service.myLatest();
       if (mounted) setState(() => _pendente = ultimo);
@@ -85,23 +84,15 @@ class _ProfileScreenState extends State<ProfileScreen> {
     if (!_formKey.currentState!.validate()) return;
     final auth = context.read<AuthProvider>();
     final nome = _mudou(_nameCtrl, auth.token?.fullName);
-    final telefone = _mudou(_phoneCtrl, null);
-    final endereco = _mudou(_addressCtrl, null);
-    final curso = _mudou(_courseCtrl, null);
 
-    if (nome == null && telefone == null && endereco == null && curso == null) {
-      showErrorSnackBar(context, 'Altere ao menos um campo antes de enviar.');
+    if (nome == null) {
+      showErrorSnackBar(context, 'Altere o nome antes de enviar.');
       return;
     }
 
     setState(() => _saving = true);
     try {
-      final p = await _service.requestUpdate(
-        fullName: nome,
-        phone: telefone,
-        address: endereco,
-        course: curso,
-      );
+      final p = await _service.requestUpdate(fullName: nome);
       if (!mounted) return;
       setState(() => _pendente = p);
       showSuccessSnackBar(context, 'Solicitação enviada para o administrador');
@@ -158,10 +149,56 @@ class _ProfileScreenState extends State<ProfileScreen> {
                 // resolver ao abrir o perfil.
                 const MyInstitutionsCard(),
                 const SizedBox(height: 20),
-                // So pra quem entrou pelo Google e ainda nao tem senha: oferecer
-                // a todos faria metade tomar 409 do backend.
-                if (_me case Me(hasPassword: false, hasGoogle: true)) ...[
-                  SetPasswordCard(onCreated: _load),
+                // Quem ainda nao tem senha cria a primeira; quem tem, troca
+                // provando a atual. Nao ha terceiro caso -- o card so some
+                // enquanto o /me nao respondeu.
+                if (context.watch<MeProvider>().me case final me?) ...[
+                  // So pro aluno: a carteirinha atesta vinculo de estudante,
+                  // e quem administra nao tem um pra atestar.
+                  if (auth.isStudent) ...[
+                    AppCard(
+                      child: ListTile(
+                        key: const Key('profile_open_student_card'),
+                        contentPadding: EdgeInsets.zero,
+                        leading: const Icon(
+                          Icons.badge_outlined,
+                          color: AppColors.deepTeal,
+                        ),
+                        title: const Text('Carteirinha'),
+                        subtitle: const Text(
+                          'Seus dados de estudante, pra mostrar na conferência',
+                        ),
+                        trailing: const Icon(Icons.chevron_right),
+                        onTap: () => Navigator.push<void>(
+                          context,
+                          MaterialPageRoute(
+                            builder: (_) => StudentCardScreen(
+                              me: me,
+                              hasActiveRoute: context
+                                  .read<MembershipProvider>()
+                                  .routes
+                                  .isNotEmpty,
+                            ),
+                          ),
+                        ),
+                      ),
+                    ),
+                    const SizedBox(height: 20),
+                  ],
+                  // Fora do formulario de aprovacao de proposito: o endereco
+                  // vale na hora, e o nome ainda espera o admin. Misturar as
+                  // duas semanticas num botao so faria o aluno nao saber o que
+                  // ja valeu e o que foi so pedido.
+                  OwnDataCard(
+                    phone: me.phone,
+                    course: me.course,
+                    isStudent: auth.isStudent,
+                    onSaved: _load,
+                  ),
+                  const SizedBox(height: 20),
+                  AddressCard(initial: me.address, onSaved: _load),
+                  const SizedBox(height: 20),
+                  PasswordCard(changing: me.hasPassword, onSaved: _load),
                   const SizedBox(height: 20),
                 ],
 
@@ -221,6 +258,9 @@ class _ProfileScreenState extends State<ProfileScreen> {
                   const SizedBox(height: 20),
                 ],
 
+                // So o nome sobrou aqui: ele identifica na chamada do
+                // motorista, entao troca-lo e virar outra pessoa na lista --
+                // e a unica coisa que ainda justifica um admin no meio.
                 Form(
                   key: _formKey,
                   child: Column(
@@ -231,31 +271,6 @@ class _ProfileScreenState extends State<ProfileScreen> {
                         label: 'Nome completo',
                         controller: _nameCtrl,
                         icon: Icons.person_outline,
-                        readOnly: emAnalise,
-                      ),
-                      const SizedBox(height: 16),
-                      AppTextField(
-                        key: const Key('profile_phone_field'),
-                        label: 'Telefone',
-                        controller: _phoneCtrl,
-                        icon: Icons.phone_outlined,
-                        keyboardType: TextInputType.phone,
-                        readOnly: emAnalise,
-                      ),
-                      const SizedBox(height: 16),
-                      AppTextField(
-                        key: const Key('profile_address_field'),
-                        label: 'Endereço',
-                        controller: _addressCtrl,
-                        icon: Icons.place_outlined,
-                        readOnly: emAnalise,
-                      ),
-                      const SizedBox(height: 16),
-                      AppTextField(
-                        key: const Key('profile_course_field'),
-                        label: 'Curso',
-                        controller: _courseCtrl,
-                        icon: Icons.school_outlined,
                         readOnly: emAnalise,
                       ),
                       const SizedBox(height: 24),

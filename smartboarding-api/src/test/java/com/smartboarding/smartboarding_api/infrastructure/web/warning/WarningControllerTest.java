@@ -10,6 +10,7 @@ import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.boot.webmvc.test.autoconfigure.WebMvcTest;
+import org.springframework.data.domain.PageImpl;
 import org.springframework.test.context.bean.override.mockito.MockitoBean;
 import org.springframework.test.web.servlet.MockMvc;
 
@@ -18,6 +19,8 @@ import java.util.List;
 import java.util.Optional;
 import java.util.UUID;
 
+import static org.mockito.ArgumentMatchers.eq;
+import static org.mockito.ArgumentMatchers.isNull;
 import static org.mockito.ArgumentMatchers.any;
 import static org.mockito.Mockito.never;
 import static org.mockito.Mockito.verify;
@@ -59,7 +62,7 @@ class WarningControllerTest extends WebMvcTestSupport {
         mvc.perform(get("/api/warnings").param("userId", ADMIN_ID.toString()).with(student()))
                 .andExpect(status().isForbidden());
 
-        verify(manageWarningUseCase, never()).list(ADMIN_ID);
+        verify(manageWarningUseCase, never()).listPage(eq(ADMIN_ID), any());
     }
 
     /// /me ignora qualquer parâmetro e usa o id do token — é o que torna o
@@ -90,22 +93,29 @@ class WarningControllerTest extends WebMvcTestSupport {
         mvc.perform(get("/api/warnings/me").with(student())).andExpect(status().isUnauthorized());
     }
 
+    /// A listagem do admin vem paginada: a tela carrega conforme ele rola. O
+    /// /me do aluno não — é a lista curta dele, e paginar ali só adicionaria
+    /// um caminho a mais sem ganho.
     @Test
     void adminListaFiltrandoPorAluno() throws Exception {
-        when(manageWarningUseCase.list(STUDENT_ID)).thenReturn(List.of(advertencia()));
+        when(manageWarningUseCase.listPage(eq(STUDENT_ID), any()))
+                .thenReturn(new PageImpl<>(List.of(advertencia())));
 
         mvc.perform(get("/api/warnings").param("userId", STUDENT_ID.toString()).with(admin()))
                 .andExpect(status().isOk())
-                .andExpect(jsonPath("$.data.length()").value(1));
+                .andExpect(jsonPath("$.data.content.length()").value(1));
 
-        verify(manageWarningUseCase).list(STUDENT_ID);
+        verify(manageWarningUseCase).listPage(eq(STUDENT_ID), any());
     }
 
     @Test
     void adminSemFiltroListaTodas() throws Exception {
+        when(manageWarningUseCase.listPage(isNull(), any()))
+                .thenReturn(new PageImpl<>(List.of()));
+
         mvc.perform(get("/api/warnings").with(admin())).andExpect(status().isOk());
 
-        verify(manageWarningUseCase).list(null);
+        verify(manageWarningUseCase).listPage(isNull(), any());
     }
 
     @Test

@@ -15,7 +15,7 @@ public record StudentProfileResponse(
         String fullName,
         String email,
         String phone,
-        String address,
+        AddressResponse address,
         LocalDate birthDate,
         String course,
         String institution,

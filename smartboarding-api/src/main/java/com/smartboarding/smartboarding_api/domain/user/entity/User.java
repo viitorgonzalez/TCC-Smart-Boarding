@@ -8,6 +8,7 @@ import org.springframework.security.core.userdetails.UserDetails;
 
 import java.time.LocalDate;
 import java.time.LocalDateTime;
+import java.util.ArrayList;
 import java.util.Collection;
 import java.util.List;
 import java.util.Optional;
@@ -59,8 +60,15 @@ public class User implements UserDetails {
     @Column(length = 20)
     private String phone;
 
-    @Column(columnDefinition = "TEXT")
-    private String address;
+    @Embedded
+    @Builder.Default
+    private Address address = new Address();
+
+    /// O endereço em texto livre que existia antes da V31. Fica só pra não
+    /// perder o que o aluno já tinha digitado — nada o lê pra operar, e some
+    /// quando todo mundo tiver preenchido o estruturado.
+    @Column(name = "address_legacy", columnDefinition = "TEXT")
+    private String addressLegacy;
 
     @Column(name = "expiry_date")
     private LocalDate expiryDate;
@@ -122,5 +130,45 @@ public class User implements UserDetails {
 
     public boolean hasGoogle() {
         return googleId != null && !googleId.isBlank();
+    }
+
+    /// Hibernate devolve o embutido nulo quando toda coluna está nula, então
+    /// quem pergunta pelo endereço nunca recebe null e não precisa checar.
+    public Address getAddress() {
+        if (address == null) address = new Address();
+        return address;
+    }
+
+    public boolean hasCompleteAddress() {
+        return getAddress().isComplete();
+    }
+
+    /// O que falta pra entrar na lista do dia, pelos nomes dos campos.
+    ///
+    /// Devolve a lista toda de uma vez, não a primeira pendência: a mensagem
+    /// genérica obriga o aluno a descobrir por tentativa, um campo por viagem
+    /// perdida.
+    ///
+    /// [birthDate] e [course] ficam de fora — descrevem a pessoa, não a
+    /// operação do transporte, e travariam alguém fora do ônibus por um campo
+    /// que ninguém usa no dia da viagem.
+    public List<String> missingForList() {
+        List<String> faltando = new ArrayList<>();
+        if (embranco(fullName)) faltando.add("fullName");
+        if (embranco(phone)) faltando.add("phone");
+        if (!hasCompleteAddress()) faltando.add("address");
+        // institutionId é derivado de user_institutions por um escritor só
+        // (syncPrimary), que o zera quando o último vínculo sai -- então nulo
+        // aqui significa mesmo "nenhuma instituição declarada".
+        if (institutionId == null) faltando.add("institution");
+        return faltando;
+    }
+
+    public boolean isProfileCompleteForList() {
+        return missingForList().isEmpty();
+    }
+
+    private static boolean embranco(String valor) {
+        return valor == null || valor.isBlank();
     }
 }

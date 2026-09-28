@@ -7,7 +7,7 @@ import '../../../core/widgets/snackbar_utils.dart';
 import '../services/auth_service.dart';
 import 'reset_password_screen.dart';
 
-/// Pede o código de redefinição. Fundo Ash Grey como as outras telas de
+/// Pede o código de redefinição. Mesmo fundo das outras telas de
 /// autenticação (ver design-system.md).
 class ForgotPasswordScreen extends StatefulWidget {
   const ForgotPasswordScreen({super.key});
@@ -45,7 +45,7 @@ class _ForgotPasswordScreenState extends State<ForgotPasswordScreen> {
   @override
   Widget build(BuildContext context) {
     return Scaffold(
-      backgroundColor: AppColors.ashGrey,
+      backgroundColor: AppColors.background,
       appBar: AppBar(backgroundColor: Colors.transparent, elevation: 0),
       body: SafeArea(
         child: SingleChildScrollView(
@@ -69,6 +69,9 @@ class _ForgotPasswordScreenState extends State<ForgotPasswordScreen> {
                 ),
                 const SizedBox(height: 24),
                 AppTextField(
+                  autofocus: true,
+                  autofillHints: const [AutofillHints.username],
+                  textInputAction: TextInputAction.done,
                   key: const Key('forgot_email_field'),
                   label: 'Email',
                   controller: _emailCtrl,

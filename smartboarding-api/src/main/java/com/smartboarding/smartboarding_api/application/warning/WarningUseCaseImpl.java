@@ -52,6 +52,15 @@ public class WarningUseCaseImpl implements ManageWarningUseCase, EnrollByAdminUs
     }
 
     @Override
+    @Transactional(readOnly = true)
+    public org.springframework.data.domain.Page<Warning> listPage(
+            UUID userId, org.springframework.data.domain.Pageable pageable) {
+        return userId == null
+                ? warningRepository.findPage(pageable)
+                : warningRepository.findPageByUserId(userId, pageable);
+    }
+
+    @Override
     @Transactional
     public void delete(UUID id) {
         warningRepository.deleteById(id);

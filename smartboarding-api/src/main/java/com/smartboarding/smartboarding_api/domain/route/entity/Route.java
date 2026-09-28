@@ -45,6 +45,15 @@ public class Route {
     @Builder.Default
     private LocalTime closeTime = DEFAULT_CLOSE_TIME;
 
+    /// Aceita aluno que não declarou instituição no perfil.
+    ///
+    /// Falso por padrão: a instituição é o que diz onde a pessoa desce e em que
+    /// contagem ela entra, então deixar entrar sem ela é exceção que o admin
+    /// abre de propósito, não o estado natural da rota.
+    @Column(name = "admits_no_institution", nullable = false)
+    @Builder.Default
+    private boolean admitsNoInstitution = false;
+
     @Column(name = "created_at", updatable = false)
     private LocalDateTime createdAt;
 

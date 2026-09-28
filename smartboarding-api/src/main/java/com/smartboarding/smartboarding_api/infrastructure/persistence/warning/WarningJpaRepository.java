@@ -1,6 +1,8 @@
 package com.smartboarding.smartboarding_api.infrastructure.persistence.warning;
 
 import com.smartboarding.smartboarding_api.domain.warning.entity.Warning;
+import org.springframework.data.domain.Page;
+import org.springframework.data.domain.Pageable;
 import org.springframework.data.jpa.repository.JpaRepository;
 
 import java.util.List;
@@ -10,4 +12,6 @@ public interface WarningJpaRepository extends JpaRepository<Warning, UUID> {
     List<Warning> findAllByUserIdOrderByCreatedAtDesc(UUID userId);
 
     List<Warning> findAllByOrderByCreatedAtDesc();
+
+    Page<Warning> findAllByUserId(UUID userId, Pageable pageable);
 }

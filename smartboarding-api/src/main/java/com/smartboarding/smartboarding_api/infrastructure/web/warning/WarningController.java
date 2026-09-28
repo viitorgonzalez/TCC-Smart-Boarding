@@ -5,6 +5,10 @@ import com.smartboarding.smartboarding_api.domain.user.port.out.UserRepositoryPo
 import com.smartboarding.smartboarding_api.domain.warning.port.in.ManageWarningUseCase;
 import com.smartboarding.smartboarding_api.infrastructure.web.warning.dto.WarningResponse;
 import com.smartboarding.smartboarding_api.shared.web.ApiResponse;
+import org.springframework.data.domain.Page;
+import org.springframework.data.domain.Pageable;
+import org.springframework.data.domain.Sort;
+import org.springframework.data.web.PageableDefault;
 import org.springframework.http.ResponseEntity;
 import com.smartboarding.smartboarding_api.shared.exception.UnauthorizedException;
 import org.springframework.security.core.Authentication;
@@ -27,11 +31,12 @@ public class WarningController {
     }
 
     @GetMapping
-    public ResponseEntity<ApiResponse<List<WarningResponse>>> list(
-            @RequestParam(required = false) UUID userId) {
-        List<WarningResponse> items = manageWarningUseCase.list(userId).stream()
-                .map(WarningResponse::from)
-                .toList();
+    public ResponseEntity<ApiResponse<Page<WarningResponse>>> list(
+            @RequestParam(required = false) UUID userId,
+            @PageableDefault(size = 30, sort = "createdAt",
+                    direction = Sort.Direction.DESC) Pageable pageable) {
+        Page<WarningResponse> items = manageWarningUseCase.listPage(userId, pageable)
+                .map(WarningResponse::from);
         return ResponseEntity.ok(ApiResponse.data(items));
     }
 

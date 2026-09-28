@@ -2,11 +2,16 @@ package com.smartboarding.smartboarding_api.domain.user.port.in;
 
 import com.smartboarding.smartboarding_api.domain.user.entity.User;
 
+import org.springframework.data.domain.Page;
+import org.springframework.data.domain.Pageable;
 import java.util.List;
 import java.util.UUID;
 
 public interface FindUserUseCase {
     List<User> findAll();
+
+    /// Usada pela listagem do app, que carrega conforme o admin rola.
+    Page<User> findPage(UUID routeId, Pageable pageable);
 
     /// Usuários cuja instituição é atendida pela rota (RN15). A base cresce sem
     /// teto — listar tudo não escala nem ajuda o admin.

@@ -4,6 +4,7 @@ import '../../lists/models/daily_list_model.dart';
 import '../../routes/screens/route_stops_screen.dart';
 import '../../routes/models/map_stop.dart';
 import '../../routes/widgets/route_map.dart';
+import '../../../core/text/plural.dart';
 
 /// Blocos de apoio do cartão do aluno: veículo definido no fechamento (RN16)
 /// e prévia do trajeto.
@@ -11,10 +12,16 @@ class ProposedVehicle extends StatelessWidget {
   final List<VehicleSummary> vehicles;
   final int shortfall;
 
+  /// Lista fechada: a escolha está congelada. Aberta, é previsão e muda
+  /// conforme entra e sai gente — dizer "definido" antes da hora seria promessa
+  /// que o app não pode cumprir.
+  final bool definido;
+
   const ProposedVehicle({
     super.key,
     required this.vehicles,
     required this.shortfall,
+    required this.definido,
   });
 
   @override
@@ -42,7 +49,7 @@ class ProposedVehicle extends StatelessWidget {
               ),
               const SizedBox(width: 8),
               Text(
-                'TRANSPORTE DEFINIDO',
+                definido ? 'TRANSPORTE DEFINIDO' : 'TRANSPORTE PREVISTO',
                 style: TextStyle(
                   fontSize: 12,
                   fontWeight: FontWeight.w700,
@@ -53,23 +60,26 @@ class ProposedVehicle extends StatelessWidget {
             ],
           ),
           const SizedBox(height: 6),
-          Text(
-            vehicles.isEmpty
-                ? 'Nenhum veículo disponível na rota'
-                : vehicles
-                      .map((v) => '${v.label} (${v.capacity})')
-                      .join('  +  '),
-            style: const TextStyle(
-              fontSize: 15,
-              fontWeight: FontWeight.w700,
-              color: AppColors.charcoal,
-            ),
-          ),
+          Text(switch (vehicles) {
+            // Zero confirmado nao precisa de veiculo nenhum ainda; dizer
+            // "nenhum disponivel" soaria como frota faltando.
+            [] when shortfall == 0 =>
+              definido
+                  ? 'Nenhum passageiro confirmado'
+                  : 'Ainda sem passageiros confirmados',
+            [] => 'Nenhum veículo disponível na rota',
+            _ =>
+              vehicles
+                  .map((v) => '${v.label} · ${v.capacity} lugares')
+                  .join('  +  '),
+          }, style: Theme.of(context).textTheme.titleSmall),
           if (insufficient) ...[
             const SizedBox(height: 4),
             Text(
-              '$shortfall pessoa(s) sem lugar na frota',
-              style: TextStyle(fontSize: 13, color: color),
+              '${contagem(shortfall, 'pessoa', 'pessoas')} sem lugar na frota',
+              style: Theme.of(
+                context,
+              ).textTheme.bodySmall?.copyWith(color: color),
             ),
           ],
         ],

@@ -22,6 +22,10 @@ import '../models/stop_model.dart';
 import '../models/vehicle_model.dart';
 import '../providers/route_provider.dart';
 import '../services/route_service.dart';
+import 'invite_codes_screen.dart';
+import 'route_section_screen.dart';
+import '../../../core/text/plural.dart';
+import '../../institutions/providers/institution_provider.dart';
 
 class RouteDetailScreen extends StatefulWidget {
   final RouteModel route;
@@ -38,6 +42,7 @@ class _RouteDetailScreenState extends State<RouteDetailScreen> {
   late final TextEditingController _descCtrl;
   TimeOfDay? _openTime;
   TimeOfDay? _closeTime;
+  late bool _admiteSemInstituicao;
 
   List<StopModel> _stops = const [];
   List<VehicleModel> _vehicles = const [];
@@ -52,6 +57,7 @@ class _RouteDetailScreenState extends State<RouteDetailScreen> {
     _descCtrl = TextEditingController(text: widget.route.description ?? '');
     _openTime = _asTimeOfDay(widget.route.openTime);
     _closeTime = _asTimeOfDay(widget.route.closeTime);
+    _admiteSemInstituicao = widget.route.admitsNoInstitution;
     _reload();
   }
 
@@ -149,37 +155,168 @@ class _RouteDetailScreenState extends State<RouteDetailScreen> {
                   }),
                 ),
                 const SizedBox(height: 24),
-                const SectionTitle('Avisos automáticos'),
+
+                // O que se mexe uma vez por semestre sai do caminho do que se
+                // mexe todo dia. Cada linha abre a mesma seção em tela própria.
+                const SectionTitle('Configuração da rota'),
                 const SizedBox(height: 12),
-                ScheduledNotificationsSection(routeId: widget.route.id),
-                const SizedBox(height: 24),
-                const SectionTitle('Trajeto'),
-                const SizedBox(height: 12),
-                RouteStopsEditor(
-                  routeId: widget.route.id,
-                  stops: _stops,
-                  run: _run,
+                AppCard(
+                  padding: const EdgeInsets.symmetric(vertical: 6),
+                  child: Column(
+                    children: [
+                      _linha(
+                        chave: 'section_codes',
+                        icone: Icons.vpn_key_outlined,
+                        titulo: 'Códigos de acesso',
+                        detalhe: 'Quem pode entrar nesta rota',
+                        abre: () => InviteCodesScreen(routes: [widget.route]),
+                        telaPropria: true,
+                      ),
+                      _linha(
+                        chave: 'section_stops',
+                        icone: Icons.route_outlined,
+                        titulo: 'Trajeto',
+                        detalhe: contagem(_stops.length, 'parada', 'paradas'),
+                        abre: () => RouteStopsEditor(
+                          routeId: widget.route.id,
+                          stops: _stops,
+                          run: _run,
+                          institutions: context
+                              .read<InstitutionProvider>()
+                              .servedBy(widget.route.id),
+                        ),
+                      ),
+                      _linha(
+                        chave: 'section_vehicles',
+                        icone: Icons.directions_bus_outlined,
+                        titulo: 'Frota',
+                        detalhe: contagem(
+                          _vehicles.length,
+                          'veículo',
+                          'veículos',
+                        ),
+                        abre: () => RouteVehiclesCard(
+                          routeId: widget.route.id,
+                          vehicles: _vehicles,
+                          run: _run,
+                        ),
+                      ),
+                      _linha(
+                        chave: 'section_institutions',
+                        icone: Icons.school_outlined,
+                        titulo: 'Instituições atendidas',
+                        detalhe: 'Quais escolas usam esta rota',
+                        abre: () => RouteInstitutionsCard(
+                          routeId: widget.route.id,
+                          admitsNoInstitution: _admiteSemInstituicao,
+                          onAdmitsNoInstitutionChanged: _mudarAdmissao,
+                        ),
+                      ),
+                      _linha(
+                        chave: 'section_notices',
+                        icone: Icons.notifications_outlined,
+                        titulo: 'Avisos automáticos',
+                        detalhe: 'Mensagens que saem sozinhas',
+                        abre: () => ScheduledNotificationsSection(
+                          routeId: widget.route.id,
+                        ),
+                      ),
+                      _linha(
+                        chave: 'section_students',
+                        icone: Icons.people_outline,
+                        titulo: 'Alunos',
+                        detalhe: 'Quem está nesta rota',
+                        abre: _studentsCard,
+                      ),
+                    ],
+                  ),
                 ),
-                const SizedBox(height: 24),
-                const SectionTitle('Frota'),
-                const SizedBox(height: 12),
-                RouteVehiclesCard(
-                  routeId: widget.route.id,
-                  vehicles: _vehicles,
-                  run: _run,
-                ),
-                const SizedBox(height: 24),
-                const SectionTitle('Instituições atendidas'),
-                const SizedBox(height: 12),
-                RouteInstitutionsCard(routeId: widget.route.id),
-                const SizedBox(height: 24),
-                const SectionTitle('Alunos'),
-                const SizedBox(height: 12),
-                _studentsCard(),
                 const SizedBox(height: 32),
               ],
             ),
     );
+  }
+
+  /// Linha que abre uma seção em tela própria. O conteúdo é construído só ao
+  /// abrir: montar as seis seções de uma vez faria a tela buscar tudo de novo
+  /// a cada volta.
+  /// Salva na hora, sem botao: uma chave que so vale depois de "salvar dados
+  /// da rota" -- que fica noutra tela -- seria esquecida ligada sem efeito.
+  ///
+  /// Relanca em caso de falha: quem desenha a chave e quem a devolve ao estado
+  /// anterior, senao a tela mente sobre o que o servidor guardou.
+  Future<void> _mudarAdmissao(bool valor) async {
+    try {
+      await context.read<RouteProvider>().update(
+        widget.route.id,
+        _nameCtrl.text.trim(),
+        _descCtrl.text.trim(),
+        admitsNoInstitution: valor,
+      );
+      if (mounted) setState(() => _admiteSemInstituicao = valor);
+      if (mounted) {
+        showSuccessSnackBar(
+          context,
+          valor
+              ? 'A rota passa a aceitar aluno sem instituição'
+              : 'A rota volta a exigir instituição',
+        );
+      }
+    } catch (e) {
+      if (mounted) showErrorSnackBar(context, AppException.fromError(e));
+      rethrow;
+    }
+  }
+
+  Widget _linha({
+    required String chave,
+    required IconData icone,
+    required String titulo,
+    required String detalhe,
+    required Widget Function() abre,
+
+    /// A seção já é uma tela inteira, com barra própria — envolvê-la na
+    /// moldura empilharia dois títulos.
+    bool telaPropria = false,
+  }) {
+    return ListTile(
+      key: Key(chave),
+      leading: Icon(icone, color: AppColors.deepTeal),
+      title: Text(titulo),
+      subtitle: Text(detalhe),
+      trailing: const Icon(Icons.chevron_right),
+      onTap: () => _abrirSecao(titulo, abre, telaPropria: telaPropria),
+    );
+  }
+
+  /// Abre a seção em tela própria, repassando os providers.
+  ///
+  /// O push nasce no Navigator, ACIMA dos providers desta tela: o que não for
+  /// repassado aqui não chega lá. Sem isso, "Instituições atendidas" estourava
+  /// ProviderNotFoundException na cara do admin — a mesma armadilha que a lista
+  /// de rotas já documentava ao empurrar este detalhe.
+  Future<void> _abrirSecao(
+    String titulo,
+    Widget Function() constroi, {
+    required bool telaPropria,
+  }) async {
+    final institutionProvider = context.read<InstitutionProvider>();
+    final routeProvider = context.read<RouteProvider>();
+
+    await Navigator.of(context).push(
+      MaterialPageRoute<void>(
+        builder: (_) => MultiProvider(
+          providers: [
+            ChangeNotifierProvider.value(value: institutionProvider),
+            ChangeNotifierProvider.value(value: routeProvider),
+          ],
+          child: telaPropria
+              ? constroi()
+              : RouteSectionScreen(title: titulo, child: constroi()),
+        ),
+      ),
+    );
+    if (mounted) await _reload();
   }
 
   Widget _basics() {

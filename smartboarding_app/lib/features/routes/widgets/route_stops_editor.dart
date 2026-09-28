@@ -5,8 +5,10 @@ import 'package:latlong2/latlong.dart' hide Path;
 import '../../../core/theme/app_theme.dart';
 import '../../../core/widgets/app_card.dart';
 import '../../../core/widgets/text_prompt_dialog.dart';
+import '../../institutions/models/institution_model.dart';
 import '../models/map_stop.dart';
 import '../models/stop_model.dart';
+import '../services/road_route_service.dart';
 import '../services/route_service.dart';
 import 'route_map.dart';
 
@@ -22,19 +24,32 @@ class RouteStopsEditor extends StatefulWidget {
   /// recarregamento é compartilhado com as outras seções.
   final Future<void> Function(Future<void> Function(), String) run;
 
+  /// As instituições atendidas por esta rota. Vazio esconde a ação de
+  /// vincular: oferecer uma escolha sem opção é um beco.
+  final List<InstitutionModel> institutions;
+
+  /// Injetáveis pro teste; em produção cada um constrói o seu.
+  final RouteService? service;
+  final RoadRouteService? roadService;
+
   const RouteStopsEditor({
     super.key,
     required this.routeId,
     required this.stops,
     required this.run,
+    this.institutions = const [],
+    this.service,
+    this.roadService,
   });
 
   @override
-  State<RouteStopsEditor> createState() => _RouteStopsEditorState();
+  RouteStopsEditorState createState() => RouteStopsEditorState();
 }
 
-class _RouteStopsEditorState extends State<RouteStopsEditor> {
-  final _service = RouteService();
+@visibleForTesting
+class RouteStopsEditorState extends State<RouteStopsEditor> {
+  late final RouteService _service = widget.service ?? RouteService();
+  late final RoadRouteService _road = widget.roadService ?? RoadRouteService();
 
   /// Parada sendo reposicionada, ou depois da qual a próxima será inserida.
   StopModel? _pendingStop;
@@ -104,12 +119,11 @@ class _RouteStopsEditorState extends State<RouteStopsEditor> {
                       '${stop.longitude!.toStringAsFixed(4)}',
                     )
                   : const Text('sem coordenada'),
-              trailing: IconButton(
-                icon: const Icon(Icons.delete_outline, color: AppColors.danger),
-                onPressed: () => widget.run(
-                  () => _service.deleteStop(widget.routeId, stop.id),
-                  'Parada removida',
-                ),
+              // Remover ja esta na folha que abre no toque; repetir aqui punha
+              // a acao destrutiva em vermelho no meio da lista.
+              trailing: const Icon(
+                Icons.more_horiz,
+                color: AppColors.textSecondary,
               ),
             ),
         ],
@@ -126,7 +140,20 @@ class _RouteStopsEditorState extends State<RouteStopsEditor> {
 
   /// O toque no mapa muda de significado conforme o modo ativo.
 
-  Future<void> _onMapPoint(LatLng point) async {
+  /// Exposto pro teste porque simular um toque dentro do mapa exigiria
+  /// controlar a camera do flutter_map — e o que importa aqui e o que sai
+  /// daqui pro backend, nao o gesto.
+  @visibleForTesting
+  Future<void> onMapPoint(LatLng point) => _onMapPoint(point);
+
+  /// Gruda na via antes de qualquer coisa: as tres acoes (criar, mover,
+  /// inserir) saem deste mesmo ponto, e corrigir aqui cobre as tres.
+  ///
+  /// OSRM fora do ar devolve o ponto do toque -- parada no lugar aproximado e
+  /// melhor que nenhuma parada.
+  Future<void> _onMapPoint(LatLng tocado) async {
+    final point = await _road.snapToRoad(tocado) ?? tocado;
+    if (!mounted) return;
     final action = _pendingAction;
     final target = _pendingStop;
     if (action == null) {
@@ -171,52 +198,78 @@ class _RouteStopsEditorState extends State<RouteStopsEditor> {
     );
   }
 
+  /// Exposto pro teste pela mesma razao do [onMapPoint]: tocar num marcador
+  /// dentro do flutter_map exigiria controlar a camera, e o que importa aqui e
+  /// o que sai daqui pro backend.
+  @visibleForTesting
+  Future<void> onTapStop(MapStop tapped) => _onTapStop(tapped);
+
   Future<void> _onTapStop(MapStop tapped) async {
     final stop = widget.stops.firstWhere((s) => s.id == tapped.id);
     final action = await showModalBottomSheet<_StopAction>(
       context: context,
       builder: (context) => SafeArea(
-        child: Column(
-          mainAxisSize: MainAxisSize.min,
-          children: [
-            ListTile(
-              title: Text(
-                stop.name,
-                style: Theme.of(context).textTheme.titleMedium,
+        // Rolavel porque a folha cresce com o numero de opcoes: sem isso,
+        // aparelho baixo corta a ultima acao -- e a ultima e "Remover".
+        child: SingleChildScrollView(
+          child: Column(
+            mainAxisSize: MainAxisSize.min,
+            children: [
+              ListTile(
+                title: Text(
+                  stop.name,
+                  style: Theme.of(context).textTheme.titleMedium,
+                ),
+                subtitle: Text('Parada ${stop.sequence}'),
               ),
-              subtitle: Text('Parada ${stop.sequence}'),
-            ),
-            const Divider(height: 1),
-            ListTile(
-              leading: const Icon(Icons.open_with, color: AppColors.deepTeal),
-              title: const Text('Mover para outro local'),
-              onTap: () => Navigator.pop(context, _StopAction.move),
-            ),
-            ListTile(
-              leading: const Icon(
-                Icons.add_location_alt_outlined,
-                color: AppColors.deepTeal,
+              const Divider(height: 1),
+              ListTile(
+                leading: const Icon(Icons.open_with, color: AppColors.deepTeal),
+                title: const Text('Mover para outro local'),
+                onTap: () => Navigator.pop(context, _StopAction.move),
               ),
-              title: const Text('Inserir parada depois desta'),
-              onTap: () => Navigator.pop(context, _StopAction.insertAfter),
-            ),
-            ListTile(
-              leading: const Icon(
-                Icons.edit_outlined,
-                color: AppColors.deepTeal,
+              ListTile(
+                leading: const Icon(
+                  Icons.add_location_alt_outlined,
+                  color: AppColors.deepTeal,
+                ),
+                title: const Text('Inserir parada depois desta'),
+                onTap: () => Navigator.pop(context, _StopAction.insertAfter),
               ),
-              title: const Text('Renomear'),
-              onTap: () => Navigator.pop(context, _StopAction.rename),
-            ),
-            ListTile(
-              leading: const Icon(
-                Icons.delete_outline,
-                color: AppColors.danger,
+              ListTile(
+                leading: const Icon(
+                  Icons.edit_outlined,
+                  color: AppColors.deepTeal,
+                ),
+                title: const Text('Renomear'),
+                onTap: () => Navigator.pop(context, _StopAction.rename),
               ),
-              title: const Text('Remover'),
-              onTap: () => Navigator.pop(context, _StopAction.remove),
-            ),
-          ],
+              // Só aparece quando há instituição na rota: oferecer a escolha sem
+              // opção seria um beco.
+              if (widget.institutions.isNotEmpty)
+                ListTile(
+                  key: const Key('stop_link_institution'),
+                  leading: const Icon(
+                    Icons.school_outlined,
+                    color: AppColors.deepTeal,
+                  ),
+                  title: const Text('Instituição atendida'),
+                  subtitle: Text(
+                    _nomeDaInstituicao(stop) ?? 'Nenhuma — parada comum',
+                  ),
+                  onTap: () =>
+                      Navigator.pop(context, _StopAction.linkInstitution),
+                ),
+              ListTile(
+                leading: const Icon(
+                  Icons.delete_outline,
+                  color: AppColors.danger,
+                ),
+                title: const Text('Remover'),
+                onTap: () => Navigator.pop(context, _StopAction.remove),
+              ),
+            ],
+          ),
         ),
       ),
     );
@@ -240,12 +293,75 @@ class _RouteStopsEditorState extends State<RouteStopsEditor> {
           () => _service.updateStop(widget.routeId, stop.id, name: name),
           'Parada renomeada',
         );
+      case _StopAction.linkInstitution:
+        await _escolherInstituicao(stop);
       case _StopAction.remove:
         await widget.run(
           () => _service.deleteStop(widget.routeId, stop.id),
           'Parada removida',
         );
     }
+  }
+
+  String? _nomeDaInstituicao(StopModel stop) {
+    if (stop.institutionId == null) return null;
+    for (final i in widget.institutions) {
+      if (i.id == stop.institutionId) return i.name;
+    }
+    return 'Instituição';
+  }
+
+  /// Declarar a instituição é o que faz a parada aceitar checkpoint (RN23) e o
+  /// que permite calcular o tempo até ela pra cada aluno.
+  ///
+  /// Até a V32 esse vínculo era adivinhado pelo nome da parada — renomear a
+  /// quebrava em silêncio, e parada criada pelo app nunca virava ponto
+  /// principal.
+  Future<void> _escolherInstituicao(StopModel stop) async {
+    final escolha = await showModalBottomSheet<_EscolhaInstituicao>(
+      context: context,
+      builder: (context) => SafeArea(
+        // Rolavel porque a folha cresce com o numero de opcoes: sem isso,
+        // aparelho baixo corta a ultima acao -- e a ultima e "Remover".
+        child: SingleChildScrollView(
+          child: Column(
+            mainAxisSize: MainAxisSize.min,
+            children: [
+              const ListTile(
+                title: Text('Esta parada serve qual instituição?'),
+              ),
+              const Divider(height: 1),
+              ListTile(
+                key: const Key('stop_institution_none'),
+                leading: const Icon(Icons.not_interested),
+                title: const Text('Nenhuma — parada comum'),
+                onTap: () =>
+                    Navigator.pop(context, const _EscolhaInstituicao(null)),
+              ),
+              for (final i in widget.institutions)
+                ListTile(
+                  leading: const Icon(
+                    Icons.school_outlined,
+                    color: AppColors.deepTeal,
+                  ),
+                  title: Text(i.name),
+                  onTap: () =>
+                      Navigator.pop(context, _EscolhaInstituicao(i.id)),
+                ),
+            ],
+          ),
+        ),
+      ),
+    );
+    if (escolha == null) return;
+    await widget.run(
+      () => _service.setStopInstitution(
+        widget.routeId,
+        stop.id,
+        institutionId: escolha.id,
+      ),
+      escolha.id == null ? 'Vínculo removido' : 'Instituição vinculada',
+    );
   }
 
   Future<void> _promptAddStop(LatLng point) async {
@@ -269,4 +385,12 @@ class _RouteStopsEditorState extends State<RouteStopsEditor> {
   }
 }
 
-enum _StopAction { move, insertAfter, rename, remove }
+enum _StopAction { move, insertAfter, rename, linkInstitution, remove }
+
+/// Embrulha o id porque `null` também é resposta válida — é como se desfaz o
+/// vínculo. Devolver nulo puro do bottom sheet confundiria "escolheu nenhuma"
+/// com "fechou sem escolher".
+class _EscolhaInstituicao {
+  final String? id;
+  const _EscolhaInstituicao(this.id);
+}

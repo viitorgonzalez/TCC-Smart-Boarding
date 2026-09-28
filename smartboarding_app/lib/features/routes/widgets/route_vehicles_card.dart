@@ -1,8 +1,9 @@
 import 'package:flutter/material.dart';
 import '../../../core/theme/app_theme.dart';
-import '../../../core/widgets/app_card.dart';
 import '../models/vehicle_model.dart';
 import '../services/route_service.dart';
+import '../../../core/text/plural.dart';
+import '../../../core/widgets/app_list_group.dart';
 
 /// Frota que atende a rota. Capacidade é informação do transporte, não teto de
 /// inscrição — quem decide o veículo é o total de confirmados no fechamento.
@@ -24,33 +25,34 @@ class RouteVehiclesCard extends StatelessWidget {
   Widget build(BuildContext context) => _card(context);
 
   Widget _card(BuildContext context) {
-    return AppCard(
-      padding: const EdgeInsets.symmetric(vertical: 6),
-      child: Column(
-        children: [
-          for (final vehicle in vehicles)
-            ListTile(
-              leading: const Icon(
-                Icons.directions_bus_outlined,
-                color: AppColors.deepTeal,
-              ),
-              title: Text(vehicle.label),
-              subtitle: Text('${vehicle.capacity} lugares'),
-              trailing: IconButton(
-                icon: const Icon(Icons.delete_outline, color: AppColors.danger),
-                onPressed: () => run(
+    return AppListGroup(
+      dividerIndent: 68,
+      children: [
+        for (final vehicle in vehicles)
+          AppListItem(
+            leading: const Icon(
+              Icons.directions_bus_outlined,
+              color: AppColors.deepTeal,
+            ),
+            title: vehicle.label,
+            subtitle: contagem(vehicle.capacity, 'lugar', 'lugares'),
+            menu: [
+              destructiveMenuItem(
+                label: 'Remover veículo',
+                icon: Icons.delete_outline,
+                onSelected: () => run(
                   () => _service.deleteVehicle(routeId, vehicle.id),
                   'Veículo removido',
                 ),
               ),
-            ),
-          ListTile(
-            leading: const Icon(Icons.add, color: AppColors.deepTeal),
-            title: const Text('Adicionar veículo'),
-            onTap: () => _promptAddVehicle(context),
+            ],
           ),
-        ],
-      ),
+        AppListItem(
+          leading: const Icon(Icons.add, color: AppColors.deepTeal),
+          title: 'Adicionar veículo',
+          onTap: () => _promptAddVehicle(context),
+        ),
+      ],
     );
   }
 

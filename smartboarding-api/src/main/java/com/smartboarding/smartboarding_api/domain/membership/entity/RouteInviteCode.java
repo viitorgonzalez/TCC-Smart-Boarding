@@ -34,6 +34,16 @@ public class RouteInviteCode {
     @Column(name = "revoked_at")
     private LocalDateTime revokedAt;
 
+    /// Nulo = vale pra qualquer instituição. Preenchido, só entra quem
+    /// declarou essa instituição no perfil.
+    @Column(name = "institution_id")
+    private UUID institutionId;
+
+    /// Preenchido, o código sai da tela do admin. O registro continua: quem
+    /// entrou por ele mantém a origem no relatório.
+    @Column(name = "archived_at")
+    private LocalDateTime archivedAt;
+
     @Column(name = "created_by")
     private UUID createdBy;
 
@@ -57,5 +67,9 @@ public class RouteInviteCode {
     @PrePersist
     void onCreate() {
         createdAt = LocalDateTime.now();
+    }
+
+    public boolean isArchived() {
+        return archivedAt != null;
     }
 }

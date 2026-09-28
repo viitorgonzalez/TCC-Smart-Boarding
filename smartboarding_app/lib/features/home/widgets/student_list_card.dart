@@ -5,6 +5,7 @@ import '../../../core/widgets/app_card.dart';
 import '../../../core/widgets/institution_breakdown.dart';
 import '../../../core/widgets/status_pill.dart';
 import '../../../core/widgets/trip_type_chip.dart';
+import '../../lists/models/daily_list_model.dart';
 import '../../lists/models/list_with_enrollment.dart';
 import 'close_countdown.dart';
 import 'list_members_sheet.dart';
@@ -16,11 +17,28 @@ class StudentListCard extends StatelessWidget {
   final void Function(String tripType) onEnter;
   final VoidCallback onLeave;
 
+  /// O que falta no perfil, já em português. Vazio = pode entrar.
+  ///
+  /// Chega pronto de fora porque quem decide é o backend: ele é que recusa a
+  /// entrada, e refazer a conta aqui daria duas versões da regra.
+  final List<String> missingProfile;
+
+  /// Atalho pro perfil. Sem ele o aviso diria o problema e deixaria a pessoa
+  /// procurar sozinha onde resolvê-lo.
+  final VoidCallback? onFixProfile;
+
+  /// Abre o acompanhamento do trajeto. Só aparece com o ônibus na rua:
+  /// oferecer sempre levaria a uma tela que só diz "não começou".
+  final VoidCallback? onFollowTrip;
+
   const StudentListCard({
     super.key,
     required this.item,
     required this.onEnter,
     required this.onLeave,
+    this.missingProfile = const [],
+    this.onFixProfile,
+    this.onFollowTrip,
   });
 
   Future<void> _pickAndEnter(BuildContext context, {String? current}) async {
@@ -90,9 +108,12 @@ class StudentListCard extends StatelessWidget {
               ),
               Expanded(
                 child: StatBlock(
-                  label: 'Fecha às',
+                  // Ja fechada, "fecha as" descreve um futuro que nao existe.
+                  label: acceptingChanges ? 'Fecha às' : 'Fechou às',
                   value: hasCloseTime ? formatCloseTime(list.closeTime) : '—',
-                  valueColor: AppColors.deepTeal,
+                  valueColor: acceptingChanges
+                      ? AppColors.deepTeal
+                      : AppColors.textSecondary,
                 ),
               ),
             ],
@@ -106,40 +127,25 @@ class StudentListCard extends StatelessWidget {
               },
             ),
           ],
-          if (list.proposedVehicles.isNotEmpty ||
-              list.capacityShortfall > 0) ...[
-            const SizedBox(height: 14),
-            ProposedVehicle(
-              vehicles: list.proposedVehicles,
-              shortfall: list.capacityShortfall,
-            ),
-          ] else if (list.vehicles.isNotEmpty) ...[
-            const SizedBox(height: 14),
-            // Antes do fechamento a frota é só informação: o veículo definitivo
-            // depende do total final de confirmados (RN16).
-            Wrap(
-              spacing: 8,
-              runSpacing: 8,
-              children: list.vehicles
-                  .map(
-                    (v) => Chip(
-                      avatar: const Icon(
-                        Icons.directions_bus_outlined,
-                        size: 16,
-                        color: AppColors.deepTeal,
-                      ),
-                      label: Text('${v.label} · ${v.capacity} lugares'),
-                      visualDensity: VisualDensity.compact,
-                      backgroundColor: AppColors.background,
-                      side: const BorderSide(color: AppColors.stroke),
-                    ),
-                  )
-                  .toList(),
-            ),
-          ],
+          // Sempre o veiculo recomendado pro total atual, nunca a frota
+          // inteira: com "Onibus (45)" e "Van (15)" lado a lado o aluno tinha
+          // que adivinhar em qual dos dois ele ia.
+          const SizedBox(height: 14),
+          ProposedVehicle(
+            vehicles: list.proposedVehicles,
+            shortfall: list.capacityShortfall,
+            definido: !list.acceptsChanges,
+          ),
           if (list.stops.any((s) => s.hasCoordinates)) ...[
             const SizedBox(height: 18),
             RoutePreview(list: list),
+          ],
+
+          // Logo abaixo do trajeto de propósito: o mapa mostra o caminho, e a
+          // pergunta seguinte é sempre "quanto tempo isso leva pra mim".
+          if (list.myTripTime case final tempo?) ...[
+            const SizedBox(height: 14),
+            _TempoDeViagem(tempo: tempo),
           ],
           if (item.isEnrolled) ...[
             const SizedBox(height: 16),
@@ -171,27 +177,155 @@ class StudentListCard extends StatelessWidget {
               ],
             ),
           ],
+          if (list.tripInProgress && onFollowTrip != null) ...[
+            const SizedBox(height: 18),
+            SizedBox(
+              height: 48,
+              child: FilledButton.tonalIcon(
+                key: const Key('student_follow_trip'),
+                onPressed: onFollowTrip,
+                icon: const Icon(Icons.directions_bus_filled_outlined),
+                label: const Text('Acompanhar trajeto'),
+              ),
+            ),
+          ],
+
           if (acceptingChanges) ...[
             if (hasCloseTime) ...[
               const SizedBox(height: 18),
               CloseCountdown(closeTime: list.closeTime),
             ],
             const SizedBox(height: 18),
-            item.isEnrolled
-                ? OutlinedButton.icon(
-                    style: OutlinedButton.styleFrom(
-                      foregroundColor: AppColors.danger,
-                    ),
-                    onPressed: onLeave,
-                    icon: const Icon(Icons.exit_to_app),
-                    label: const Text('Sair da lista'),
-                  )
-                : FilledButton.icon(
-                    onPressed: () => _pickAndEnter(context),
-                    icon: const Icon(Icons.login),
-                    label: const Text('Entrar na lista'),
-                  ),
+            // Quem já está na lista entrou quando era permitido: o aviso de
+            // perfil não vale pra ele, e esconder o "Sair" por um campo em
+            // branco o prenderia numa viagem que ele não vai fazer.
+            if (item.isEnrolled)
+              OutlinedButton.icon(
+                style: OutlinedButton.styleFrom(
+                  foregroundColor: AppColors.danger,
+                ),
+                onPressed: onLeave,
+                icon: const Icon(Icons.exit_to_app),
+                label: const Text('Sair da lista'),
+              )
+            else if (missingProfile.isNotEmpty)
+              _ProfileWarning(missing: missingProfile, onFix: onFixProfile)
+            else
+              FilledButton.icon(
+                onPressed: () => _pickAndEnter(context),
+                icon: const Icon(Icons.login),
+                label: const Text('Entrar na lista'),
+              ),
           ],
+        ],
+      ),
+    );
+  }
+}
+
+/// Quanto a viagem leva até a instituição deste aluno.
+///
+/// O destino vem nomeado porque dois alunos do mesmo ônibus veem números
+/// diferentes: sem dizer até onde, quem compara com o colega conclui que o app
+/// está errado.
+class _TempoDeViagem extends StatelessWidget {
+  final MyTripTime tempo;
+
+  const _TempoDeViagem({required this.tempo});
+
+  @override
+  Widget build(BuildContext context) {
+    return Row(
+      key: const Key('list_trip_time'),
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: [
+        const Icon(Icons.schedule, size: 18, color: AppColors.deepTeal),
+        const SizedBox(width: 8),
+        Expanded(
+          child: Column(
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              Text(
+                'Cerca de ${tempo.avgMinutes} min até ${tempo.stopName}',
+                style: const TextStyle(
+                  fontWeight: FontWeight.w600,
+                  color: AppColors.charcoal,
+                ),
+              ),
+              if (tempo.fallback)
+                Text(
+                  'Sua instituição não tem parada declarada nesta rota — '
+                  'este é o último ponto do trajeto.',
+                  style: Theme.of(context).textTheme.bodySmall,
+                ),
+            ],
+          ),
+        ),
+      ],
+    );
+  }
+}
+
+/// O bloqueio, sinalizado antes do toque.
+///
+/// Aparece no lugar do botão e não como erro depois dele: descobrir a parede
+/// esbarrando nela é o que essa tela existe pra evitar.
+class _ProfileWarning extends StatelessWidget {
+  final List<String> missing;
+  final VoidCallback? onFix;
+
+  const _ProfileWarning({required this.missing, this.onFix});
+
+  @override
+  Widget build(BuildContext context) {
+    return Container(
+      key: const Key('list_profile_warning'),
+      padding: const EdgeInsets.all(14),
+      decoration: BoxDecoration(
+        color: AppColors.danger.withValues(alpha: 0.08),
+        borderRadius: BorderRadius.circular(12),
+      ),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Row(
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              const Icon(
+                Icons.error_outline,
+                size: 18,
+                color: AppColors.danger,
+              ),
+              const SizedBox(width: 8),
+              Expanded(
+                child: Text(
+                  'Complete seu perfil para entrar na lista.',
+                  style: const TextStyle(
+                    color: AppColors.danger,
+                    fontWeight: FontWeight.w700,
+                  ),
+                ),
+              ),
+            ],
+          ),
+          const SizedBox(height: 6),
+          Padding(
+            padding: const EdgeInsets.only(left: 26),
+            child: Text(
+              'Falta: ${missing.join(', ')}.',
+              style: const TextStyle(color: AppColors.textSecondary),
+            ),
+          ),
+          const SizedBox(height: 10),
+          Align(
+            alignment: Alignment.centerLeft,
+            child: FilledButton.tonalIcon(
+              key: const Key('list_profile_fix_button'),
+              onPressed: onFix,
+              icon: const Icon(Icons.person_outline, size: 18),
+              label: const Text('Completar perfil'),
+            ),
+          ),
         ],
       ),
     );

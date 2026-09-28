@@ -1,10 +1,63 @@
 import '../../../core/services/dio_client.dart';
+import '../models/invite_code_model.dart';
 import '../models/route_model.dart';
 import '../models/stop_model.dart';
 import '../models/vehicle_model.dart';
 
 class RouteService {
   final _dio = DioClient.instance;
+
+  Future<List<InviteCode>> getInviteCodes(String routeId) async {
+    final response = await _dio.get('/api/routes/$routeId/invite-codes');
+    final data = response.data['data'] as List<dynamic>;
+    return data
+        .map((e) => InviteCode.fromJson(e as Map<String, dynamic>))
+        .toList();
+  }
+
+  /// Todos os códigos das rotas que o admin administra, numa chamada só —
+  /// é o que a tela de códigos consome.
+  Future<List<InviteCode>> getAllInviteCodes() async {
+    final response = await _dio.get('/api/invite-codes');
+    final data = response.data['data'] as List<dynamic>;
+    return data
+        .map((e) => InviteCode.fromJson(e as Map<String, dynamic>))
+        .toList();
+  }
+
+  /// Tira os códigos da tela do admin. O registro fica: quem entrou por eles
+  /// mantém a origem no relatório.
+  ///
+  /// Em lote porque o gesto é limpar uma lista cheia de código morto — um
+  /// pedido por linha faria o app disparar dezenas.
+  Future<int> archiveInviteCodes(List<String> codeIds) async {
+    final response = await _dio.delete(
+      '/api/invite-codes',
+      data: {'codeIds': codeIds},
+    );
+    return (response.data['data']?['archived'] as num?)?.toInt() ?? 0;
+  }
+
+  /// [expiresAt] nulo deixa o backend aplicar a validade padrão dele.
+  /// [institutionId] nulo gera um código aberto a qualquer instituição.
+  Future<InviteCode> generateInviteCode(
+    String routeId, {
+    DateTime? expiresAt,
+    String? institutionId,
+  }) async {
+    final response = await _dio.post(
+      '/api/routes/$routeId/invite-codes',
+      data: {
+        'expiresAt': ?expiresAt?.toIso8601String(),
+        'institutionId': ?institutionId,
+      },
+    );
+    return InviteCode.fromJson(response.data['data'] as Map<String, dynamic>);
+  }
+
+  Future<void> revokeInviteCode(String routeId, String codeId) async {
+    await _dio.delete('/api/routes/$routeId/invite-codes/$codeId');
+  }
 
   Future<List<StopModel>> getStops(String routeId) async {
     final response = await _dio.get('/api/routes/$routeId/stops');
@@ -34,17 +87,21 @@ class RouteService {
     return RouteModel.fromJson(response.data['data'] as Map<String, dynamic>);
   }
 
+  /// [admitsNoInstitution] nulo mantém o que está gravado: a tela de dados da
+  /// rota não conhece essa chave, e mandar falso dali a desligaria sem querer.
   Future<RouteModel> updateRoute(
     String id,
     String name,
-    String? description,
-  ) async {
+    String? description, {
+    bool? admitsNoInstitution,
+  }) async {
     final response = await _dio.patch(
       '/api/routes/$id',
       data: {
         'name': name,
         if (description != null && description.isNotEmpty)
           'description': description,
+        'admitsNoInstitution': ?admitsNoInstitution,
       },
     );
     return RouteModel.fromJson(response.data['data'] as Map<String, dynamic>);
@@ -97,6 +154,23 @@ class RouteService {
     await _dio.patch(
       '/api/routes/$routeId/stops/$stopId',
       data: {'name': ?name, 'latitude': ?latitude, 'longitude': ?longitude},
+    );
+  }
+
+  /// Declara (ou desfaz) o vínculo da parada com uma instituição.
+  ///
+  /// Chamada separada de [updateStop] porque o backend distingue "mover a
+  /// parada" de "mexer no vínculo": mandar `institutionId: null` junto das
+  /// coordenadas desvincularia a instituição só por arrastar o pino.
+  Future<void> setStopInstitution(
+    String routeId,
+    String stopId, {
+    String? institutionId,
+    bool mainPoint = false,
+  }) async {
+    await _dio.patch(
+      '/api/routes/$routeId/stops/$stopId',
+      data: {'institutionId': institutionId, 'mainPoint': mainPoint},
     );
   }
 

@@ -1,10 +1,19 @@
 package com.smartboarding.smartboarding_api.infrastructure.web.profile;
 
 import com.smartboarding.smartboarding_api.domain.profile.entity.ProfileUpdateRequest;
+import com.smartboarding.smartboarding_api.domain.institution.entity.Institution;
+import com.smartboarding.smartboarding_api.domain.institution.port.out.InstitutionRepositoryPort;
 import com.smartboarding.smartboarding_api.domain.membership.port.in.ManageUserInstitutionsUseCase;
 import com.smartboarding.smartboarding_api.domain.profile.port.in.ManageProfileUpdateUseCase;
+import com.smartboarding.smartboarding_api.domain.user.port.in.ChangePasswordUseCase;
 import com.smartboarding.smartboarding_api.domain.user.port.in.SetLocalPasswordUseCase;
+import com.smartboarding.smartboarding_api.domain.user.port.in.UpdateAddressUseCase;
+import com.smartboarding.smartboarding_api.domain.user.port.in.UpdateOwnProfileUseCase;
+import com.smartboarding.smartboarding_api.infrastructure.web.user.dto.ChangePasswordRequest;
+import com.smartboarding.smartboarding_api.infrastructure.web.user.dto.AddressResponse;
 import com.smartboarding.smartboarding_api.infrastructure.web.user.dto.SetPasswordRequest;
+import com.smartboarding.smartboarding_api.infrastructure.web.user.dto.UpdateAddressRequest;
+import com.smartboarding.smartboarding_api.infrastructure.web.user.dto.UpdateOwnProfileRequest;
 import com.smartboarding.smartboarding_api.domain.user.entity.User;
 import com.smartboarding.smartboarding_api.domain.user.port.out.UserRepositoryPort;
 import com.smartboarding.smartboarding_api.infrastructure.web.profile.dto.MeResponse;
@@ -36,15 +45,27 @@ public class ProfileController {
     private final UserRepositoryPort userRepository;
     private final ManageUserInstitutionsUseCase userInstitutionsUseCase;
     private final SetLocalPasswordUseCase setLocalPasswordUseCase;
+    private final ChangePasswordUseCase changePasswordUseCase;
+    private final UpdateAddressUseCase updateAddressUseCase;
+    private final UpdateOwnProfileUseCase updateOwnProfileUseCase;
+    private final InstitutionRepositoryPort institutionRepository;
 
     public ProfileController(ManageProfileUpdateUseCase useCase,
                              UserRepositoryPort userRepository,
                              ManageUserInstitutionsUseCase userInstitutionsUseCase,
-                             SetLocalPasswordUseCase setLocalPasswordUseCase) {
+                             SetLocalPasswordUseCase setLocalPasswordUseCase,
+                             ChangePasswordUseCase changePasswordUseCase,
+                             UpdateAddressUseCase updateAddressUseCase,
+                             UpdateOwnProfileUseCase updateOwnProfileUseCase,
+                             InstitutionRepositoryPort institutionRepository) {
         this.useCase = useCase;
         this.userRepository = userRepository;
         this.userInstitutionsUseCase = userInstitutionsUseCase;
         this.setLocalPasswordUseCase = setLocalPasswordUseCase;
+        this.changePasswordUseCase = changePasswordUseCase;
+        this.updateAddressUseCase = updateAddressUseCase;
+        this.updateOwnProfileUseCase = updateOwnProfileUseCase;
+        this.institutionRepository = institutionRepository;
     }
 
     @PostMapping("/me/profile-requests")
@@ -52,8 +73,8 @@ public class ProfileController {
             @RequestBody @Valid ProfileUpdateRequestDto body, Authentication auth) {
         User me = me(auth);
         var saved = useCase.request(me.getId(), ProfileUpdateRequest.builder()
-                .fullName(body.fullName()).phone(body.phone()).address(body.address())
-                .course(body.course()).institutionId(body.institutionId())
+                .fullName(body.fullName())
+                .institutionId(body.institutionId())
                 .birthDate(body.birthDate()).build());
         return ResponseEntity.status(HttpStatus.CREATED)
                 .body(ApiResponse.data(ProfileUpdateResponse.from(saved, me.getFullName())));
@@ -127,7 +148,17 @@ public class ProfileController {
 
     @GetMapping("/me")
     public ResponseEntity<ApiResponse<MeResponse>> meInfo(Authentication auth) {
-        return ResponseEntity.ok(ApiResponse.data(MeResponse.from(me(auth))));
+        return ResponseEntity.ok(ApiResponse.data(comInstituicao(me(auth))));
+    }
+
+    /// O nome, não o id: quem lê isso é a carteirinha, que se mostra pra outra
+    /// pessoa. Deixar o app resolver o id obrigaria ele a baixar o catálogo
+    /// inteiro só pra escrever uma linha.
+    private MeResponse comInstituicao(User user) {
+        String nome = user.getInstitutionId() == null ? null
+                : institutionRepository.findById(user.getInstitutionId())
+                        .map(Institution::getName).orElse(null);
+        return MeResponse.from(user, nome);
     }
 
     /// Define a senha local de quem entrou pelo Google. A partir daí ele entra
@@ -137,6 +168,39 @@ public class ProfileController {
             @RequestBody @Valid SetPasswordRequest body, Authentication auth) {
         setLocalPasswordUseCase.setPassword(me(auth).getId(), body.password());
         return ResponseEntity.ok(ApiResponse.success());
+    }
+
+    /// Troca a senha de quem já tem uma. Verbo diferente do POST de propósito:
+    /// lá se cria a primeira senha, aqui se substitui uma existente, e cada um
+    /// tem a sua exigência.
+    @PutMapping("/me/password")
+    public ResponseEntity<ApiResponse<?>> changePassword(
+            @RequestBody @Valid ChangePasswordRequest body, Authentication auth) {
+        changePasswordUseCase.changePassword(
+                me(auth).getId(), body.currentPassword(), body.newPassword());
+        return ResponseEntity.ok(ApiResponse.success());
+    }
+
+    /// Endereço do próprio usuário, salvo direto. Fora da fila de aprovação
+    /// de propósito: ele diz onde a pessoa embarca, não em qual transporte ela
+    /// entra -- e é pré-requisito pra entrar na lista, então depender de um
+    /// admin deixaria o aluno travado esperando.
+    @PutMapping("/me/address")
+    public ResponseEntity<ApiResponse<AddressResponse>> updateAddress(
+            @RequestBody @Valid UpdateAddressRequest body, Authentication auth) {
+        var salvo = updateAddressUseCase.update(me(auth).getId(), body.toDomain());
+        return ResponseEntity.ok(ApiResponse.data(AddressResponse.from(salvo)));
+    }
+
+    /// Telefone e curso, salvos direto. Mesma razão do endereço: alcançam a
+    /// pessoa ou a descrevem, mas não decidem em qual transporte ela entra.
+    /// Nome e instituição continuam na fila do admin.
+    @PutMapping("/me/profile")
+    public ResponseEntity<ApiResponse<MeResponse>> updateOwnProfile(
+            @RequestBody @Valid UpdateOwnProfileRequest body, Authentication auth) {
+        User me = me(auth);
+        updateOwnProfileUseCase.update(me.getId(), body.phone(), body.course());
+        return ResponseEntity.ok(ApiResponse.data(comInstituicao(me(auth))));
     }
 
     private User me(Authentication auth) {
