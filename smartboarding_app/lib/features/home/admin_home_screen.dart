@@ -24,6 +24,7 @@ import '../institutions/providers/institution_provider.dart';
 import '../institutions/screens/institutions_screen.dart';
 import '../routes/screens/invite_codes_screen.dart';
 import '../profile/screens/profile_screen.dart';
+import '../profile/screens/profile_requests_screen.dart';
 import '../users/screens/user_management_screen.dart';
 import '../users/services/user_service.dart';
 import 'widgets/today_summary.dart';
@@ -33,7 +34,6 @@ class AdminHomeScreen extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    // Providers escopados ao admin — criados aqui, destruídos ao sair
     return MultiProvider(
       providers: [
         ChangeNotifierProvider(
@@ -58,13 +58,9 @@ class AdminHomeScreen extends StatelessWidget {
   }
 }
 
-// ─── Painel do admin (dashboard de cards) ────────────────────────────────────
-
 class _AdminDashboard extends StatelessWidget {
   const _AdminDashboard();
 
-  /// O push sai no Navigator raiz, acima do MultiProvider — sem repassar as
-  /// instâncias, cada tela abriria sem o seu provider.
   void _open(
     BuildContext context,
     String title,
@@ -112,8 +108,6 @@ class _AdminDashboard extends StatelessWidget {
           AppHeader(
             overline: 'GESTÃO DE TRANSPORTE',
             title: 'Painel do Admin',
-            // O avatar vira o acesso ao perfil: e onde o usuario procura, e
-            // evita mais um icone no header.
             trailing: InkWell(
               key: const Key('admin_open_profile'),
               customBorder: const CircleBorder(),
@@ -141,9 +135,6 @@ class _AdminDashboard extends StatelessWidget {
                 padding: const EdgeInsets.fromLTRB(20, 8, 20, 24),
                 children: [
                   GridView.count(
-                    // Sem padding explicito, uma grade aninhada consome o
-                    // padding do MediaQuery e abre um vao antes da primeira
-                    // linha.
                     padding: EdgeInsets.zero,
                     crossAxisCount: 2,
                     shrinkWrap: true,
@@ -151,10 +142,6 @@ class _AdminDashboard extends StatelessWidget {
                     crossAxisSpacing: 12,
                     mainAxisSpacing: 12,
                     childAspectRatio: AppGrid.featureAspectRatio,
-                    // Ordem por frequencia de uso, em faixas de proposito:
-                    // operacao do dia, acompanhamento, gestao de gente,
-                    // configuracao. A ordem anterior nasceu por acaso, na
-                    // sequencia em que as telas foram surgindo.
                     children: [
                       FeatureCard(
                         icon: Icons.route_outlined,
@@ -163,6 +150,23 @@ class _AdminDashboard extends StatelessWidget {
                           context,
                           'Rotas e Listas',
                           const RoutesScreen(),
+                        ),
+                      ),
+                      FeatureCard(
+                        icon: Icons.vpn_key_outlined,
+                        label: 'Códigos de acesso',
+                        onTap: () => Navigator.push(
+                          context,
+                          MaterialPageRoute<void>(
+                            builder: (_) => InviteCodesScreen(
+                              routes: switch (context
+                                  .read<RouteProvider>()
+                                  .state) {
+                                AsyncData(:final value) => value,
+                                _ => const [],
+                              },
+                            ),
+                          ),
                         ),
                       ),
                       FeatureCard(
@@ -175,10 +179,15 @@ class _AdminDashboard extends StatelessWidget {
                         ),
                       ),
                       FeatureCard(
-                        icon: Icons.bar_chart_outlined,
-                        label: 'Relatórios',
-                        onTap: () =>
-                            _open(context, 'Relatórios', const ReportsScreen()),
+                        icon: Icons.notifications_none,
+                        label: 'Avisos enviados',
+                        onTap: () => Navigator.push(
+                          context,
+                          MaterialPageRoute(
+                            builder: (_) =>
+                                const NotificationsInboxScreen(canManage: true),
+                          ),
+                        ),
                       ),
                       FeatureCard(
                         icon: Icons.report_gmailerrorred_outlined,
@@ -201,35 +210,10 @@ class _AdminDashboard extends StatelessWidget {
                         ),
                       ),
                       FeatureCard(
-                        icon: Icons.notifications_none,
-                        label: 'Avisos enviados',
-                        onTap: () => Navigator.push(
-                          context,
-                          MaterialPageRoute(
-                            builder: (_) =>
-                                const NotificationsInboxScreen(canManage: true),
-                          ),
-                        ),
-                      ),
-                      FeatureCard(
-                        icon: Icons.vpn_key_outlined,
-                        label: 'Códigos de acesso',
-                        // Empurrada direto, e não pelo _open: ela já traz
-                        // Scaffold e botão flutuante próprios, e o _open
-                        // acrescentaria uma segunda barra de título por cima.
-                        onTap: () => Navigator.push(
-                          context,
-                          MaterialPageRoute<void>(
-                            builder: (_) => InviteCodesScreen(
-                              routes: switch (context
-                                  .read<RouteProvider>()
-                                  .state) {
-                                AsyncData(:final value) => value,
-                                _ => const [],
-                              },
-                            ),
-                          ),
-                        ),
+                        icon: Icons.bar_chart_outlined,
+                        label: 'Relatórios',
+                        onTap: () =>
+                            _open(context, 'Relatórios', const ReportsScreen()),
                       ),
                       FeatureCard(
                         icon: Icons.school_outlined,
@@ -248,6 +232,27 @@ class _AdminDashboard extends StatelessWidget {
                         ),
                       ),
                     ],
+                  ),
+                  const SizedBox(height: 16),
+                  Consumer<AdminStatsProvider>(
+                    builder: (context, provider, _) {
+                      final pending = switch (provider.state) {
+                        AsyncData(:final value) => value.pendingProfileRequests,
+                        _ => 0,
+                      };
+                      return AlertCard(
+                        icon: Icons.fact_check_outlined,
+                        title: 'Solicitações',
+                        subtitle: 'Pedidos de alteração de perfil pra revisar',
+                        count: pending,
+                        onTap: () => Navigator.push(
+                          context,
+                          MaterialPageRoute(
+                            builder: (_) => const ProfileRequestsScreen(),
+                          ),
+                        ),
+                      );
+                    },
                   ),
                   const SizedBox(height: 24),
                   const SectionTitle('Resumo de Hoje'),

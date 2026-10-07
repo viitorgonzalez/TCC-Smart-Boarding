@@ -4,7 +4,6 @@ import '../../../core/theme/app_theme.dart';
 import '../../../core/utils/async_value.dart';
 import '../../admin/providers/admin_stats_provider.dart';
 
-/// Resumo de hoje no painel do admin.
 class TodaySummary extends StatelessWidget {
   const TodaySummary({super.key});
 
@@ -15,14 +14,19 @@ class TodaySummary extends StatelessWidget {
         final rows = switch (provider.state) {
           AsyncData(:final value) => [
             ('Alunos Ativos', '${value.activeStudents}'),
-            ('Rotas em Uso', '${value.routesInUse}'),
-            ('Ocupação', '${value.occupancyPercent}%'),
+            (
+              'Ocupação Hoje',
+              '${value.enrolledToday}/${value.capacityToday} (${value.occupancyPercent}%)',
+            ),
+            ('Solicitações Pendentes', '${value.pendingProfileRequests}'),
+            ('Advertências Hoje', '${value.warningsToday}'),
           ],
           AsyncError() => [('Não foi possível carregar', '—')],
           _ => [
             ('Alunos Ativos', '…'),
-            ('Rotas em Uso', '…'),
-            ('Ocupação', '…'),
+            ('Ocupação Hoje', '…'),
+            ('Solicitações Pendentes', '…'),
+            ('Advertências Hoje', '…'),
           ],
         };
         return Container(
@@ -67,5 +71,3 @@ class TodaySummary extends StatelessWidget {
     );
   }
 }
-
-// ─── Tab de listas (admin) ────────────────────────────────────────────────────

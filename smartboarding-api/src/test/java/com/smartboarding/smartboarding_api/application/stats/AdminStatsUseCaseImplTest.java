@@ -3,9 +3,13 @@ package com.smartboarding.smartboarding_api.application.stats;
 import com.smartboarding.smartboarding_api.domain.list.entity.DailyList;
 import com.smartboarding.smartboarding_api.domain.list.port.out.DailyListRepositoryPort;
 import com.smartboarding.smartboarding_api.domain.list.port.out.ListEntryRepositoryPort;
+import com.smartboarding.smartboarding_api.domain.profile.entity.ProfileUpdateRequest;
+import com.smartboarding.smartboarding_api.domain.profile.port.out.ProfileUpdateRequestRepositoryPort;
 import com.smartboarding.smartboarding_api.domain.route.entity.Route;
 import com.smartboarding.smartboarding_api.domain.user.port.out.UserRepositoryPort;
 import com.smartboarding.smartboarding_api.domain.vehicle.port.out.VehicleRepositoryPort;
+import com.smartboarding.smartboarding_api.domain.warning.entity.Warning;
+import com.smartboarding.smartboarding_api.domain.warning.port.out.WarningRepositoryPort;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.extension.ExtendWith;
 import org.mockito.Mock;
@@ -30,11 +34,21 @@ class AdminStatsUseCaseImplTest {
     @Mock DailyListRepositoryPort dailyListRepository;
     @Mock ListEntryRepositoryPort listEntryRepository;
     @Mock VehicleRepositoryPort vehicleRepository;
+    @Mock ProfileUpdateRequestRepositoryPort profileUpdateRequestRepository;
+    @Mock WarningRepositoryPort warningRepository;
 
     private AdminStatsUseCaseImpl useCase() {
         var clock = Clock.fixed(TODAY.atStartOfDay(ZoneId.systemDefault()).toInstant(), ZoneId.systemDefault());
+        when(profileUpdateRequestRepository.findAllPending()).thenReturn(List.of());
+        when(warningRepository.findAll()).thenReturn(List.of());
         return new AdminStatsUseCaseImpl(userRepository, dailyListRepository,
-                listEntryRepository, vehicleRepository, clock);
+                listEntryRepository, vehicleRepository, profileUpdateRequestRepository,
+                warningRepository, clock);
+    }
+
+    private Warning warningAt(LocalDate date) {
+        return Warning.builder().id(UUID.randomUUID())
+                .createdAt(date.atTime(10, 0)).build();
     }
 
     private DailyList listOfRoute(UUID routeId) {
@@ -59,8 +73,9 @@ class AdminStatsUseCaseImplTest {
         var stats = useCase().execute();
 
         assertThat(stats.activeStudents()).isEqualTo(124L);
-        assertThat(stats.routesInUse()).isEqualTo(2L);
-        assertThat(stats.occupancyPercent()).isEqualTo(50); // 25 de 50
+        assertThat(stats.enrolledToday()).isEqualTo(25L);
+        assertThat(stats.capacityToday()).isEqualTo(50L);
+        assertThat(stats.occupancyPercent()).isEqualTo(50);
     }
 
     @Test
@@ -78,13 +93,30 @@ class AdminStatsUseCaseImplTest {
     }
 
     @Test
-    void semListaHojeNaoContaRotaEmUso() {
+    void semListaHojeNaoContaInscritosNemCapacidade() {
         when(dailyListRepository.findAllByDate(TODAY)).thenReturn(List.of());
         when(userRepository.countActiveStudents()).thenReturn(10L);
 
         var stats = useCase().execute();
 
-        assertThat(stats.routesInUse()).isZero();
+        assertThat(stats.enrolledToday()).isZero();
+        assertThat(stats.capacityToday()).isZero();
         assertThat(stats.occupancyPercent()).isZero();
+    }
+
+    @Test
+    void contaSolicitacoesPendentesEAdvertenciasDeHoje() {
+        var useCase = useCase();
+        when(dailyListRepository.findAllByDate(TODAY)).thenReturn(List.of());
+        when(userRepository.countActiveStudents()).thenReturn(10L);
+        when(profileUpdateRequestRepository.findAllPending())
+                .thenReturn(List.of(new ProfileUpdateRequest(), new ProfileUpdateRequest()));
+        when(warningRepository.findAll()).thenReturn(List.of(
+                warningAt(TODAY), warningAt(TODAY), warningAt(TODAY.minusDays(1))));
+
+        var stats = useCase.execute();
+
+        assertThat(stats.pendingProfileRequests()).isEqualTo(2L);
+        assertThat(stats.warningsToday()).isEqualTo(2L);
     }
 }
