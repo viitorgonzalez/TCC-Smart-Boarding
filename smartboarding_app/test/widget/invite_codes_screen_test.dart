@@ -71,7 +71,6 @@ void main() {
     expect(find.text('ABC123'), findsOneWidget);
   });
 
-  /// A tela cruza rotas: sem o nome, o admin copia o código da rota errada.
   testWidgets('agrupa por rota', (tester) async {
     await abrir(
       tester,
@@ -83,6 +82,54 @@ void main() {
 
     expect(find.text('Rota A'), findsOneWidget);
     expect(find.text('Rota B'), findsOneWidget);
+  });
+
+  group('filtro por rota', () {
+    testWidgets('com uma rota so, nao mostra filtro nenhum', (tester) async {
+      await abrir(tester, codigos: [codigo()]);
+
+      expect(find.byType(FilterChip), findsNothing);
+    });
+
+    testWidgets('com varias rotas, filtra os codigos ao tocar no chip', (
+      tester,
+    ) async {
+      await abrir(
+        tester,
+        rotas: [rota('r1', 'Rota A'), rota('r2', 'Rota B')],
+        codigos: [
+          codigo(id: 'c1', code: 'AAA111', rota: 'Rota A', routeId: 'r1'),
+          codigo(id: 'c2', code: 'BBB222', rota: 'Rota B', routeId: 'r2'),
+        ],
+      );
+      expect(find.text('AAA111'), findsOneWidget);
+      expect(find.text('BBB222'), findsOneWidget);
+
+      await tester.tap(find.widgetWithText(FilterChip, 'Rota A'));
+      await tester.pumpAndSettle();
+
+      expect(find.text('AAA111'), findsOneWidget);
+      expect(find.text('BBB222'), findsNothing);
+    });
+
+    testWidgets('"Todas" volta a mostrar tudo', (tester) async {
+      await abrir(
+        tester,
+        rotas: [rota('r1', 'Rota A'), rota('r2', 'Rota B')],
+        codigos: [
+          codigo(id: 'c1', code: 'AAA111', rota: 'Rota A', routeId: 'r1'),
+          codigo(id: 'c2', code: 'BBB222', rota: 'Rota B', routeId: 'r2'),
+        ],
+      );
+
+      await tester.tap(find.widgetWithText(FilterChip, 'Rota A'));
+      await tester.pumpAndSettle();
+      await tester.tap(find.widgetWithText(FilterChip, 'Todas'));
+      await tester.pumpAndSettle();
+
+      expect(find.text('AAA111'), findsOneWidget);
+      expect(find.text('BBB222'), findsOneWidget);
+    });
   });
 
   testWidgets('mostra a instituicao de cada codigo', (tester) async {
@@ -97,8 +144,6 @@ void main() {
     expect(find.textContaining('Qualquer instituição'), findsOneWidget);
   });
 
-  /// Código morto não pode parecer distribuível: copiar um código cancelado
-  /// faz o admin mandar pra turma algo que não funciona.
   testWidgets('codigo inutilizavel nao oferece copiar nem cancelar', (
     tester,
   ) async {
@@ -115,7 +160,6 @@ void main() {
     expect(find.byKey(const Key('generate_code_fab')), findsOneWidget);
   });
 
-  /// Com uma rota só, perguntar "para qual rota?" é um passo sem escolha.
   testWidgets('com uma rota so, pula direto pra validade', (tester) async {
     final http = await abrir(tester, codigos: [codigo()]);
     http.on('GET', '/api/institutions', body: {'data': []});
@@ -140,10 +184,6 @@ void main() {
     expect(find.text('Para qual rota?'), findsOneWidget);
   });
 
-  // ─── Apagar e seleção múltipla ───────────────────────────────────────────
-
-  /// Código expirado e cancelado se acumulam e escondem o que ainda vale — o
-  /// atalho seleciona exatamente esses.
   testWidgets('o atalho marca so os inutilizaveis', (tester) async {
     await abrir(
       tester,
@@ -167,8 +207,6 @@ void main() {
     );
   });
 
-  /// Sem nenhum inutilizável não há o que limpar: oferecer o atalho sugeriria
-  /// uma ação que não faz nada.
   testWidgets('sem inutilizavel, o atalho nao aparece', (tester) async {
     await abrir(tester, codigos: [codigo()]);
 
@@ -182,7 +220,6 @@ void main() {
     await tester.pumpAndSettle();
 
     expect(find.text('1 selecionado'), findsOneWidget);
-    // O botão de gerar sai de cena: durante a seleção ele não é o gesto.
     expect(find.byKey(const Key('generate_code_fab')), findsNothing);
   });
 
@@ -211,15 +248,12 @@ void main() {
 
     final envio = http.requests.where((r) => r.method == 'DELETE').single;
     expect((envio.data as Map)['codeIds'], containsAll(<String>['a', 'b']));
-    // Recarrega depois de apagar: senão a lista mostra o que já sumiu.
     expect(
       http.requests.where((r) => r.path == '/api/invite-codes'),
       hasLength(greaterThan(2)),
     );
   });
 
-  /// Desmarcar o último sai do modo: uma barra de seleção vazia deixa o admin
-  /// num estado sem saída óbvia.
   testWidgets('desmarcar o ultimo sai da selecao', (tester) async {
     await abrir(tester, codigos: [codigo()]);
 

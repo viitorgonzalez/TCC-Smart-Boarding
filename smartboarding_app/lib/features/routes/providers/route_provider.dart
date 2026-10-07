@@ -13,8 +13,10 @@ class RouteProvider extends ChangeNotifier {
   RouteProvider(this._service);
 
   Future<void> load() async {
-    _state = const AsyncLoading();
-    notifyListeners();
+    if (_state is! AsyncData<List<RouteModel>>) {
+      _state = const AsyncLoading();
+      notifyListeners();
+    }
     try {
       _state = AsyncData(await _service.getRoutes());
     } catch (e) {

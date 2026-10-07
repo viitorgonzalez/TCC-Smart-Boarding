@@ -12,14 +12,7 @@ import '../models/route_model.dart';
 import '../services/route_service.dart';
 import '../../../core/text/plural.dart';
 
-/// Controle dos códigos de acesso, de todas as rotas do admin.
-///
-/// Tela própria porque o código é a porta de entrada da rota, e essa decisão
-/// não pertence ao dia a dia de uma rota específica: dentro do detalhe ela
-/// ficava soterrada sob lista de presença, veículos e paradas.
 class InviteCodesScreen extends StatefulWidget {
-  /// As rotas do admin. Vem pronta pra tela não repetir a busca que o painel
-  /// já fez ao abrir.
   final List<RouteModel> routes;
 
   const InviteCodesScreen({super.key, required this.routes});
@@ -36,10 +29,14 @@ class _InviteCodesScreenState extends State<InviteCodesScreen> {
   bool _carregando = true;
   bool _ocupado = false;
 
-  /// Ids marcados. Vazio com [_selecionando] ligado é o estado logo após entrar
-  /// no modo — o admin ainda não escolheu nada.
   final Set<String> _marcados = {};
   bool _selecionando = false;
+
+  String? _rotaFiltro;
+
+  List<InviteCode> get _visiveis => _rotaFiltro == null
+      ? _codes
+      : _codes.where((c) => c.routeId == _rotaFiltro).toList();
 
   @override
   void initState() {
@@ -127,8 +124,6 @@ class _InviteCodesScreenState extends State<InviteCodesScreen> {
       final novo = await _service.generateInviteCode(
         rota.id,
         expiresAt: validade.expiresFrom(DateTime.now()),
-        // String vazia é a escolha "qualquer instituição"; nulo seria
-        // indistinguível de ter fechado a folha sem escolher.
         institutionId: instituicao.isEmpty ? null : instituicao,
       );
       await Clipboard.setData(ClipboardData(text: novo.code));
@@ -146,8 +141,6 @@ class _InviteCodesScreenState extends State<InviteCodesScreen> {
   void _alternarSelecao(String id) {
     setState(() {
       if (!_marcados.remove(id)) _marcados.add(id);
-      // Desmarcar o último sai do modo: manter a barra de seleção vazia na
-      // tela deixa o admin preso num estado sem saída óbvia.
       if (_marcados.isEmpty) _selecionando = false;
     });
   }
@@ -166,13 +159,12 @@ class _InviteCodesScreenState extends State<InviteCodesScreen> {
     });
   }
 
-  /// Seleciona os que já não servem pra nada — é o caso de uso real de limpar.
   void _marcarInutilizaveis() {
     setState(() {
       _selecionando = true;
       _marcados
         ..clear()
-        ..addAll(_codes.where((c) => !c.usable).map((c) => c.id));
+        ..addAll(_visiveis.where((c) => !c.usable).map((c) => c.id));
       if (_marcados.isEmpty) _selecionando = false;
     });
   }
@@ -268,17 +260,17 @@ class _InviteCodesScreenState extends State<InviteCodesScreen> {
 
   @override
   Widget build(BuildContext context) {
+    final visiveis = _visiveis;
+
     final porRota = <String, List<InviteCode>>{};
-    for (final c in _codes) {
+    for (final c in visiveis) {
       porRota.putIfAbsent(c.routeName ?? 'Rota', () => []).add(c);
     }
 
-    final inutilizaveis = _codes.where((c) => !c.usable).length;
+    final inutilizaveis = visiveis.where((c) => !c.usable).length;
 
     return Scaffold(
       appBar: _selecionando
-          // Barra de seleção no lugar do título: enquanto o admin escolhe, o
-          // que importa é quantos marcou e o que fazer com eles.
           ? AppBar(
               leading: IconButton(
                 key: const Key('exit_selection'),
@@ -318,13 +310,24 @@ class _InviteCodesScreenState extends State<InviteCodesScreen> {
               icon: const Icon(Icons.add),
               label: const Text('Gerar código'),
             ),
-      body: _carregando
-          ? const Center(child: CircularProgressIndicator())
-          : _codes.isEmpty
-          ? const _Vazio()
-          : ListView(
-              padding: const EdgeInsets.fromLTRB(20, 20, 20, 96),
-              children: [
+      body: Column(
+        children: [
+          if (!_carregando && _codes.isNotEmpty && widget.routes.length > 1)
+            _FiltroDeRota(
+              routes: widget.routes,
+              selecionado: _rotaFiltro,
+              onChanged: (id) => setState(() => _rotaFiltro = id),
+            ),
+          Expanded(
+            child: _carregando
+                ? const Center(child: CircularProgressIndicator())
+                : _codes.isEmpty
+                ? const _Vazio()
+                : visiveis.isEmpty
+                ? const _SemCodigosNaRota()
+                : ListView(
+                    padding: const EdgeInsets.fromLTRB(20, 20, 20, 96),
+                    children: [
                 for (final entrada in porRota.entries) ...[
                   Padding(
                     padding: const EdgeInsets.only(bottom: 8),
@@ -370,8 +373,6 @@ class _InviteCodesScreenState extends State<InviteCodesScreen> {
                               '${_situacao(code)} · ${code.uses} '
                               '${code.uses == 1 ? 'aluno entrou' : 'alunos entraram'}',
                             ),
-                            // Segurar entra no modo de seleção: é o gesto que
-                            // o usuário já conhece de qualquer lista de app.
                             onLongPress: _selecionando
                                 ? null
                                 : () => _entrarNaSelecao(code.id),
@@ -419,12 +420,67 @@ class _InviteCodesScreenState extends State<InviteCodesScreen> {
                       ],
                     ),
                   ),
-                  const SizedBox(height: 20),
-                ],
-              ],
-            ),
+                      const SizedBox(height: 20),
+                    ],
+                  ],
+                ),
+          ),
+        ],
+      ),
     );
   }
+}
+
+class _FiltroDeRota extends StatelessWidget {
+  final List<RouteModel> routes;
+  final String? selecionado;
+  final ValueChanged<String?> onChanged;
+
+  const _FiltroDeRota({
+    required this.routes,
+    required this.selecionado,
+    required this.onChanged,
+  });
+
+  @override
+  Widget build(BuildContext context) {
+    return SingleChildScrollView(
+      scrollDirection: Axis.horizontal,
+      padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 10),
+      child: Row(
+        children: [
+          FilterChip(
+            label: const Text('Todas'),
+            selected: selecionado == null,
+            onSelected: (_) => onChanged(null),
+          ),
+          for (final r in routes) ...[
+            const SizedBox(width: 8),
+            FilterChip(
+              label: Text(r.name),
+              selected: selecionado == r.id,
+              onSelected: (_) => onChanged(r.id),
+            ),
+          ],
+        ],
+      ),
+    );
+  }
+}
+
+class _SemCodigosNaRota extends StatelessWidget {
+  const _SemCodigosNaRota();
+
+  @override
+  Widget build(BuildContext context) => Center(
+    child: Padding(
+      padding: const EdgeInsets.all(32),
+      child: Text(
+        'Nenhum código desta rota',
+        style: Theme.of(context).textTheme.titleMedium,
+      ),
+    ),
+  );
 }
 
 class _Vazio extends StatelessWidget {

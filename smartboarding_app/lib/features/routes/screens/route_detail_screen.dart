@@ -1,11 +1,10 @@
 import 'package:flutter/material.dart';
-// latlong2 exporta uma classe Path própria, que sombreia a de dart:ui usada
-// no desenho do pino.
 import 'package:provider/provider.dart';
 import '../widgets/route_institutions_card.dart';
 import '../widgets/route_stops_editor.dart';
 import '../widgets/route_vehicles_card.dart';
 import '../../../core/errors/app_exception.dart';
+import '../../../core/pagination/page_result.dart';
 import '../../../core/theme/app_theme.dart';
 import '../../../core/utils/date_format.dart';
 import '../../../core/widgets/app_card.dart';
@@ -58,7 +57,7 @@ class _RouteDetailScreenState extends State<RouteDetailScreen> {
     _openTime = _asTimeOfDay(widget.route.openTime);
     _closeTime = _asTimeOfDay(widget.route.closeTime);
     _admiteSemInstituicao = widget.route.admitsNoInstitution;
-    _reload();
+    _reload(mostrarCarregando: true);
   }
 
   static TimeOfDay? _asTimeOfDay(String? raw) {
@@ -80,8 +79,8 @@ class _RouteDetailScreenState extends State<RouteDetailScreen> {
     super.dispose();
   }
 
-  Future<void> _reload() async {
-    setState(() => _loading = true);
+  Future<void> _reload({bool mostrarCarregando = false}) async {
+    if (mostrarCarregando) setState(() => _loading = true);
     try {
       final results = await Future.wait([
         _service.getStops(widget.route.id),
@@ -92,7 +91,7 @@ class _RouteDetailScreenState extends State<RouteDetailScreen> {
       setState(() {
         _stops = results[0] as List<StopModel>;
         _vehicles = results[1] as List<VehicleModel>;
-        _students = (results[2] as List<UserModel>)
+        _students = (results[2] as PageResult<UserModel>).items
             .where((u) => u.role == 'STUDENT')
             .toList();
         _loading = false;
@@ -156,8 +155,6 @@ class _RouteDetailScreenState extends State<RouteDetailScreen> {
                 ),
                 const SizedBox(height: 24),
 
-                // O que se mexe uma vez por semestre sai do caminho do que se
-                // mexe todo dia. Cada linha abre a mesma seção em tela própria.
                 const SectionTitle('Configuração da rota'),
                 const SizedBox(height: 12),
                 AppCard(
@@ -237,14 +234,6 @@ class _RouteDetailScreenState extends State<RouteDetailScreen> {
     );
   }
 
-  /// Linha que abre uma seção em tela própria. O conteúdo é construído só ao
-  /// abrir: montar as seis seções de uma vez faria a tela buscar tudo de novo
-  /// a cada volta.
-  /// Salva na hora, sem botao: uma chave que so vale depois de "salvar dados
-  /// da rota" -- que fica noutra tela -- seria esquecida ligada sem efeito.
-  ///
-  /// Relanca em caso de falha: quem desenha a chave e quem a devolve ao estado
-  /// anterior, senao a tela mente sobre o que o servidor guardou.
   Future<void> _mudarAdmissao(bool valor) async {
     try {
       await context.read<RouteProvider>().update(
@@ -274,9 +263,6 @@ class _RouteDetailScreenState extends State<RouteDetailScreen> {
     required String titulo,
     required String detalhe,
     required Widget Function() abre,
-
-    /// A seção já é uma tela inteira, com barra própria — envolvê-la na
-    /// moldura empilharia dois títulos.
     bool telaPropria = false,
   }) {
     return ListTile(
@@ -289,12 +275,6 @@ class _RouteDetailScreenState extends State<RouteDetailScreen> {
     );
   }
 
-  /// Abre a seção em tela própria, repassando os providers.
-  ///
-  /// O push nasce no Navigator, ACIMA dos providers desta tela: o que não for
-  /// repassado aqui não chega lá. Sem isso, "Instituições atendidas" estourava
-  /// ProviderNotFoundException na cara do admin — a mesma armadilha que a lista
-  /// de rotas já documentava ao empurrar este detalhe.
   Future<void> _abrirSecao(
     String titulo,
     Widget Function() constroi, {
@@ -344,7 +324,6 @@ class _RouteDetailScreenState extends State<RouteDetailScreen> {
     );
   }
 
-  /// Escopado por rota porque a base de usuários cresce sem teto.
   Widget _studentsCard() {
     final preview = sortUsersByName(_students).take(4).toList();
 
@@ -396,8 +375,4 @@ class _RouteDetailScreenState extends State<RouteDetailScreen> {
       ),
     );
   }
-
-  /// Já nasce vinculada: instituição sem rota deixa os alunos dela sem lista.
-  /// Só mover e inserir esperam um toque no mapa.
-  /// O toque no mapa muda de significado conforme o modo ativo.
 }
