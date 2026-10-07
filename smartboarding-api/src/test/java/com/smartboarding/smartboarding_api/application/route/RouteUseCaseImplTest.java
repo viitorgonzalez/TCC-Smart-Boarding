@@ -47,8 +47,6 @@ class RouteUseCaseImplTest {
         return route;
     }
 
-    /// @Builder.Default não protege contra null explícito vindo do request — sem
-    /// o fallback, criar rota sem horário violaria o NOT NULL da coluna.
     @Test
     void rotaSemHorarioRecebeOsPadroes() {
         Route nova = Route.builder().name("Rota Nova").build();
@@ -113,9 +111,6 @@ class RouteUseCaseImplTest {
         assertThat(saved.getCloseTime()).isEqualTo(LocalTime.of(19, 0));
     }
 
-    /// Horário nulo preserva o atual. O builder do Lombok injeta os defaults, então
-    /// só o mapper do request chega aqui com null -- que e exatamente o caso a
-    /// proteger: PUT sem os campos de horario nao pode zerar o que ja estava la.
     @Test
     void editarSemHorarioPreservaOAtual() {
         Route route = existente("Rota Antiga");
@@ -140,8 +135,6 @@ class RouteUseCaseImplTest {
                 .hasMessageContaining("Nome de rota já utilizado");
     }
 
-    /// isActive nulo mantém o estado atual — sem isso, rota desativada pelo
-    /// DELETE não teria caminho de volta.
     @Test
     void isActiveNuloNaoMexeNoEstado() {
         Route route = existente("Rota A");
@@ -162,8 +155,6 @@ class RouteUseCaseImplTest {
         assertThat(saved.isActive()).isTrue();
     }
 
-    /// DELETE desativa em vez de apagar: listas e relatórios antigos apontam pra
-    /// rota e perderiam a referência. O port sequer expõe remoção física.
     @Test
     void deleteApenasDesativa() {
         Route route = existente("Rota A");

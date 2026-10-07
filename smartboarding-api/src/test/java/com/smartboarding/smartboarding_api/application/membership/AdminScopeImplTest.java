@@ -23,9 +23,6 @@ import static org.assertj.core.api.Assertions.assertThatCode;
 import static org.assertj.core.api.Assertions.assertThatThrownBy;
 import static org.mockito.Mockito.when;
 
-/// Papel não é alcance: `ADMIN` diz o que a pessoa sabe fazer, isto diz sobre o
-/// que ela pode fazer. Antes desta classe, quem administrava o IFMG revogava
-/// código da UNIFOR.
 @ExtendWith(MockitoExtension.class)
 @MockitoSettings(strictness = Strictness.LENIENT)
 class AdminScopeImplTest {
@@ -69,7 +66,6 @@ class AdminScopeImplTest {
         assertThat(scope.routesOf(ADMIN)).containsExactly(ROTA_DE_FORMIGA);
     }
 
-    /// Duas instituições na mesma rota não duplicam a rota nem dão acesso extra.
     @Test
     void instituicoesQueDividemARotaNaoDuplicamNada() {
         administra(UNIFOR, IFMG);
@@ -77,9 +73,6 @@ class AdminScopeImplTest {
         assertThat(scope.routesOf(ADMIN)).containsExactly(ROTA_DE_FORMIGA);
     }
 
-    /// Admin recém-promovido não declarou instituição nenhuma. Sem isto ele
-    /// cairia no caso "conjunto vazio não contém nada" e veria tudo por engano
-    /// em qualquer filtro escrito ao contrário.
     @Test
     void semInstituicaoDeclaradaNaoAlcancaRotaNenhuma() {
         administra();
@@ -131,8 +124,6 @@ class AdminScopeImplTest {
                 .hasMessageContaining("não administra essa instituição");
     }
 
-    /// Nulo é o código aberto: não pertence a instituição nenhuma, então não há
-    /// dono pra conferir. Quem limita o alcance nesse caso é a rota.
     @Test
     void instituicaoNulaPassa() {
         administra(IFMG);
@@ -141,8 +132,6 @@ class AdminScopeImplTest {
                 .doesNotThrowAnyException();
     }
 
-    /// Rota recém-criada ainda não tem instituição, e o vínculo se faz dentro
-    /// dela. Escondê-la trancaria o admin do lado de fora da própria criação.
     @Test
     void rotaSemInstituicaoFicaVisivelATodoAdmin() {
         administra(IFMG);
@@ -157,7 +146,6 @@ class AdminScopeImplTest {
                 .doesNotThrowAnyException();
     }
 
-    /// Assim que a rota ganha dono, ela sai do alcance de quem não é dono.
     @Test
     void rotaComInstituicaoDeixaDeSerDeTodos() {
         administra(IFMG);

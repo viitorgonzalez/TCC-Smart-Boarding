@@ -45,8 +45,6 @@ class StopControllerTest extends WebMvcTestSupport {
                 .latitude(-20.46).longitude(-45.42).sequence(1).isMainPoint(true).build();
     }
 
-    /// O aluno vê o mapa da rota, então listar parada é de qualquer autenticado —
-    /// mas mexer na rota é do admin.
     @Test
     void alunoVeAsParadasMasNaoAsAltera() throws Exception {
         when(manageStopsUseCase.listByRoute(ROUTE_ID)).thenReturn(List.of(parada()));
@@ -74,8 +72,6 @@ class StopControllerTest extends WebMvcTestSupport {
                 .andExpect(status().isUnauthorized());
     }
 
-    /// Sem sequence a parada entra no fim — o controller manda 0 e o use case
-    /// resolve a posição.
     @Test
     void criarSemSequenciaMandaZero() throws Exception {
         when(manageStopsUseCase.add(any())).thenReturn(parada());
@@ -139,11 +135,6 @@ class StopControllerTest extends WebMvcTestSupport {
         verify(manageStopsUseCase).remove(STOP_ID);
     }
 
-    // ─── O bug do ponto principal ────────────────────────────────────────────
-
-    /// Nada em src/main escrevia is_main_point antes da V32 -- e o contrato
-    /// HTTP nem tinha o campo. Sem esta entrada, toda parada criada pela API
-    /// nascia comum e o trajeto recusava todo checkpoint nela.
     @Test
     void criarParadaComInstituicaoChegaNoUseCase() throws Exception {
         UUID instituicao = UUID.fromString("cccccccc-0000-0000-0000-000000000001");
@@ -174,10 +165,6 @@ class StopControllerTest extends WebMvcTestSupport {
                 .andExpect(jsonPath("$.data[0].institutionId").value(instituicao.toString()));
     }
 
-    /// Arrastar o pino no mapa manda só as coordenadas. Se isso caísse na
-    /// sobrecarga completa, o institutionId nulo do corpo desvincularia a
-    /// instituição -- e a parada deixaria de aceitar checkpoint sem ninguém
-    /// ter pedido nada disso.
     @Test
     void moverAParadaNaoDesfazOVinculoComAInstituicao() throws Exception {
         when(manageStopsUseCase.update(any(), any(), any(), any()))

@@ -62,9 +62,6 @@ public class RouteController {
         return ResponseEntity.status(HttpStatus.CREATED).body(ApiResponse.data(RouteResponse.from(createRouteUseCase.execute(route))));
     }
 
-    /// Só as rotas que o admin administra — as usadas pelas instituições que
-    /// ele declarou no perfil. Devolver todas fazia ele abrir a lista, os
-    /// veículos e os códigos de transporte que não é dele.
     @GetMapping
     public ResponseEntity<ApiResponse<List<RouteResponse>>> findAll(Authentication auth) {
         Set<UUID> minhas = guard.routes(auth);
@@ -75,9 +72,6 @@ public class RouteController {
         return ResponseEntity.ok(ApiResponse.data(routes));
     }
 
-    /// Aberto a quem tem a ver com a rota: o aluno que está nela e o admin que
-    /// a administra. O aluno precisa dela pro mapa e pro horário, então exigir
-    /// papel de admin aqui quebraria a tela dele.
     @GetMapping("/{id}")
     public ResponseEntity<ApiResponse<RouteResponse>> findById(@PathVariable UUID id,
                                                                Authentication auth) {

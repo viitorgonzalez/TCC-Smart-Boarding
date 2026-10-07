@@ -49,6 +49,15 @@ Fonte de verdade: `SecurityConfig.java` (`infrastructure/config/`).
 `/api/lists/{id}/entries` (entrar/sair da lista) libera qualquer papel autenticado, não só
 `STUDENT` — comportamento intencional (admin também pode embarcar).
 
+⚠️ **`ADMIN` não tem alcance irrestrito sobre rota/instituição.** Escrita em paradas, veículos,
+códigos de convite e avisos recorrentes de uma rota passa por `AdminGuard`/`AdminScope`, que exige
+que o admin **administre** aquela rota ou instituição (`403 NOT_YOUR_ROUTE` /
+`NOT_YOUR_INSTITUTION`). O alcance vem das instituições que ele mesmo declarou no próprio perfil
+(`user_institutions` — a mesma tabela do aluno) e das rotas que elas atendem
+(`institutions.route_id`), mais toda rota **sem** instituição vinculada ainda, que fica visível a
+qualquer admin (senão ninguém conseguiria abrir uma rota recém-criada pra vincular a primeira
+instituição). Sem essa checagem, um admin do IFMG conseguia mexer na rota da UNIFOR.
+
 ---
 
 ## 3. Arquitetura
@@ -94,11 +103,25 @@ Contextos (`<contexto>`): `user`, `route`, `institution`, `vehicle`, `stop`, `li
 - JWT via `spring-security-oauth2-resource-server`, algoritmo HS256, expiração de 1h, issuer
   `smartboarding-api`. Claim `scope` carrega o papel do usuário, prefixado `ROLE_` na conversão
   pra `hasRole(...)`.
-- Senha: BCrypt.
+- Senha: Argon2id com um **pepper** por cima (`PepperedPasswordEncoder`), não BCrypt puro. O
+  pepper (`app.security.password-pepper`, ≥32 bytes) mora só no `.env`, nunca no banco — banco
+  vazado sozinho continua impossível de quebrar sem o pepper, `.env` vazado sozinho não carrega
+  senha nenhuma junto. Ele entra via **HMAC-SHA256 antes do Argon2id**, não concatenado na senha
+  crua: concatenar deixaria o pepper sujeito ao mesmo ataque de força bruta que ele existe pra
+  evitar — o HMAC trata senha e pepper como chaves independentes. Conta criada pelo Google e que
+  nunca definiu senha local guarda `password = null`, nunca um placeholder — um hash fixo viraria
+  uma senha real e adivinhável.
 - **Não há refresh token.** Expirou o JWT, entra de novo. O mecanismo de sessão longa
   (`rememberMe` + `POST /api/auth/refresh`) foi desenhado e nunca implementado — não
   existe endpoint, tabela nem coluna.
 - Sessão stateless, CSRF desabilitado (API pura, sem cookie).
+- Conta apagada ou desativada falha na **autenticação**, não só na autorização: autoridade vazia
+  ainda satisfaz `anyRequest().authenticated()`, então um aluno desativado continuaria entrando na
+  lista do dia até o token expirar — exatamente o abuso que desativar deveria conter. O
+  `JwtAuthenticationConverter` resolve isso lançando antes de qualquer regra de autorização rodar
+  (`401` direto do resource server). Banco fora do ar no meio dessa resolução também cai aqui
+  (fora do alcance do `@ControllerAdvice`) e responde `503`, nunca deixando indisponibilidade virar
+  permissão.
 
 ### 3.4 Envelope de resposta
 
@@ -139,7 +162,14 @@ Contextos (`<contexto>`): `user`, `route`, `institution`, `vehicle`, `stop`, `li
   uma conta existente. Quatro travas: não rebaixa a si mesmo, não rebaixa o último admin, não
   promove conta desativada, e declarar o papel que já vale é no-op (não é erro). Toda mudança
   entra no `user_status_log` com quem concedeu. Remover um admin são duas ações deliberadas:
-  rebaixar e depois desativar.
+  rebaixar e depois desativar — e a ordem é **imposta**, não só convenção: `PATCH
+  /api/users/{id}/status` recusa desativar uma conta com papel `ADMIN` (`400
+  CANNOT_DEACTIVATE_ADMIN`) e recusa desativar a própria conta (`400 CANNOT_DEACTIVATE_SELF`). A
+  trava do último admin é protegida por **lock consultivo** do Postgres
+  (`pg_advisory_xact_lock`), não `FOR UPDATE`: a trava protege um agregado (quantos admins
+  existem), não uma linha específica — sem ele, duas transações rebaixando admins diferentes
+  liam a mesma contagem, as duas passavam pela trava, e o sistema ficava sem administrador
+  nenhum (recuperação só editando o banco à mão).
   - **A mudança vale na requisição seguinte.** A autoridade de cada requisição é resolvida
     lendo o papel no banco, não a claim `scope` do JWT — ela é carimbada no login e vive 1h.
     Enquanto a claim mandava, o rebaixado seguia admin até o token expirar, e nesse intervalo
@@ -166,6 +196,17 @@ Contextos (`<contexto>`): `user`, `route`, `institution`, `vehicle`, `stop`, `li
   - Código tem validade (`ROUTE_INVITE_VALIDITY_DAYS`, default 30 dias) e pode ser revogado.
   - Entrar exige perfil com instituição definida — sem isso a API recusa com
     `PROFILE_INCOMPLETE`.
+  - O código só confere a si mesmo; quem decide quem entra é a lista de instituições vinculadas à
+    rota (RN15) — `400 INSTITUTION_NOT_SERVED` quando nenhuma instituição do aluno está nessa
+    lista, e `400 ROUTE_WITHOUT_INSTITUTION` se a rota ainda não atende nenhuma instituição
+    (recusar aqui é mais honesto que deixar entrar e o aluno descobrir depois que não aparece em
+    contagem alguma).
+  - `Route.admitsNoInstitution` (default `false`) é a exceção deliberada à exigência de perfil
+    acima: só quando ligada deixa entrar aluno sem nenhuma instituição declarada. Não afrouxa a
+    regra pra quem **tem** instituição — esse continua precisando que a rota atenda a dela.
+  - Um código pode travar numa instituição específica (`code.institutionId`); nulo é o código
+    **aberto**, que vale pra qualquer instituição que a rota atenda — é o que os códigos emitidos
+    antes dessa trava continuam sendo.
 
 ### 4.2 Instituições e rotas
 
@@ -195,6 +236,9 @@ Contextos (`<contexto>`): `user`, `route`, `institution`, `vehicle`, `stop`, `li
   emitir é **escolha do admin** (`issueWarning`): nem todo atraso é falta do aluno (ônibus
   adiantado, problema no app, decisão da coordenação). O aluno vê só as próprias
   (`GET /api/warnings/me`); o admin vê todas e pode remover as aplicadas por engano.
+  `list_entries.added_by_admin` marca a origem da inscrição ativa; se o próprio aluno reentra
+  depois (mesmo numa entrada que o admin tinha aberto antes), o flag volta a `false` — quem agiu
+  agora foi ele, não mais uma inclusão alheia.
 - **RN19** — Editar qualquer regra de uma rota (horário de fechamento, instituições vinculadas,
   paradas, veículos) dispara uma notificação automática pros usuários vinculados àquela rota —
   texto gerado pelo sistema, não pelo admin.
@@ -230,6 +274,11 @@ Contextos (`<contexto>`): `user`, `route`, `institution`, `vehicle`, `stop`, `li
   reentrar na mesma lista, no mesmo dia, enquanto ela estiver `OPEN`.
 - **RN6** — Cada inscrição tem um `tripType`: `ROUND_TRIP` (padrão), `TO_CAMPUS` ou
   `FROM_CAMPUS`.
+- A lista é **compartilhada**: `GET /api/lists/{id}/entries` é `authenticated()`, não
+  `hasRole('ADMIN')`, e todo aluno vê quem mais embarca naquele dia — proposital. O e-mail de cada
+  inscrito só vai na resposta quando quem pede é `ADMIN`; pra aluno, o campo some em vez de
+  vazar — sem essa checagem o endpoint virava um diretório de contatos da turma, bastando chamar
+  a API direto (a tela nunca exibia o campo, mas não exibir não protegia o dado no fio).
 - **RN7** — Ao entrar na lista (criação ou reativação), dispara notificação FCM individual de
   confirmação — best-effort, falha no envio não propaga erro pro cliente.
 - **RN29** — Entrar na lista exige **perfil completo**: `fullName`, `phone`, endereço completo
@@ -267,21 +316,32 @@ Contextos (`<contexto>`): `user`, `route`, `institution`, `vehicle`, `stop`, `li
 - **RN25** — `ScheduledNotification` é um aviso recorrente de uma rota, cadastrado pelo `ADMIN`
   com frequência (`DAILY`/`WEEKDAYS`/`WEEKLY`), horário de envio e validade opcional em horas. A
   mesma varredura de 5 min despacha os que estão vencidos, no máximo **um envio por dia** por
-  aviso (`lastSentAt`). Pode ser pausado sem perder o cadastro.
+  aviso (`lastSentAt`). Pode ser pausado sem perder o cadastro. `dayOfWeek` (só pra `WEEKLY`) segue
+  `java.time.DayOfWeek`: 1 = segunda … 7 = domingo.
 
 ### 4.7 Trajeto
 
 - **RN23** — Ações de trajeto (iniciar, checkpoint num ponto principal, finalizar) são
   exclusivas do `ADMIN` — não existe um papel de motorista separado. Um trajeto por lista do dia:
   o estado mora em `daily_lists.trip_started_at`/`trip_finished_at` e cada chegada vira uma linha
-  em `trip_checkpoints`, com `UNIQUE (lista, parada)` — o checkpoint é **idempotente**, tocar duas
-  vezes não gera segunda chegada nem segundo aviso. Ponto principal é `stops.is_main_point`. Cada
+  em `trip_checkpoints`, com `UNIQUE (lista, parada, perna)` — a perna entra na chave porque a
+  volta visita as mesmas paradas da ida, na ordem inversa; sem diferenciar por perna, o primeiro
+  checkpoint da volta seria tratado como repetição da ida e ignorado em silêncio. O checkpoint é
+  **idempotente**, tocar duas vezes não gera segunda chegada nem segundo aviso. Ponto principal é
+  `stops.is_main_point`. Cada
   ação **persiste** o aviso além de disparar o push: push não deixa registro, e sem isso o aluno
   não veria nada. Checkpoint só é aceito em
   pontos marcados como principais (rodoviária + instituições da rota) — paradas comuns não geram
   checkpoint, só aparecem no mapa. Cada ação de trajeto dispara notificação FCM aos inscritos
   ativos da lista do dia, independente do `status` da lista (funciona mesmo com a lista já
   fechada — o embarque físico acontece depois do fechamento).
+  - A perna (ida/volta) é **derivada**, não escolhida pelo admin: `daily_lists.outbound_finished_at`
+    nulo = ainda na ida; preenchido = na volta. Checkpoint em todos os pontos principais da perna
+    atual avança automaticamente — completar a ida abre a volta, completar a volta finaliza o
+    trajeto — sem exigir um toque extra de confirmação pra algo que o sistema já sabe deduzir.
+  - `finish` manual (saída de emergência, ônibus não completa o percurso) encerra **as duas**
+    pernas de uma vez: preenche `outbound_finished_at` se ainda estiver vazio, e sempre preenche
+    `trip_finished_at`.
 
 - **RN30** — `stops.institution_id` (V32) diz qual instituição a parada serve, e **quem serve
   instituição é sempre ponto principal**. Até a V32 esse vínculo era adivinhado dentro de uma
@@ -319,7 +379,11 @@ Contextos (`<contexto>`): `user`, `route`, `institution`, `vehicle`, `stop`, `li
   (`PUT /me/profile`). O que ainda passa pela fila do admin: **nome e instituição** — é o que
   decide em qual transporte a pessoa entra. A separação existe porque a RN29 tornou o perfil
   pré-requisito da lista: sem ela, "complete seu perfil pra entrar na lista" seria uma parede que
-  a própria pessoa não destrava, e ela perderia a viagem esperando aprovação de um telefone.
+  a própria pessoa não destrava, e ela perderia a viagem esperando aprovação de um telefone. Só um
+  pedido pendente por vez (`409 PENDING_REQUEST_EXISTS`) — dois na fila deixariam o admin aprovar
+  um sem saber do outro, e o segundo sobrescreveria o primeiro sem revisão. `ProfileUpdateRequest`
+  guarda os campos pedidos, não um diff contra o valor atual: o cadastro pode mudar entre o pedido
+  e a aprovação, e aplicar um diff velho sobrescreveria o que mudou no meio.
 
 ### 4.10 Carteirinha virtual
 
@@ -336,8 +400,24 @@ Contextos (`<contexto>`): `user`, `route`, `institution`, `vehicle`, `stop`, `li
 ### 4.8 Sessão e segurança
 
 - **RN10** — E-mail de usuário é único. Senha mínima de 6 caracteres.
+- `POST /api/auth/google` só aceita o login quando o Google confirma `emailVerified=true` no ID
+  token. Sem essa checagem, alguém cadastraria uma conta Google com o e-mail de outra pessoa e
+  assumiria a conta dela por vínculo automático. Conta existente com o mesmo e-mail é **vinculada**
+  ao Google (nunca duplicada — duas contas partiriam a lista do aluno entre elas), e o Google só
+  prova **quem** é a pessoa: conta desativada pelo admin continua bloqueada por esse caminho
+  também (mesmo `401` do login por senha), senão seria uma porta dos fundos pra contornar a
+  desativação.
 - **RN21** — Sessão longa: **não implementada**. Fica registrada como decisão adiada, não
   como comportamento existente (§3.3).
+- Troca de e-mail (`POST /me/email/request` + `/me/email/confirm`) segue o mesmo padrão do reset
+  de senha: só o hash do código de 6 dígitos é guardado, e emitir um código novo invalida os
+  pedidos em aberto anteriores. O código é enviado pro e-mail **NOVO**, pra provar posse antes de
+  trocar; depois de aplicar a troca, o e-mail **ANTIGO** recebe um aviso — se a conta foi
+  sequestrada, é o único lugar onde o dono de verdade ainda pode notar e reagir. Diferente do
+  reset de senha (fluxo anônimo, silencioso de propósito pra não vazar quem tem conta), aqui quem
+  pede já está autenticado e já sabe o próprio e-mail — por isso reenviar código antes do
+  `app.email-change.resend-cooldown-seconds` passar dá erro claro (`400 TOO_SOON`) em vez de
+  responder sempre `{success:true}`.
 - **RN22** — Recuperação de senha por **código de 6 dígitos** enviado por e-mail (não link: App
   Link exige domínio publicado e verificado, pendência de deploy — mesmo motivo do convite).
   `POST /api/auth/forgot-password` sempre responde `{success:true}`, mesmo se o e-mail não existir
@@ -396,6 +476,7 @@ Contextos (`<contexto>`): `user`, `route`, `institution`, `vehicle`, `stop`, `li
 | GET | `/api/users` / `/api/users/{id}` | ADMIN | — | `UserResponse[]` / `UserResponse` | `404` |
 | GET | `/api/users/admins/count` | ADMIN | — | `{count}` | — |
 | PATCH | `/api/users/{id}/role` | ADMIN | `{role: "ADMIN"\|"STUDENT"}` | `StudentProfileResponse` | `400 CANNOT_DEMOTE_SELF`, `400 LAST_ADMIN`, `400 INACTIVE_ACCOUNT`, `404` |
+| PATCH | `/api/users/{id}/status` | ADMIN | `{active}` | `UserResponse` | `400 CANNOT_DEACTIVATE_ADMIN`, `400 CANNOT_DEACTIVATE_SELF`, `404` |
 | POST | `/api/routes` | ADMIN | `{name, description?}` | `RouteResponse` | `409` nome duplicado |
 | GET | `/api/routes` | Público | — | `RouteResponse[]` (só ativas) | — |
 | GET | `/api/routes/{id}` | Público | — | `RouteResponse` | `404` |
@@ -406,14 +487,14 @@ Contextos (`<contexto>`): `user`, `route`, `institution`, `vehicle`, `stop`, `li
 | POST | `/api/routes/{id}/vehicles` | ADMIN | `{label, capacity}` | `VehicleResponse` | `400` |
 | DELETE | `/api/routes/{id}/vehicles/{vehicleId}` | ADMIN | — | `success` | — |
 | PATCH | `/api/institutions/{id}/route` | ADMIN | `{routeId?}` | `InstitutionResponse` | `404`, `409 INSTITUTION_ALREADY_LINKED` |
-| GET | `/api/admin/stats` | ADMIN | — | `{activeStudents, routesInUse, occupancyPercent}` | — |
+| GET | `/api/admin/stats` | ADMIN | — | `{activeStudents, enrolledToday, capacityToday, occupancyPercent, pendingProfileRequests, warningsToday}` | — |
 | PATCH | `/api/routes/{id}` | ADMIN | `{name?, description?, closeTime?}` | `RouteResponse` | `404`, `409` nome duplicado |
 | DELETE | `/api/routes/{id}` | ADMIN | — | `{success:true}` (soft-delete) | `404` |
 | CRUD | `/api/institutions` | ADMIN (write) / Autenticado (read) | `{name, address, latitude, longitude, routeId?}` | `Institution[]` / `Institution` | `409 INSTITUTION_ALREADY_LINKED` |
 | CRUD | `/api/routes/{id}/vehicles` | ADMIN | `{type, capacity}` | `Vehicle[]` / `Vehicle` | `404` |
 | CRUD | `/api/routes/{id}/stops` | ADMIN (write) / Autenticado (read) | `{name, latitude, longitude, isMainPoint, order}` | `Stop[]` / `Stop` | `404` |
 | GET | `/api/lists/today` | Autenticado | — | `ListResponse[]` (filtrado pela rota do usuário, se `STUDENT`) | — |
-| GET | `/api/lists/{id}` | Autenticado | — | `ListResponse` | `404` |
+| GET | `/api/lists/{id}` | Autenticado | — | `ListResponse` | `404`, `403 NOT_IN_ROUTE` (STUDENT fora da rota da lista) |
 | POST | `/api/lists/{id}/entries` | Autenticado | `{tripType?}` (default `ROUND_TRIP`) | `201 EntryResponse` | `400 LIST_CLOSED`, `404`, `403 ACCOUNT_EXPIRED` |
 | DELETE | `/api/lists/{id}/entries` | Autenticado | — | `{success:true}` | `400 LIST_CLOSED`, `404` |
 | GET | `/api/lists/{id}/entries` | Autenticado | — | `EntryResponse[]` | `404` |

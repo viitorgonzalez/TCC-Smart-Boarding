@@ -71,8 +71,6 @@ public class NotificationUseCaseImpl implements SendBroadcastUseCase, SendToUser
                         : LocalDateTime.now(clock).plusHours(durationHours))
                 .build());
 
-        // O push é entrega imediata; o registro é o que sobrevive. Falha de FCM
-        // não pode desfazer o aviso — quem não recebeu ainda o vê na caixa.
         try {
             execute(title, body);
         } catch (Exception e) {
@@ -99,9 +97,6 @@ public class NotificationUseCaseImpl implements SendBroadcastUseCase, SendToUser
         if (requester.getRole() != Role.STUDENT) {
             return notificationRepository.findAll();
         }
-        // O aluno ve os avisos de TODAS as rotas dele, mais os gerais. Ate a V22
-        // isso vinha da instituicao (RN15); agora vem do vinculo criado pelo
-        // codigo da rota.
         List<UUID> routeIds = routeMemberRepository.findAllByUserId(requesterId).stream()
                 .map(RouteMember::getRouteId)
                 .toList();

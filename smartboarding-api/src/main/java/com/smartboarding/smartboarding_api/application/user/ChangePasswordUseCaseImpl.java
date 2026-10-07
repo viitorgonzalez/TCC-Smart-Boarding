@@ -37,8 +37,6 @@ public class ChangePasswordUseCaseImpl implements ChangePasswordUseCase {
                     "Você entrou pelo Google e ainda não tem senha. Crie uma primeiro.");
         }
 
-        // A prova de posse e o que separa trocar a senha de tomar a conta: sem
-        // ela, quem pegasse o celular desbloqueado trocaria a senha na hora.
         if (!passwordEncoder.matches(currentPassword, user.getPassword())) {
             log.warn("Troca de senha recusada para o usuário {}: senha atual errada", userId);
             throw new BadRequestException("INVALID_CURRENT_PASSWORD",

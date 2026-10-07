@@ -26,7 +26,6 @@ import java.util.UUID;
 @Service
 public class TripUseCaseImpl implements ConductTripUseCase {
 
-    /// O aviso do trajeto interessa no dia; depois disso vira ruído na caixa.
     private static final int NOTICE_DURATION_HOURS = 12;
 
     private final DailyListRepositoryPort dailyListRepository;
@@ -60,10 +59,6 @@ public class TripUseCaseImpl implements ConductTripUseCase {
         list.setTripStartedAt(LocalDateTime.now(clock));
         DailyList saved = dailyListRepository.save(list);
 
-        // Rota criada antes da V33 tem a coluna de tempo vazia, e o aluno
-        // abriria o acompanhamento sem nenhum "faltam X min". Aqui é o momento
-        // em que o número passa a importar. Em try/catch: o OSRM não tem SLA, e
-        // não poder calcular o tempo não pode impedir o ônibus de sair.
         try {
             routeTiming.recalculateIfMissing(saved.getRoute().getId());
         } catch (RuntimeException e) {
@@ -94,9 +89,6 @@ public class TripUseCaseImpl implements ConductTripUseCase {
 
         TripLeg leg = currentLeg(list);
 
-        // Idempotente DENTRO da perna: o admin pode tocar duas vezes, e a segunda
-        // não pode virar um segundo aviso. Mas a mesma parada na volta é uma
-        // chegada nova, não repetição.
         if (checkpointRepository.existsByDailyListIdAndStopIdAndLeg(listId, stopId, leg)) {
             return list;
         }
@@ -116,10 +108,6 @@ public class TripUseCaseImpl implements ConductTripUseCase {
         return advanceIfLegComplete(list, leg);
     }
 
-    /// Chegar ao último ponto da ida vira a volta; chegar ao último da volta
-    /// encerra o dia. O admin não precisa apertar mais nada — ele já disse onde
-    /// está, e pedir uma confirmação extra pra algo que o sistema sabe deduzir
-    /// só adiciona um toque no meio do trajeto.
     private DailyList advanceIfLegComplete(DailyList list, TripLeg leg) {
         List<Stop> pontos = mainPoints(list);
         if (pontos.isEmpty()) {
@@ -149,13 +137,10 @@ public class TripUseCaseImpl implements ConductTripUseCase {
         return saved;
     }
 
-    /// Ida até o destino final estar marcado; volta dali em diante.
     private TripLeg currentLeg(DailyList list) {
         return list.getOutboundFinishedAt() == null ? TripLeg.OUTBOUND : TripLeg.RETURN;
     }
 
-    /// Só ponto principal entra no trajeto. Na volta a ordem é a inversa —
-    /// o ônibus refaz o mesmo caminho de trás pra frente.
     private List<Stop> mainPoints(DailyList list) {
         return stopRepository.findAllByRouteIdOrderBySequenceAsc(list.getRoute().getId()).stream()
                 .filter(Stop::isMainPoint)
@@ -168,8 +153,6 @@ public class TripUseCaseImpl implements ConductTripUseCase {
         DailyList list = findList(listId);
         assertInProgress(list);
 
-        // Encerrar a mao fecha o dia inteiro, esteja na ida ou na volta: e a
-        // saida pro caso de o onibus nao completar o percurso.
         LocalDateTime agora = LocalDateTime.now(clock);
         if (list.getOutboundFinishedAt() == null) {
             list.setOutboundFinishedAt(agora);
@@ -196,8 +179,6 @@ public class TripUseCaseImpl implements ConductTripUseCase {
         }
     }
 
-    // Persistir é o que faz o aviso sobreviver: o push é entrega, não registro --
-    // com FCM desligado ele não deixa rastro nenhum pro aluno.
     private void announce(DailyList list, String title, String body) {
         try {
             publishNotificationUseCase.publishIndependente(title, body, list.getRoute().getId(),

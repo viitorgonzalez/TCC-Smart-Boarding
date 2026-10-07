@@ -77,8 +77,6 @@ class RouteInviteCodeUseCaseImplTest {
         assertThat(useCase.generate(ROTA, prazo, null, ADMIN).getExpiresAt()).isEqualTo(prazo);
     }
 
-    /// Código que já nasce vencido não serve pra nada e o admin só descobriria
-    /// quando um aluno reclamasse.
     @Test
     void expiracaoNoPassadoERecusada() {
         assertThatThrownBy(() -> useCase.generate(ROTA, AGORA.minusDays(1), null, ADMIN))
@@ -105,8 +103,6 @@ class RouteInviteCodeUseCaseImplTest {
         verify(codeRepository, never()).save(any());
     }
 
-    /// O código é lido em voz alta e copiado do quadro: O/0, I/1 e L fora do
-    /// alfabeto evitam o erro de digitação clássico.
     @Test
     void codigoNaoUsaCaracteresAmbiguos() {
         var gerados = IntStream.range(0, 200)
@@ -121,7 +117,6 @@ class RouteInviteCodeUseCaseImplTest {
         });
     }
 
-    /// O código é UNIQUE no banco: sem o retry, o azar viraria 500 na cara do admin.
     @Test
     void colisaoDeCodigoGeraOutroEmVezDeFalhar() {
         when(codeRepository.existsByCode(any())).thenReturn(true, true, false);
@@ -140,8 +135,6 @@ class RouteInviteCodeUseCaseImplTest {
         assertThat(useCase.revoke(code.getId()).getRevokedAt()).isEqualTo(AGORA);
     }
 
-    /// Clicar duas vezes em revogar não é erro: o resultado que o admin quer já
-    /// está valendo, e sobrescrever a data apagaria quando foi de verdade.
     @Test
     void revogarDuasVezesMantemAPrimeiraData() {
         var revogadoAntes = AGORA.minusDays(2);
@@ -177,8 +170,6 @@ class RouteInviteCodeUseCaseImplTest {
         assertThat(useCase.countUses(codeId)).isEqualTo(23L);
     }
 
-    // ─── Instituição do código ───────────────────────────────────────────────
-
     @Test
     void guardaAInstituicaoEscolhida() {
         UUID unifor = UUID.randomUUID();
@@ -189,15 +180,11 @@ class RouteInviteCodeUseCaseImplTest {
                 .isEqualTo(unifor);
     }
 
-    /// Nulo é o código aberto, e é o padrão: a rota pode atender mais de uma
-    /// instituição.
     @Test
     void semInstituicaoOCodigoNasceAberto() {
         assertThat(useCase.generate(ROTA, null, null, ADMIN).getInstitutionId()).isNull();
     }
 
-    /// Instituição inexistente travaria o código sem ninguém notar: quem
-    /// recebesse tomaria "você não estuda nessa instituição" sem ter saída.
     @Test
     void instituicaoInexistenteNaoGeraCodigo() {
         UUID fantasma = UUID.randomUUID();
@@ -209,15 +196,11 @@ class RouteInviteCodeUseCaseImplTest {
         verify(codeRepository, never()).save(any());
     }
 
-    // ─── Arquivar ────────────────────────────────────────────────────────────
-
     private RouteInviteCode paraArquivar(UUID id, LocalDateTime arquivadoEm) {
         return RouteInviteCode.builder().id(id).routeId(ROTA).code("AAA111")
                 .expiresAt(AGORA.plusDays(7)).archivedAt(arquivadoEm).build();
     }
 
-    /// Arquivar tira da tela sem apagar: quem entrou pelo código mantém a
-    /// origem no relatório.
     @Test
     void arquivarMarcaAData() {
         UUID id = UUID.randomUUID();
@@ -229,8 +212,6 @@ class RouteInviteCodeUseCaseImplTest {
         verify(codeRepository).save(code);
     }
 
-    /// Arquivar de novo não é erro: o admin pode repetir o gesto e o resultado
-    /// que ele quer já está valendo.
     @Test
     void arquivarDuasVezesNaoContaDeNovo() {
         UUID id = UUID.randomUUID();
@@ -252,7 +233,6 @@ class RouteInviteCodeUseCaseImplTest {
         assertThat(useCase.archive(List.of(a, b))).isEqualTo(2);
     }
 
-    /// A listagem do admin omite arquivado — é o ponto de arquivar.
     @Test
     void listagemNaoTrazArquivado() {
         useCase.listByRoute(ROTA);

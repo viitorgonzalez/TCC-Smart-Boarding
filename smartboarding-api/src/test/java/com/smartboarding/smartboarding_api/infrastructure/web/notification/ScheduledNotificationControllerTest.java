@@ -40,7 +40,6 @@ class ScheduledNotificationControllerTest extends WebMvcTestSupport {
 
     @BeforeEach
     void setUp() {
-        // A checagem de alcance le a rota do aviso guardado.
         when(useCase.findById(any())).thenReturn(
                 ScheduledNotification.builder().routeId(ROUTE_ID).build());
     }
@@ -85,8 +84,6 @@ class ScheduledNotificationControllerTest extends WebMvcTestSupport {
                 .andExpect(status().isBadRequest());
     }
 
-    /// Aviso nasce ativo: configurar e ter que ligar em seguida seria um passo a
-    /// mais sem ganho nenhum.
     @Test
     void avisoNasceAtivo() throws Exception {
         when(useCase.save(any())).thenAnswer(inv -> inv.getArgument(0));
@@ -118,8 +115,6 @@ class ScheduledNotificationControllerTest extends WebMvcTestSupport {
         verify(useCase, never()).save(any());
     }
 
-    /// dayOfWeek é 1..7; fora disso o WEEKLY nunca casaria com dia nenhum e o
-    /// aviso ficaria mudo pra sempre.
     @Test
     void diaDaSemanaForaDoIntervaloERecusado() throws Exception {
         mvc.perform(post("/api/notifications/scheduled").with(admin())

@@ -6,8 +6,6 @@ import lombok.*;
 import java.time.LocalDateTime;
 import java.util.UUID;
 
-/// Vínculo aluno↔rota. Substitui a derivação por instituição: o aluno pode estar
-/// em mais de uma rota, e entrar em cada uma exige o código daquela rota.
 @Entity
 @Table(name = "route_members")
 @Getter
@@ -27,9 +25,6 @@ public class RouteMember {
     @Column(name = "route_id", nullable = false)
     private UUID routeId;
 
-    /// Nulo = vínculo que não veio de código: a migração dos alunos antigos, ou
-    /// o admin adicionando à mão. É o que permite contar quantos entraram por
-    /// cada código.
     @Column(name = "invite_code_id")
     private UUID inviteCodeId;
 

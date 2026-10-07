@@ -78,8 +78,6 @@ class AuthControllerTest extends WebMvcTestSupport {
         verify(loginUseCase, never()).execute(anyString(), anyString());
     }
 
-    /// RN22: a resposta é idêntica exista ou não a conta. Se o corpo variasse,
-    /// o endpoint viraria um confirmador de e-mails cadastrados.
     @Test
     void forgotPasswordRespondeIgualParaContaExistenteEInexistente() throws Exception {
         var comConta = mvc.perform(post("/api/auth/forgot-password")
@@ -98,7 +96,6 @@ class AuthControllerTest extends WebMvcTestSupport {
                                 {"email":"ninguem@edu.unifor.br"}"""))
                 .andReturn().getResponse().getContentAsString();
 
-        // O use case decide se manda e-mail; o controller nunca diferencia os dois.
         org.assertj.core.api.Assertions.assertThat(comConta).contains("success");
         org.assertj.core.api.Assertions.assertThat(semConta).doesNotContain("não encontrado");
     }
@@ -128,9 +125,6 @@ class AuthControllerTest extends WebMvcTestSupport {
                 .andExpect(jsonPath("$.code").value("CODE_EXPIRED"));
     }
 
-    /// Criar conta pra outra pessoa acabou: o admin que criava digitava a senha
-    /// inicial de alguem e continuava sabendo entrar. Acesso admin agora e
-    /// concessao sobre conta que a propria pessoa criou.
     @Test
     void oEndpointDeCriarAdminNaoExisteMais() throws Exception {
         mvc.perform(post("/api/auth/register").with(admin())
@@ -140,8 +134,6 @@ class AuthControllerTest extends WebMvcTestSupport {
                 .andExpect(status().isNotFound());
     }
 
-    /// Cadastro proprio e publico: quem chega aqui ainda nao tem conta, entao
-    /// exigir token tornaria o endpoint inalcancavel.
     @Test
     void cadastroProprioEPublicoEDevolveSessaoPronta() throws Exception {
         var criado = com.smartboarding.smartboarding_api.domain.user.entity.User.builder()
@@ -159,13 +151,10 @@ class AuthControllerTest extends WebMvcTestSupport {
                                 {"fullName":"Fernanda Lima","email":"fernanda@edu.unifor.br",\
                                 "password":"sb@2026"}"""))
                 .andExpect(status().isCreated())
-                // Sessao ja vem pronta: obrigar a digitar de novo o que acabou de
-                // ser digitado e atrito sem ganho.
                 .andExpect(jsonPath("$.data.token").value("jwt-novo"))
                 .andExpect(jsonPath("$.data.role").value("STUDENT"));
     }
 
-    /// RN10: senha com menos de 6 caracteres nao pode nem virar hash.
     @Test
     void cadastroComSenhaCurtaERecusado() throws Exception {
         mvc.perform(post("/api/auth/signup")
@@ -195,8 +184,6 @@ class AuthControllerTest extends WebMvcTestSupport {
         verify(signupUseCase, never()).signup(any(), anyString());
     }
 
-    /// O papel nao viaja no request. Mandar "role":"ADMIN" e ignorado -- o DTO
-    /// nem tem o campo, e o use case crava STUDENT.
     @Test
     void cadastroIgnoraTentativaDePedirPapelDeAdmin() throws Exception {
         var criado = com.smartboarding.smartboarding_api.domain.user.entity.User.builder()
@@ -231,10 +218,6 @@ class AuthControllerTest extends WebMvcTestSupport {
                 .andExpect(jsonPath("$.code").value("EMAIL_ALREADY_EXISTS"));
     }
 
-    // ─── Entrar com Google ────────────────────────────────────────────────────
-
-    /// Publico: e um caminho de entrada, como o login. Exigir token aqui
-    /// tornaria o endpoint inalcancavel pra quem nao tem conta.
     @Test
     void entrarComGoogleEPublicoEDevolveSessao() throws Exception {
         var user = com.smartboarding.smartboarding_api.domain.user.entity.User.builder()
@@ -251,8 +234,6 @@ class AuthControllerTest extends WebMvcTestSupport {
                         .content("""
                                 {"idToken":"id-token-do-google"}"""))
                 .andExpect(status().isOk())
-                // Mesmo formato de sessao do login por senha: o caminho de
-                // entrada nao muda o que a sessao e.
                 .andExpect(jsonPath("$.data.token").value("jwt-google"))
                 .andExpect(jsonPath("$.data.role").value("STUDENT"));
     }
@@ -280,9 +261,6 @@ class AuthControllerTest extends WebMvcTestSupport {
                 .andExpect(status().isUnauthorized());
     }
 
-    /// O app usa o e-mail da sessao pra saber de quem carregar a lista do dia.
-    /// Quem entra pelo Google nunca digita e-mail nenhum: se a resposta nao
-    /// trouxer, a home fica carregando pra sempre.
     @Test
     void sessaoDoGoogleTrazOEmail() throws Exception {
         when(issueTokenUseCase.issueFor(any())).thenReturn(

@@ -10,10 +10,7 @@ public interface PasswordResetRepositoryPort {
 
     PasswordResetRequest save(PasswordResetRequest request);
 
-    /// Pedido em aberto mais recente do usuário — é o único que pode ser usado.
     Optional<PasswordResetRequest> findLatestOpenByUserId(UUID userId);
 
-    /// Marca todos os pedidos em aberto como usados. Emitir código novo invalida
-    /// os anteriores, senão um código antigo vazado continuaria valendo.
     void invalidateAllForUser(UUID userId, LocalDateTime at);
 }

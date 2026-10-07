@@ -61,8 +61,6 @@ class UserUseCaseImplTest {
                 .hasMessageContaining(id.toString());
     }
 
-    /// A ficha do usuário precisa só do número pra saber se está olhando o
-    /// último admin; a listagem completa levaria o contato da base inteira.
     @Test
     void countAdminsDevolveAContagemDoRepositorio() {
         when(repository.countAdmins()).thenReturn(3L);

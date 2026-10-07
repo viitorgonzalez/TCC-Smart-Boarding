@@ -7,10 +7,6 @@ import java.util.UUID;
 
 import static org.assertj.core.api.Assertions.assertThat;
 
-/// O que a entrada na lista exige do perfil.
-///
-/// Mora no domínio e não no controller porque o use case precisa da mesma
-/// resposta -- duas versões da regra divergiriam na primeira mudança.
 class UserProfileCompletenessTest {
 
     private static Address enderecoCompleto() {
@@ -44,8 +40,6 @@ class UserProfileCompletenessTest {
                 .containsExactly("address");
     }
 
-    /// Endereço pela metade é tão inútil quanto vazio: o motorista continua sem
-    /// saber onde parar.
     @Test
     void enderecoSemNumeroAindaConta() {
         Address semNumero = enderecoCompleto();
@@ -67,8 +61,6 @@ class UserProfileCompletenessTest {
                 .containsExactly("fullName");
     }
 
-    /// A mensagem genérica obriga o aluno a adivinhar. Faltando três coisas,
-    /// ele precisa das três de uma vez, não de uma descoberta por tentativa.
     @Test
     void listaTodasAsPendenciasDeUmaVez() {
         User cru = User.builder().build();
@@ -77,8 +69,6 @@ class UserProfileCompletenessTest {
                 .containsExactly("fullName", "phone", "address", "institution");
     }
 
-    /// Descrevem a pessoa, não a operação do transporte. Exigi-los travaria
-    /// alguém fora do ônibus por um campo que ninguém usa no dia da viagem.
     @Test
     void nascimentoECursoNaoImpedem() {
         User semOpcionais = completo().birthDate(null).course(null).build();

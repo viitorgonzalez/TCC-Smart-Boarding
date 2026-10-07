@@ -54,7 +54,6 @@ class TripControllerTest extends WebMvcTestSupport {
 
     private DailyList lista;
 
-    /// Duas paradas principais: a rodoviária (início) e a instituição do aluno.
     private void rotaComInstituicao(Integer minutosRodoviaria, Integer minutosUnifor) {
         when(manageStopsUseCase.listByRoute(ROUTE_ID)).thenReturn(List.of(
                 Stop.builder().id(STOP_ID).routeId(ROUTE_ID).name("Rodoviária")
@@ -89,8 +88,6 @@ class TripControllerTest extends WebMvcTestSupport {
                         .sequence(2).isMainPoint(false).build()));
     }
 
-    /// /api/trip/** é hasRole("ADMIN"): quem conduz o ônibus é o admin, e um aluno
-    /// marcando checkpoint falsificaria a posição do trajeto.
     @Test
     void alunoNaoConduzOTrajeto() throws Exception {
         mvc.perform(post("/api/trip/{id}/start", LIST_ID).with(student()))
@@ -110,8 +107,6 @@ class TripControllerTest extends WebMvcTestSupport {
         mvc.perform(get("/api/trip/{id}", LIST_ID)).andExpect(status().isUnauthorized());
     }
 
-    /// Só ponto principal aparece no trajeto — parada intermediária polui a tela
-    /// de quem está dirigindo.
     @Test
     void statusListaSoOsPontosPrincipais() throws Exception {
         mvc.perform(get("/api/trip/{id}", LIST_ID).with(admin()))
@@ -197,8 +192,6 @@ class TripControllerTest extends WebMvcTestSupport {
                 .andExpect(jsonPath("$.code").value("TRIP_NOT_STARTED"));
     }
 
-    // ─── Ida e volta ──────────────────────────────────────────────────────────
-
     private static final UUID SEGUNDO = UUID.fromString("dddddddd-0000-0000-0000-000000000002");
 
     private void doisPontosPrincipais() {
@@ -220,9 +213,6 @@ class TripControllerTest extends WebMvcTestSupport {
                 .andExpect(jsonPath("$.data.stops[1].name").value("UNIFOR-MG"));
     }
 
-    /// Na volta o onibus refaz o mesmo caminho de tras pra frente -- a ordem tem
-    /// que inverter, senao a tela pede pra marcar a primeira parada da cidade
-    /// enquanto ele ainda esta no campus.
     @Test
     void naVoltaAsParadasSaemInvertidas() throws Exception {
         doisPontosPrincipais();
@@ -235,9 +225,6 @@ class TripControllerTest extends WebMvcTestSupport {
                 .andExpect(jsonPath("$.data.stops[1].name").value("Rodoviária"));
     }
 
-    /// A mesma parada tem checkpoint nas DUAS pernas. Sem filtrar por perna antes
-    /// de indexar, o toMap por stopId estoura com chave duplicada e o endpoint
-    /// inteiro morre em 500 assim que a volta comeca.
     @Test
     void aMesmaParadaNasDuasPernasNaoDerrubaOEndpoint() throws Exception {
         doisPontosPrincipais();
@@ -252,7 +239,6 @@ class TripControllerTest extends WebMvcTestSupport {
 
         mvc.perform(get("/api/trip/{id}", LIST_ID).with(admin()))
                 .andExpect(status().isOk())
-                // Mostra o horario da VOLTA, nao o da ida.
                 .andExpect(jsonPath("$.data.stops[1].reachedAt").value(
                         org.hamcrest.Matchers.containsString("18:30")));
     }
@@ -266,11 +252,6 @@ class TripControllerTest extends WebMvcTestSupport {
                 .andExpect(jsonPath("$.data.outboundFinishedAt").exists());
     }
 
-    // ─── O aluno acompanha o trajeto ─────────────────────────────────────────
-
-    /// Até esta mudança /api/trip/** inteiro era hasRole("ADMIN") e não checava
-    /// rota nenhuma. Abrir pro aluno sem guard deixaria qualquer um ler o
-    /// trajeto de qualquer rota.
     @Test
     void alunoDeOutraRotaNaoLeOTrajeto() throws Exception {
         when(routeMemberRepository.existsByUserIdAndRouteId(STUDENT_ID, ROUTE_ID))
@@ -287,8 +268,6 @@ class TripControllerTest extends WebMvcTestSupport {
                 .andExpect(jsonPath("$.data.routeName").value("Rota Universitária"));
     }
 
-    /// Conduzir continua sendo do admin -- é a RN23, e abrir a leitura não
-    /// pode ter aberto a escrita junto.
     @Test
     void alunoNaoIniciaNemMarcaTrajeto() throws Exception {
         mvc.perform(post("/api/trip/{listId}/start", LIST_ID).with(student()))
@@ -300,8 +279,6 @@ class TripControllerTest extends WebMvcTestSupport {
         verify(conductTripUseCase, never()).start(any());
     }
 
-    /// Cada aluno vê a parada dele. O nome vem junto: sem nomear o destino,
-    /// quem vê o número do colega conclui que o app está errado.
     @Test
     void alunoVeAParadaDaPropriaInstituicao() throws Exception {
         rotaComInstituicao(1, 13);
@@ -313,8 +290,6 @@ class TripControllerTest extends WebMvcTestSupport {
                 .andExpect(jsonPath("$.data.myStop.etaMinutes").value(13));
     }
 
-    /// O tempo sai da diferença entre os minutos já calculados: da última
-    /// parada alcançada até a dele. Nada de bater no OSRM por consulta.
     @Test
     void oTempoDesconta_oQueJaFoiPercorrido() throws Exception {
         rotaComInstituicao(3, 13);
@@ -326,8 +301,6 @@ class TripControllerTest extends WebMvcTestSupport {
                 .andExpect(jsonPath("$.data.myStop.etaMinutes").value(10));
     }
 
-    /// Instituição sem parada declarada: mostra a última e AVISA que é ela.
-    /// Omitir deixaria o aluno sem nenhuma noção de quando chega.
     @Test
     void semParadaDaInstituicaoCaiNaUltimaEAvisa() throws Exception {
         rotaComInstituicao(1, 13);
@@ -342,8 +315,6 @@ class TripControllerTest extends WebMvcTestSupport {
                 .andExpect(jsonPath("$.data.myStop.fallback").value(true));
     }
 
-    /// O ônibus já passou pela parada dele: mostrar tempo negativo seria pior
-    /// que não mostrar nada.
     @Test
     void depoisDeAlcancadaNaoHaTempoNegativo() throws Exception {
         rotaComInstituicao(1, 13);
@@ -356,8 +327,6 @@ class TripControllerTest extends WebMvcTestSupport {
                 .andExpect(jsonPath("$.data.myStop.etaMinutes").doesNotExist());
     }
 
-    /// O admin esqueceu de marcar a parada do aluno e marcou a seguinte. A
-    /// conta dá negativo -- e um "-4 min" na tela é pior que não mostrar nada.
     @Test
     void checkpointPuladoNaoProduzTempoNegativo() throws Exception {
         UUID stopFinal = UUID.fromString("dddddddd-0000-0000-0000-000000000003");
@@ -369,7 +338,6 @@ class TripControllerTest extends WebMvcTestSupport {
                         .avgMinutesFromStart(13).build(),
                 Stop.builder().id(stopFinal).routeId(ROUTE_ID).name("IFMG")
                         .sequence(3).isMainPoint(true).avgMinutesFromStart(20).build()));
-        // O ônibus está no IFMG (20 min) sem ter marcado a UNIFOR (13 min).
         when(checkpointRepository.findAllByDailyListId(LIST_ID)).thenReturn(List.of(
                 TripCheckpoint.builder().stopId(stopFinal).leg(TripLeg.OUTBOUND)
                         .reachedAt(LocalDateTime.now()).build()));
@@ -379,7 +347,6 @@ class TripControllerTest extends WebMvcTestSupport {
                 .andExpect(jsonPath("$.data.myStop.etaMinutes").doesNotExist());
     }
 
-    /// Nulo é "não sei" e a tela omite. Um zero ali viraria "o ônibus chegou".
     @Test
     void semTempoCalculadoOEtaFicaNulo() throws Exception {
         rotaComInstituicao(null, null);
@@ -389,8 +356,6 @@ class TripControllerTest extends WebMvcTestSupport {
                 .andExpect(jsonPath("$.data.myStop.etaMinutes").doesNotExist());
     }
 
-    /// Quem conduz o ônibus não viaja nele: calcular "a parada dele" seria
-    /// inventar um destino.
     @Test
     void oAdminNaoTemParadaPropria() throws Exception {
         rotaComInstituicao(1, 13);

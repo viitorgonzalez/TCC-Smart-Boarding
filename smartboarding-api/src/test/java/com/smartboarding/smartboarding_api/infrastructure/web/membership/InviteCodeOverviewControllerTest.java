@@ -35,8 +35,6 @@ import static org.springframework.test.web.servlet.request.MockMvcRequestBuilder
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.jsonPath;
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.status;
 
-/// A tela de códigos cruza rotas, então esta listagem é a única que precisa
-/// dizer de que rota cada código é.
 @WebMvcTest(InviteCodeOverviewController.class)
 @Import(InviteCodeOverviewControllerTest.FixedClock.class)
 class InviteCodeOverviewControllerTest extends WebMvcTestSupport {
@@ -91,7 +89,6 @@ class InviteCodeOverviewControllerTest extends WebMvcTestSupport {
                 .andExpect(jsonPath("$.data[0].institutionName").value("IFMG"));
     }
 
-    /// A listagem só percorre as rotas do admin — rota alheia nem é consultada.
     @Test
     void naoTrazCodigoDeRotaAlheia() throws Exception {
         when(useCase.listByRoute(MINHA_ROTA)).thenReturn(List.of(
@@ -115,8 +112,6 @@ class InviteCodeOverviewControllerTest extends WebMvcTestSupport {
                 .andExpect(jsonPath("$.data[0].code").value("AAA111"));
     }
 
-    /// Vencido no fim: o admin abre a tela pra decidir se precisa gerar outro, e
-    /// código morto no topo empurra o que interessa pra fora da primeira tela.
     @Test
     void utilizavelPrimeiroEOQueVenceAntesNaFrente() throws Exception {
         when(useCase.listByRoute(MINHA_ROTA)).thenReturn(List.of(
@@ -136,8 +131,6 @@ class InviteCodeOverviewControllerTest extends WebMvcTestSupport {
                 .andExpect(status().isForbidden());
     }
 
-    // ─── Arquivar em lote ────────────────────────────────────────────────────
-
     private RouteInviteCode daRota(UUID id, UUID rota, UUID instituicao) {
         return RouteInviteCode.builder().id(id).routeId(rota).code("AAA111")
                 .expiresAt(AGORA.plusDays(7)).institutionId(instituicao).build();
@@ -156,8 +149,6 @@ class InviteCodeOverviewControllerTest extends WebMvcTestSupport {
                 .andExpect(jsonPath("$.data.archived").value(1));
     }
 
-    /// Um id de rota alheia no meio do lote não pode entrar de carona: o lote
-    /// inteiro é recusado, e nada é arquivado.
     @Test
     void naoArquivaCodigoDeRotaAlheia() throws Exception {
         UUID id = UUID.randomUUID();
@@ -184,7 +175,6 @@ class InviteCodeOverviewControllerTest extends WebMvcTestSupport {
         verify(useCase, never()).archive(any());
     }
 
-    /// Código aberto não é de ninguém: quem administra a rota pode limpá-lo.
     @Test
     void arquivaCodigoAbertoDaPropriaRota() throws Exception {
         UUID id = UUID.randomUUID();
@@ -205,7 +195,6 @@ class InviteCodeOverviewControllerTest extends WebMvcTestSupport {
                 .andExpect(status().isForbidden());
     }
 
-    /// Lote vazio é pedido malformado, não sucesso silencioso.
     @Test
     void loteVazioERecusado() throws Exception {
         mvc.perform(delete("/api/invite-codes").with(admin())

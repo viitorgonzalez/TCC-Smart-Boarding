@@ -30,9 +30,6 @@ public class UpdateOwnProfileUseCaseImpl implements UpdateOwnProfileUseCase {
         userRepository.save(user);
     }
 
-    /// Branco vira nulo. Guardar "" obrigaria missingForList() a conhecer duas
-    /// formas de vazio, e uma delas escaparia -- deixando entrar na lista quem
-    /// tem telefone em branco.
     private static String limpo(String valor) {
         String t = valor.trim();
         return t.isEmpty() ? null : t;

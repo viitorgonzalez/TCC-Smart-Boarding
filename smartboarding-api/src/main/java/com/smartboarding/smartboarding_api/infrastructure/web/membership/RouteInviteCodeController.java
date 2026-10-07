@@ -25,8 +25,6 @@ import java.util.Set;
 import java.util.UUID;
 import java.util.stream.Collectors;
 
-/// Gestão do código de convite da rota. Tudo aqui é do admin — o aluno só usa o
-/// código, pelo MembershipController.
 @RestController
 @RequestMapping("/api/routes/{routeId}/invite-codes")
 public class RouteInviteCodeController {
@@ -59,14 +57,9 @@ public class RouteInviteCodeController {
         guard.ownsRoute(auth, routeId);
         Set<UUID> minhas = guard.institutions(auth);
         LocalDateTime now = LocalDateTime.now(clock);
-        // Nomes resolvidos de uma vez: buscar por codigo faria uma consulta por
-        // linha da lista pra escrever o mesmo punhado de nomes.
         Map<UUID, String> nomes = institutionRepository.findAll().stream()
                 .collect(Collectors.toMap(Institution::getId, Institution::getName));
         List<RouteInviteCodeResponse> codes = useCase.listByRoute(routeId).stream()
-                // Codigo de instituicao alheia nao aparece: ver o codigo ja e
-                // poder distribui-lo. Aberto (nulo) aparece pra todo admin da
-                // rota, porque nao e de ninguem.
                 .filter(c -> c.getInstitutionId() == null
                         || minhas.contains(c.getInstitutionId()))
                 .map(c -> RouteInviteCodeResponse.from(
@@ -89,9 +82,6 @@ public class RouteInviteCodeController {
                 request == null ? null : request.expiresAt(),
                 instituicao,
                 admin);
-        // Com o nome da rota: a tela de códigos agrupa por ela, e sem isso o
-        // código recém-criado caía num grupo "Rota" solto em vez de aparecer
-        // junto dos outros da mesma rota.
         return ResponseEntity.status(HttpStatus.CREATED).body(ApiResponse.data(
                 RouteInviteCodeResponse.from(
                         code, 0, LocalDateTime.now(clock),
@@ -104,8 +94,6 @@ public class RouteInviteCodeController {
                                                                        Authentication auth) {
         UUID admin = guard.id(auth);
         guard.ownsRoute(auth, routeId);
-        // A instituicao dona vem do codigo, nao do pedido: conferir o que o
-        // cliente mandou deixaria ele escolher a resposta da propria checagem.
         guard.ownsInstitution(auth, useCase.findById(codeId).getInstitutionId());
 
         var code = useCase.revoke(codeId);

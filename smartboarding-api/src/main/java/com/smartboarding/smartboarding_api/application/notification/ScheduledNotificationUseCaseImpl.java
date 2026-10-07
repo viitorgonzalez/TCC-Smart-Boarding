@@ -78,8 +78,6 @@ public class ScheduledNotificationUseCaseImpl implements ManageScheduledNotifica
             try {
                 publishNotificationUseCase.publish(scheduled.getTitle(), scheduled.getBody(),
                         scheduled.getRouteId(), scheduled.getDurationHours(), null);
-                // Marcado depois do envio: se a publicação falhar, o próximo
-                // tique tenta de novo em vez de pular o dia.
                 scheduled.setLastSentAt(now);
                 repository.save(scheduled);
             } catch (Exception e) {

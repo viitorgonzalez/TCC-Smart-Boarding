@@ -53,7 +53,6 @@ class WarningUseCaseImplTest {
 
         Route route = Route.builder().id(UUID.randomUUID()).name("Rota X")
                 .closeTime(LocalTime.of(16, 0)).build();
-        // Lista já fechada de propósito: é o caso que o caminho do admin existe pra atender.
         DailyList closed = DailyList.builder().id(LIST_ID).route(route)
                 .date(LocalDate.of(2026, 8, 28)).status(ListStatus.CLOSED).build();
         User student = User.builder().id(STUDENT_ID).fullName("Aluno Teste").build();
@@ -74,6 +73,28 @@ class WarningUseCaseImplTest {
 
         assertThat(saved.isActive()).isTrue();
         verify(warningRepository, never()).save(any());
+    }
+
+    @Test
+    void inclusaoPeloAdminMarcaAEntradaComoAdicionadaPeloAdmin() {
+        ListEntry saved = useCase.enroll(LIST_ID, STUDENT_ID, TripType.ROUND_TRIP,
+                false, null, ADMIN_ID);
+
+        assertThat(saved.isAddedByAdmin()).isTrue();
+    }
+
+    @Test
+    void reativarEntradaExistentePeloAdminTambemMarca() {
+        ListEntry existente = ListEntry.builder()
+                .user(User.builder().id(STUDENT_ID).build())
+                .isActive(false).addedByAdmin(false).build();
+        when(listEntryRepository.findByUserIdAndDailyListId(STUDENT_ID, LIST_ID))
+                .thenReturn(Optional.of(existente));
+
+        ListEntry saved = useCase.enroll(LIST_ID, STUDENT_ID, TripType.ROUND_TRIP,
+                false, null, ADMIN_ID);
+
+        assertThat(saved.isAddedByAdmin()).isTrue();
     }
 
     @Test
@@ -116,13 +137,6 @@ class WarningUseCaseImplTest {
         verify(warningRepository).save(any());
     }
 
-    /// Entrar na lista pelo app exige perfil completo. A inclusão pelo admin
-    /// NÃO: é decisão dele, com o aluno na frente, e quase sempre é exatamente
-    /// o aluno com cadastro pela metade que precisa dela. Travar aqui deixaria
-    /// alguém de fora do ônibus por um campo em branco.
-    ///
-    /// O teste existe pra um refactor futuro não rotear esta inclusão pelo
-    /// AddEntryUseCase sem perceber que herdaria a trava junto.
     @Test
     void inclusaoPeloAdminNaoExigePerfilCompleto() {
         UUID semPerfil = UUID.randomUUID();

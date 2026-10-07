@@ -148,17 +148,8 @@ public class ListController {
                 montar(list, userId, institutionNames())));
     }
 
-    /// O aluno lê a lista da rota em que ele está, e só dela.
-    ///
-    /// `findTodayLists` já filtrava por rota, mas buscar pelo id não filtrava
-    /// nada: qualquer aluno lia a lista de qualquer rota -- com nome da rota,
-    /// total de inscritos, divisão por instituição e as paradas. O trajeto da
-    /// MESMA lista já devolvia 403, então era guardar um e deixar aberto o que
-    /// carrega mais dado.
     private void assertPodeLer(UUID userId, DailyList list) {
         User quem = userRepository.findById(userId).orElse(null);
-        // Admin opera o transporte inteiro; sem usuário, quem barra é o filtro
-        // de autenticação, não este guard.
         if (quem == null || quem.getRole() == Role.ADMIN) return;
         if (!routeMemberRepository.existsByUserIdAndRouteId(userId, list.getRoute().getId())) {
             throw new ForbiddenException("NOT_IN_ROUTE",
@@ -178,8 +169,6 @@ public class ListController {
                 EntryResponse.from(saved, institutionNames().get(saved.getUser().getInstitutionId()), true)));
     }
 
-    /// Inclusão tardia: entra mesmo com a lista fechada, e o admin decide se
-    /// isso gera advertência pro aluno.
     @PostMapping("/{id}/entries/admin")
     public ResponseEntity<ApiResponse<EntryResponse>> addEntryAsAdmin(
             @PathVariable UUID id,
@@ -192,8 +181,6 @@ public class ListController {
                 EntryResponse.from(saved, institutionNames().get(saved.getUser().getInstitutionId()), true)));
     }
 
-    /// Remoção pelo admin: tirar quem ele mesmo incluiu não pode depender do
-    /// horário da lista.
     @DeleteMapping("/{id}/entries/{userId}")
     public ResponseEntity<ApiResponse<?>> removeEntryAsAdmin(@PathVariable UUID id,
                                                              @PathVariable UUID userId) {
@@ -222,7 +209,6 @@ public class ListController {
     }
 
 
-    /// Nome da instituição por id — um mapa só, pra não fazer um findById por inscrito.
     private Map<UUID, String> institutionNames() {
         return institutionRepository.findAll().stream()
                 .collect(Collectors.toMap(Institution::getId, Institution::getName));
@@ -239,12 +225,6 @@ public class ListController {
                 .toList();
     }
 
-    /// Monta a resposta de uma lista. Junto porque a proposta de veículo
-    /// depende do total de confirmados: separado, cada chamador contava de
-    /// novo e a alocação rodava duas vezes por lista.
-    /// [quem] resolvido uma vez pelo chamador: buscá-lo aqui dentro faria uma
-    /// consulta por lista, e o admin com vinte listas do dia pagaria vinte
-    /// buscas do mesmo usuário.
     private ListResponse montar(DailyList list, UUID userId, Map<UUID, String> names) {
         return montar(list, userId, names, userRepository.findById(userId).orElse(null));
     }
@@ -253,8 +233,6 @@ public class ListController {
                                 User quem) {
         long confirmados = listEntryRepository.countByDailyListIdAndIsActiveTrue(list.getId());
         ProposedInfo proposta = proposedOf(list, confirmados);
-        // Buscadas uma vez e usadas duas: no desenho do trajeto e no tempo até
-        // a instituição do aluno.
         var paradas = manageStopsUseCase.listByRoute(list.getRoute().getId());
         return ListResponse.from(
                 list,
@@ -268,11 +246,6 @@ public class ListController {
                 myTripTime(quem, paradas));
     }
 
-    /// Quanto a viagem leva até a instituição deste aluno.
-    ///
-    /// Nulo pro admin: ele conduz o ônibus, não desce em lugar nenhum. Nulo
-    /// também quando o tempo ainda não foi calculado -- e aí a tela omite, em
-    /// vez de mostrar um zero que o aluno leria como "chega na hora".
     private ListResponse.MyTripTime myTripTime(User quem, List<Stop> paradas) {
         if (quem == null || quem.getRole() != Role.STUDENT) return null;
 
@@ -283,13 +256,6 @@ public class ListController {
                 dele.stop().getAvgMinutesFromStart(), dele.fallback());
     }
 
-    /// Qual veículo leva essa gente (RN16).
-    ///
-    /// Fechada, vem do relatório gravado: ali a decisão está congelada e é o
-    /// registro do que foi combinado. Aberta, é calculada na hora com o total
-    /// atual — antes o aluno via a frota inteira da rota e tinha que adivinhar
-    /// qual era o dele. Muda conforme entra e sai gente, e é isso mesmo: é
-    /// previsão, não promessa.
     private ProposedInfo proposedOf(DailyList list, long confirmados) {
         if (list.getStatus() != com.smartboarding.smartboarding_api.domain.list.entity.ListStatus.CLOSED) {
             return alocacaoAoVivo(list, confirmados);
@@ -308,8 +274,6 @@ public class ListController {
                         return new ProposedInfo(List.of(), report.getCapacityShortfall());
                     }
                 })
-                // Fechada sem relatorio e um buraco que ja existiu: melhor
-                // calcular do que deixar a tela sem veiculo nenhum.
                 .orElseGet(() -> alocacaoAoVivo(list, confirmados));
     }
 

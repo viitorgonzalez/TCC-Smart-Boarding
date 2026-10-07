@@ -32,23 +32,16 @@ public class GoogleSignInUseCaseImpl implements GoogleSignInUseCase {
     public User signIn(String idToken) {
         GoogleTokenVerifierPort.GoogleAccount conta = verifier.verify(idToken);
 
-        // ESTA checagem e o que separa login social de sequestro de conta. Sem
-        // ela, alguem cria um Google com o e-mail de outra pessoa, entra aqui e
-        // o vinculo por e-mail abaixo entrega a conta dela de bandeja.
         if (!conta.emailVerified()) {
             throw new UnauthorizedException(
                     "Seu e-mail não está verificado no Google.");
         }
 
-        // Ja vinculado: caminho normal de quem so esta voltando.
         Optional<User> porGoogle = userRepository.findByGoogleId(conta.googleId());
         if (porGoogle.isPresent()) {
             return garantirAtiva(porGoogle.get());
         }
 
-        // Mesmo e-mail, conta criada por senha: vincula em vez de recusar ou
-        // duplicar. Duplicar deixaria o aluno com duas contas e a lista dele
-        // partida entre as duas.
         Optional<User> porEmail = userRepository.findByEmail(conta.email());
         if (porEmail.isPresent()) {
             User existente = porEmail.get();
@@ -62,13 +55,6 @@ public class GoogleSignInUseCaseImpl implements GoogleSignInUseCase {
                 .email(conta.email())
                 .fullName(conta.fullName())
                 .googleId(conta.googleId())
-                // Sem senha local: ele define uma depois, se quiser.
-                //
-                // O bootstrap da RN28 vale aqui tambem: "Entrar com Google" e um
-                // caminho tao provavel quanto o cadastro pro operador de um
-                // ambiente novo, e cravar STUDENT queimaria a janela em silencio
-                // -- o cadastro seguinte com o mesmo e-mail bateria em
-                // EMAIL_ALREADY_EXISTS e nao sobraria admin pra promove-lo.
                 .role(bootstrapAdminPolicy.roleForNewAccount(conta.email()))
                 .isActive(true)
                 .build());
@@ -81,8 +67,6 @@ public class GoogleSignInUseCaseImpl implements GoogleSignInUseCase {
         return email.charAt(0) + "***" + email.substring(email.indexOf('@'));
     }
 
-    // O Google so prova QUEM e a pessoa; se o admin desativou a conta, entrar
-    // por aqui seria porta dos fundos pro login por senha.
     private User garantirAtiva(User user) {
         if (!user.isActive()) {
             throw new UnauthorizedException("Conta desativada. Procure o administrador.");

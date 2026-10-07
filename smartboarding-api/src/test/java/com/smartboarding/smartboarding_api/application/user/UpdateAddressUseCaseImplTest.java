@@ -58,8 +58,6 @@ class UpdateAddressUseCaseImplTest {
         return captor.getValue().getAddress();
     }
 
-    /// O ponto da mudança: o aluno escreve o próprio endereço. Passar pela fila
-    /// de aprovação o deixaria bloqueado da lista até um admin agir.
     @Test
     void salvaDiretoSemPassarPorAprovacao() {
         useCase.update(ALUNO, endereco().build());
@@ -96,9 +94,6 @@ class UpdateAddressUseCaseImplTest {
         assertThat(salvo().getStreetNumber()).isEqualTo("328");
     }
 
-    /// Salvar pela metade é permitido de propósito: quem descobriu o CEP mas
-    /// ainda não sabe o número volta depois. Quem cobra o endereço completo é
-    /// a entrada na lista, num lugar só.
     @Test
     void aceitaEnderecoAindaIncompleto() {
         useCase.update(ALUNO, Address.builder().zipCode("35570-000").build());
@@ -107,8 +102,6 @@ class UpdateAddressUseCaseImplTest {
         assertThat(salvo().getZipCode()).isEqualTo("35570-000");
     }
 
-    /// Campo em branco vira nulo: guardar "" faria isComplete() ter que saber
-    /// de duas formas de vazio, e uma delas ia escapar.
     @Test
     void campoEmBrancoViraNulo() {
         useCase.update(ALUNO, endereco().complement("   ").build());

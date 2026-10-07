@@ -10,9 +10,6 @@ public interface TripCheckpointRepositoryPort {
 
     List<TripCheckpoint> findAllByDailyListId(UUID dailyListId);
 
-    /// A mesma parada e visitada nas duas pernas, entao a checagem de repeticao
-    /// precisa considerar qual perna -- senao o primeiro checkpoint da volta
-    /// seria tratado como repeticao da ida e ignorado em silencio.
     boolean existsByDailyListIdAndStopIdAndLeg(
             UUID dailyListId, UUID stopId,
             com.smartboarding.smartboarding_api.domain.trip.entity.TripLeg leg);

@@ -67,8 +67,6 @@ class RouteInviteCodeControllerTest extends WebMvcTestSupport {
         when(userRepository.findByEmail("naiara@admin.com")).thenReturn(Optional.of(
                 User.builder().id(ADMIN_ID).email("naiara@admin.com").build()));
         when(useCase.countUses(any())).thenReturn(0L);
-        // O guarda e mockado: sem isto ele devolveria null como admin logado e
-        // os stubs de generate nao casariam.
         when(guard.id(any())).thenReturn(ADMIN_ID);
         when(guard.institutions(any())).thenReturn(Set.of());
         when(useCase.findById(any())).thenReturn(codigo());
@@ -79,8 +77,6 @@ class RouteInviteCodeControllerTest extends WebMvcTestSupport {
                 .code("RU7K2M").expiresAt(AGORA.plusDays(90)).build();
     }
 
-    /// O código é o que dá acesso à rota. Aluno emitindo código pra própria rota
-    /// destruiria o controle do admin sobre quem entra.
     @Test
     void alunoNaoGeraNemRevogaCodigo() throws Exception {
         mvc.perform(post("/api/routes/{id}/invite-codes", ROTA).with(student())
@@ -126,8 +122,6 @@ class RouteInviteCodeControllerTest extends WebMvcTestSupport {
         verify(useCase).generate(ROTA, LocalDateTime.of(2026, 12, 31, 23, 59), null, ADMIN_ID);
     }
 
-    /// A contagem de usos é o que diz ao admin se o código circulou ou se
-    /// ninguém recebeu.
     @Test
     void listagemTrazQuantosEntraramPorCadaCodigo() throws Exception {
         var c = codigo();
@@ -163,8 +157,6 @@ class RouteInviteCodeControllerTest extends WebMvcTestSupport {
         verify(useCase).revoke(codeId);
     }
 
-    // ─── Alcance do admin ────────────────────────────────────────────────────
-
     private static final UUID UNIFOR = UUID.randomUUID();
     private static final UUID IFMG = UUID.randomUUID();
 
@@ -174,8 +166,6 @@ class RouteInviteCodeControllerTest extends WebMvcTestSupport {
                 .institutionId(instituicao).build();
     }
 
-    /// Ver o código já é poder distribuí-lo: se o da UNIFOR aparece pro admin do
-    /// IFMG, ele manda no grupo errado e a trava de entrada vira enfeite.
     @Test
     void codigoDeOutraInstituicaoNaoAparece() throws Exception {
         when(guard.institutions(any())).thenReturn(Set.of(IFMG));
@@ -188,7 +178,6 @@ class RouteInviteCodeControllerTest extends WebMvcTestSupport {
                 .andExpect(jsonPath("$.data[0].institutionId").value(IFMG.toString()));
     }
 
-    /// Código aberto não é de ninguém, então aparece pra qualquer admin da rota.
     @Test
     void codigoAbertoApareceParaTodoAdminDaRota() throws Exception {
         when(guard.institutions(any())).thenReturn(Set.of(IFMG));

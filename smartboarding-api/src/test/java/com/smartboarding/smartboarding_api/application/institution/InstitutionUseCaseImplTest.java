@@ -160,8 +160,6 @@ class InstitutionUseCaseImplTest {
         assertThat(result.getLongitude()).isEqualTo(-38.55);
     }
 
-    /// Campo nulo preserva o atual: PATCH parcial não pode zerar o que não veio
-    /// no corpo do request.
     @Test
     void editarComCamposNulosPreservaOAtual() {
         var useCase = new InstitutionUseCaseImpl(repository, routeRepository, userRepository);
@@ -184,7 +182,6 @@ class InstitutionUseCaseImplTest {
         assertThat(result.getName()).isEqualTo("Unifor");
     }
 
-    /// Endereço em branco é intenção de limpar — vira null, não string vazia.
     @Test
     void enderecoEmBrancoLimpaOCampo() {
         var useCase = new InstitutionUseCaseImpl(repository, routeRepository, userRepository);

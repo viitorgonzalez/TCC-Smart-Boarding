@@ -69,7 +69,6 @@ class UserInstitutionsUseCaseImplTest {
         assertThat(useCase.institutionsOf(ALUNO)).containsExactly(UNIFOR, IFMG);
     }
 
-    /// Declarar a mesma duas vezes duplicaria o aluno na contagem da lista.
     @Test
     void aMesmaInstituicaoNaoEDeclaradaDuasVezes() {
         when(repository.existsByUserIdAndInstitutionId(ALUNO, UNIFOR)).thenReturn(true);
@@ -88,8 +87,6 @@ class UserInstitutionsUseCaseImplTest {
                 .isInstanceOf(NotFoundException.class);
     }
 
-    /// users.institution_id segue sendo a PRINCIPAL, usada pela contagem da
-    /// lista. A primeira declarada assume.
     @Test
     void aPrimeiraDeclaradaViraAPrincipal() {
         declaradas(UNIFOR);
@@ -99,8 +96,6 @@ class UserInstitutionsUseCaseImplTest {
         assertThat(aluno.getInstitutionId()).isEqualTo(UNIFOR);
     }
 
-    /// Trocar a principal por outra que ele ja tinha bagunçaria a contagem sem
-    /// motivo -- so muda se a atual saiu da lista.
     @Test
     void declararOutraNaoTrocaAPrincipal() {
         aluno.setInstitutionId(UNIFOR);
@@ -121,9 +116,6 @@ class UserInstitutionsUseCaseImplTest {
         assertThat(aluno.getInstitutionId()).isEqualTo(IFMG);
     }
 
-    /// Sem instituicao nenhuma o aluno perde o acesso a rota (o gate do join
-    /// recusa), e o campo precisa refletir isso em vez de apontar pra um vinculo
-    /// que nao existe mais.
     @Test
     void removerTodasLimpaAPrincipal() {
         aluno.setInstitutionId(UNIFOR);

@@ -29,10 +29,6 @@ import java.util.Set;
 import java.util.UUID;
 import java.util.stream.Collectors;
 
-/// Os códigos de todas as rotas do admin, numa chamada só.
-///
-/// Existe porque a tela de códigos cruza rotas: montá-la pela rota exigiria uma
-/// requisição por rota, e o app ainda teria que juntar tudo pra ordenar.
 @RestController
 @RequestMapping("/api/invite-codes")
 public class InviteCodeOverviewController {
@@ -69,16 +65,12 @@ public class InviteCodeOverviewController {
 
         List<RouteInviteCodeResponse> codes = nomeDaRota.keySet().stream()
                 .flatMap(routeId -> useCase.listByRoute(routeId).stream())
-                // Mesma regra da tela da rota: código de instituição alheia não
-                // aparece, porque ver o código já é poder distribuí-lo.
                 .filter(c -> c.getInstitutionId() == null
                         || minhasInstituicoes.contains(c.getInstitutionId()))
                 .map(c -> RouteInviteCodeResponse.from(
                         c, useCase.countUses(c.getId()), now,
                         nomeDaInstituicao.get(c.getInstitutionId()),
                         nomeDaRota.get(c.getRouteId())))
-                // Utilizável primeiro, e dentro disso o que vence antes: é a
-                // ordem em que o admin decide se precisa gerar outro.
                 .sorted(Comparator.comparing(RouteInviteCodeResponse::usable).reversed()
                         .thenComparing(RouteInviteCodeResponse::expiresAt,
                                 Comparator.nullsLast(Comparator.naturalOrder())))
@@ -87,11 +79,6 @@ public class InviteCodeOverviewController {
         return ResponseEntity.ok(ApiResponse.data(codes));
     }
 
-    /// Tira os códigos da tela do admin. O registro fica: quem entrou por eles
-    /// mantém a origem no relatório.
-    ///
-    /// Cada código é conferido contra o alcance de quem pede — um id alheio no
-    /// meio da lista não pode entrar de carona no lote.
     @DeleteMapping
     public ResponseEntity<ApiResponse<Map<String, Integer>>> archive(
             @RequestBody @Valid ArchiveCodesRequest request, Authentication auth) {

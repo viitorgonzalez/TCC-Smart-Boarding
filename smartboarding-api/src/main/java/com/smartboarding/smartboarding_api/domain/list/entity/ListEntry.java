@@ -42,6 +42,10 @@ public class ListEntry {
     @Builder.Default
     private TripType tripType = TripType.ROUND_TRIP;
 
+    @Column(name = "added_by_admin", nullable = false)
+    @Builder.Default
+    private boolean addedByAdmin = false;
+
     @PrePersist
     void onCreate() {
         createdAt = LocalDateTime.now();

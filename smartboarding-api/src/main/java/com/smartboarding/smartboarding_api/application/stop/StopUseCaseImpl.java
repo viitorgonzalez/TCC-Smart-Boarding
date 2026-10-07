@@ -25,12 +25,6 @@ public class StopUseCaseImpl implements ManageStopsUseCase {
         this.routeTiming = routeTiming;
     }
 
-    /// O tempo por parada depende do trajeto inteiro: mexer numa parada muda o
-    /// número de todas as seguintes.
-    ///
-    /// Em try/catch porque o cálculo bate no OSRM, que não tem SLA. O admin
-    /// criou a parada; o serviço externo estar fora não pode desfazer isso --
-    /// o tempo fica nulo e a tela omite.
     private void recalcular(UUID routeId) {
         try {
             routeTiming.recalculate(routeId);
@@ -49,22 +43,17 @@ public class StopUseCaseImpl implements ManageStopsUseCase {
     @Override
     @Transactional
     public Stop add(Stop stop) {
-        // Sem esta linha a parada nasce comum e o trajeto recusa todo
-        // checkpoint nela -- que era o estado de toda rota criada depois da V20.
         stop.refreshMainPoint(stop.isMainPoint());
 
         List<Stop> existing = stopRepository.findAllByRouteIdOrderBySequenceAsc(stop.getRouteId());
 
         if (stop.getSequence() <= 0) {
-            // Sem posição indicada: entra no fim do trajeto.
             stop.setSequence(existing.stream().mapToInt(Stop::getSequence).max().orElse(0) + 1);
             Stop salva = stopRepository.save(stop);
             recalcular(stop.getRouteId());
             return salva;
         }
 
-        // Inserção no meio: as seguintes descem uma posição, senão duas paradas
-        // ficariam com a mesma sequência e a ordem do trajeto viraria empate.
         existing.stream()
                 .filter(s -> s.getSequence() >= stop.getSequence())
                 .sorted((a, b) -> Integer.compare(b.getSequence(), a.getSequence()))
@@ -92,9 +81,6 @@ public class StopUseCaseImpl implements ManageStopsUseCase {
                        UUID institutionId, boolean mainPoint) {
         Stop stop = aplicar(stopId, name, latitude, longitude);
         stop.setInstitutionId(institutionId);
-        // Desvincular tira o status: a parada deixou de servir alguém, e seguir
-        // aceitando checkpoint marcaria chegada num lugar que não é destino de
-        // ninguém.
         stop.refreshMainPoint(mainPoint);
         Stop salva = stopRepository.save(stop);
         recalcular(salva.getRouteId());
@@ -122,8 +108,6 @@ public class StopUseCaseImpl implements ManageStopsUseCase {
         UUID routeId = stop.getRouteId();
         stopRepository.deleteById(stopId);
 
-        // Renumera pra não deixar buraco (1,2,4...) — a sequência é a ordem de
-        // passagem, e furo nela confunde tanto a tela quanto o próximo insert.
         List<Stop> remaining = stopRepository.findAllByRouteIdOrderBySequenceAsc(routeId);
         for (int i = 0; i < remaining.size(); i++) {
             Stop current = remaining.get(i);

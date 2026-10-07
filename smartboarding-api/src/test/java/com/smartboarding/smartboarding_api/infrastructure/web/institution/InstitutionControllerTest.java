@@ -47,7 +47,6 @@ class InstitutionControllerTest extends WebMvcTestSupport {
                 .routeId(ROUTE_ID).build();
     }
 
-    /// GET é permitAll: o formulário de cadastro precisa da lista antes do login.
     @Test
     void listarInstituicoesEPublico() throws Exception {
         when(listInstitutionsUseCase.findAll()).thenReturn(List.of(unifor()));
@@ -99,8 +98,6 @@ class InstitutionControllerTest extends WebMvcTestSupport {
         verify(createInstitutionUseCase, never()).execute(any());
     }
 
-    /// RN15: a rota do aluno é derivada da instituição, por isso o vínculo tem
-    /// endpoint próprio.
     @Test
     void vincularRotaRepassaOIdDaRota() throws Exception {
         when(linkInstitutionRouteUseCase.linkToRoute(INSTITUTION_ID, ROUTE_ID)).thenReturn(unifor());
@@ -140,8 +137,6 @@ class InstitutionControllerTest extends WebMvcTestSupport {
         verify(manageInstitutionUseCase).update(INSTITUTION_ID, "UECE", null, -3.79, null);
     }
 
-    /// Aluno referencia a instituição e tira dela a própria rota — apagar com
-    /// aluno vinculado devolve 409, não um 500.
     @Test
     void apagarInstituicaoComAlunoDevolve409() throws Exception {
         org.mockito.Mockito.doThrow(new ConflictException("INSTITUTION_HAS_STUDENTS",

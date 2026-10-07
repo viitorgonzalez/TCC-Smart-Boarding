@@ -55,8 +55,6 @@ public class NotificationController {
         return ResponseEntity.ok(ApiResponse.data(items));
     }
 
-    /// Em lote: apagar vários avisos velhos um a um seria N requisições e N
-    /// recargas da tela.
     @DeleteMapping
     public ResponseEntity<ApiResponse<?>> delete(@RequestBody List<UUID> ids) {
         publishNotificationUseCase.deleteAll(ids);

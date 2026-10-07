@@ -46,8 +46,6 @@ class SetLocalPasswordUseCaseImplTest {
         when(passwordEncoder.encode(anyString())).thenReturn("$2a$10$hashNovo");
     }
 
-    /// O ponto do fluxo: quem entrou pelo Google passa a poder entrar tambem
-    /// por e-mail e senha.
     @Test
     void contaDoGoogleGanhaSenhaLocalEFicaComOsDoisCaminhos() {
         useCase.setPassword(USUARIO, "minhaSenha1");
@@ -64,9 +62,6 @@ class SetLocalPasswordUseCaseImplTest {
         assertThat(contaGoogle.getPassword()).doesNotContain("minhaSenha1");
     }
 
-    /// Definir, nao trocar. Permitir sobrescrever aqui daria troca de senha sem
-    /// provar posse da antiga: quem pegasse o celular desbloqueado tomaria a
-    /// conta. Trocar e pelo fluxo de recuperacao, que exige o e-mail.
     @Test
     void quemJaTemSenhaNaoSobrescrevePorAqui() {
         contaGoogle.setPassword("$2a$10$hashAntigo");

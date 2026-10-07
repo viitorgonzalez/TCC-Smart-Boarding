@@ -53,8 +53,6 @@ class ListUseCaseImplTest {
                 userRepository, sendToUserUseCase, routeMemberRepository, clockAt(now));
     }
 
-    /// Vincula o aluno a rota. Ate a V22 isso vinha da instituicao; agora e um
-    /// registro em route_members, criado quando ele usa o codigo da rota.
     private void membroDe(UUID userId, UUID... routeIds) {
         when(routeMemberRepository.findAllByUserId(userId)).thenReturn(
                 java.util.Arrays.stream(routeIds)
@@ -71,9 +69,6 @@ class ListUseCaseImplTest {
 
     private UUID stubList(DailyList list) {
         when(dailyListRepository.findById(list.getId())).thenReturn(Optional.of(list));
-        // Aluno da própria rota E com perfil completo: isola as regras de
-        // horário dos dois guards (rota e perfil). Sem o perfil aqui, todo
-        // teste de horário passaria a falhar por um motivo que não é o dele.
         var studentId = UUID.randomUUID();
         when(userRepository.findById(any()))
                 .thenReturn(Optional.of(alunoCompleto().id(studentId).build()));
@@ -93,7 +88,6 @@ class ListUseCaseImplTest {
                 .id(studentId)
                 .role(com.smartboarding.smartboarding_api.domain.user.entity.Role.STUDENT)
                 .build()));
-        // O aluno e membro de OUTRA rota, nao da rota desta lista.
         when(routeMemberRepository.findAllByUserId(any())).thenReturn(java.util.List.of(
                 RouteMember.builder().userId(studentId).routeId(UUID.randomUUID()).build()));
         var useCase = useCaseAt(LocalTime.of(10, 0));
@@ -202,12 +196,6 @@ class ListUseCaseImplTest {
         verify(listEntryRepository, never()).save(any());
     }
 
-    // ─── Perfil completo como pré-requisito ──────────────────────────────────
-
-    /// O perfil incompleto só barrava a ENTRADA NA ROTA. Entrar na lista do dia
-    /// não checava nada, então dava pra estar na chamada com endereço vazio e
-    /// telefone em branco -- o motorista com um nome e nenhuma forma de saber
-    /// onde a pessoa embarca nem como falar com ela.
     private DailyList listaComAluno(User aluno) {
         var list = listWithCloseTime(LocalTime.of(23, 0), TODAY);
         when(dailyListRepository.findById(list.getId())).thenReturn(Optional.of(list));
@@ -274,8 +262,6 @@ class ListUseCaseImplTest {
                 .isInstanceOf(BadRequestException.class);
     }
 
-    /// A mensagem precisa dizer QUAIS campos faltam. "Complete seu perfil"
-    /// obriga o aluno a descobrir por tentativa, um campo por viagem perdida.
     @Test
     void oErroDizQuaisCamposFaltam() {
         var aluno = alunoCompleto().phone(null)
@@ -290,8 +276,6 @@ class ListUseCaseImplTest {
                 .isEqualTo(java.util.List.of("phone", "address"));
     }
 
-    /// Descrevem a pessoa, não a operação. Travar por eles tiraria alguém do
-    /// ônibus por um campo que ninguém usa no dia da viagem.
     @Test
     void nascimentoECursoVaziosNaoImpedem() {
         var aluno = alunoCompleto().birthDate(null).course(null).build();
@@ -302,8 +286,6 @@ class ListUseCaseImplTest {
         assertThat(entry).isNotNull();
     }
 
-    /// O admin não entra em lista, e travá-lo aqui quebraria qualquer teste ou
-    /// rotina que inscreva pela conta dele.
     @Test
     void adminNaoPassaPelaTravaDePerfil() {
         var admin = User.builder().id(UUID.randomUUID())
@@ -316,9 +298,6 @@ class ListUseCaseImplTest {
         assertThat(entry).isNotNull();
     }
 
-    /// Quem já está na lista e só troca ida/volta não pode ser expulso por uma
-    /// regra nova: ele entrou quando era permitido, e a direção é editável
-    /// enquanto a lista está aberta.
     @Test
     void quemJaEstaNaListaAindaTrocaADirecao() {
         var aluno = alunoCompleto().phone(null).build();
@@ -332,5 +311,31 @@ class ListUseCaseImplTest {
                 .add(aluno.getId(), list.getId(), TripType.TO_CAMPUS);
 
         assertThat(entry.getTripType()).isEqualTo(TripType.TO_CAMPUS);
+    }
+
+    @Test
+    void reentrarPorContaPropriaLimpaAMarcaDeAdicionadoPeloAdmin() {
+        var aluno = alunoCompleto().build();
+        var list = listaComAluno(aluno);
+        var existente = ListEntry.builder().user(aluno).dailyList(list)
+                .isActive(false).tripType(TripType.ROUND_TRIP).addedByAdmin(true).build();
+        when(listEntryRepository.findByUserIdAndDailyListId(aluno.getId(), list.getId()))
+                .thenReturn(Optional.of(existente));
+
+        var entry = useCaseAt(LocalTime.of(8, 0))
+                .add(aluno.getId(), list.getId(), TripType.ROUND_TRIP);
+
+        assertThat(entry.isAddedByAdmin()).isFalse();
+    }
+
+    @Test
+    void entradaNovaPeloProprioAlunoNaoEMarcadaComoDoAdmin() {
+        var aluno = alunoCompleto().build();
+        var list = listaComAluno(aluno);
+
+        var entry = useCaseAt(LocalTime.of(8, 0))
+                .add(aluno.getId(), list.getId(), TripType.ROUND_TRIP);
+
+        assertThat(entry.isAddedByAdmin()).isFalse();
     }
 }

@@ -29,8 +29,6 @@ public class PasswordResetRepositoryAdapter implements PasswordResetRepositoryPo
     }
 
     @Override
-    // O reset() roda sem transacao de proposito, entao o update precisa abrir a
-    // dele: @Modifying sem transacao por perto nao executa.
     @Transactional
     public void invalidateAllForUser(UUID userId, LocalDateTime at) {
         jpaRepository.invalidateAllForUser(userId, at);

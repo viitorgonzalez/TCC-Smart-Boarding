@@ -50,12 +50,6 @@ public class JoinRouteUseCaseImpl implements JoinRouteUseCase {
         this.clock = clock;
     }
 
-    /// A rota decide quem entra: a lista de instituições atendidas deixa de ser
-    /// enfeite e passa a valer na porta.
-    ///
-    /// Antes só o código era conferido, então um código aberto deixava entrar
-    /// aluno de instituição que aquela rota nem atende -- a lista existia na
-    /// tela do admin e não significava nada na entrada.
     private void conferirInstituicao(UUID routeId, List<UserInstitution> minhas) {
         Route rota = routeRepository.findById(routeId)
                 .orElseThrow(() -> new NotFoundException("Rota não encontrada"));
@@ -72,9 +66,6 @@ public class JoinRouteUseCaseImpl implements JoinRouteUseCase {
                 .collect(Collectors.toSet());
 
         if (atendidas.isEmpty()) {
-            // Rota sem instituição nenhuma ainda não atende ninguém. Recusar
-            // aqui é mais honesto que deixar entrar e o aluno descobrir depois
-            // que não aparece em contagem alguma.
             throw new BadRequestException("ROUTE_WITHOUT_INSTITUTION",
                     "Essa rota ainda não atende nenhuma instituição. Fale com o administrador.");
         }
@@ -91,23 +82,17 @@ public class JoinRouteUseCaseImpl implements JoinRouteUseCase {
     @Override
     @Transactional
     public RouteMember join(UUID userId, String code) {
-        // Normaliza porque o código é digitado à mão: espaço colado e minúscula
-        // são erro de digitação, não código errado.
         String normalized = code == null ? "" : code.trim().toUpperCase();
         if (normalized.isEmpty()) {
             throw new BadRequestException("INVALID_CODE", "Informe o código da rota.");
         }
 
         var minhasInstituicoes = userInstitutionRepository.findAllByUserId(userId);
-
         RouteInviteCode invite = codeRepository.findByCode(normalized)
                 .orElseThrow(() -> new BadRequestException("INVALID_CODE",
                         "Código inválido."));
 
         LocalDateTime now = LocalDateTime.now(clock);
-        // Expirado e revogado viram mensagens diferentes de propósito: o aluno
-        // precisa saber se pede um código novo ou se errou a digitação. O código
-        // não é dado pessoal, então distinguir não entrega nada a ninguém.
         if (invite.isRevoked()) {
             throw new BadRequestException("CODE_REVOKED",
                     "Esse código foi cancelado. Peça um novo ao administrador.");
@@ -123,9 +108,6 @@ public class JoinRouteUseCaseImpl implements JoinRouteUseCase {
 
         conferirInstituicao(invite.getRouteId(), minhasInstituicoes);
 
-        // Código preso a uma instituição só serve a quem a declarou. Nulo é o
-        // código aberto: vale pra qualquer um dos que a rota atende, e é o que
-        // os códigos antigos continuam sendo.
         UUID exigida = invite.getInstitutionId();
         if (exigida != null
                 && minhasInstituicoes.stream().noneMatch(i -> exigida.equals(i.getInstitutionId()))) {

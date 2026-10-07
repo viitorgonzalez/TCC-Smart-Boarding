@@ -13,10 +13,6 @@ import java.net.URI;
 @Configuration
 public class R2Config {
 
-    // O construtor do S3Client valida credencial não-branco na hora (AwsBasicCredentials.create),
-    // então sem R2 configurado (dev/CI antes da Fase 4 consumir StoragePort) o app não sobe sem
-    // um default não-branco — falha real só acontece na primeira chamada (putObject), não no
-    // boot. Default vem de application.properties (${R2_ACCESS_KEY_ID:unconfigured} etc.).
     @Bean
     public S3Client r2Client(
             @Value("${r2.account.id:}") String accountId,

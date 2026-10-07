@@ -46,8 +46,6 @@ class AddressTest {
         assertThat(completo().zipCode(null).build().isComplete()).isFalse();
     }
 
-    /// Campo em branco é o que um formulário manda quando o usuário toca e sai
-    /// sem digitar. Contar como preenchido deixaria passar endereço vazio.
     @Test
     void espacoEmBrancoNaoContaComoPreenchido() {
         assertThat(completo().streetNumber("   ").build().isComplete()).isFalse();
@@ -64,8 +62,6 @@ class AddressTest {
                 .isEqualTo("Av. Dr. Arnaldo de Senna, 328 — Água Vermelha");
     }
 
-    /// A carteirinha se mostra pra outra pessoa. CEP e cidade não ajudam numa
-    /// conferência presencial e não precisam circular numa tela dessas.
     @Test
     void formaCurtaNaoExpoeCepNemCidade() {
         assertThat(completo().build().shortForm())
@@ -91,8 +87,6 @@ class AddressTest {
         assertThat(completo().zipCode(null).build().fullForm()).isEmpty();
     }
 
-    /// Endereço incompleto não rende linha parcial: quem chama decide o que
-    /// mostrar no lugar, e meia linha numa carteirinha parece dado perdido.
     @Test
     void formaCurtaEVaziaQuandoOEnderecoEIncompleto() {
         assertThat(completo().street(null).build().shortForm()).isEmpty();

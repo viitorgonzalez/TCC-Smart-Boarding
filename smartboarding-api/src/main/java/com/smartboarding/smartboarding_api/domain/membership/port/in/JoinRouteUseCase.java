@@ -6,7 +6,6 @@ import java.util.List;
 import java.util.UUID;
 
 public interface JoinRouteUseCase {
-    /// Entra na rota do código. O código basta — não há aprovação depois.
     RouteMember join(UUID userId, String code);
 
     void leave(UUID userId, UUID routeId);

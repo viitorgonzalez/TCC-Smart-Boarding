@@ -30,9 +30,6 @@ class OsrmRoutePlannerAdapterTest {
         adapter = new OsrmRoutePlannerAdapter(builder.build());
     }
 
-    /// A armadilha: o OSRM espera **longitude,latitude**, invertido em relação
-    /// ao que quase toda API de mapa usa. Trocar a ordem calcula um trajeto em
-    /// outro continente e devolve um número — sem erro nenhum pra avisar.
     @Test
     void mandaLongitudeAntesDeLatitude() {
         server.expect(requestTo(
@@ -58,8 +55,6 @@ class OsrmRoutePlannerAdapterTest {
                 .contains(List.of(300.0, 420.0));
     }
 
-    /// Sem SLA: o erro vira "não sei", e quem chama deixa o tempo nulo. Deixar
-    /// a exceção subir impediria o admin de criar uma parada.
     @Test
     void erroDoServidorViraVazioEmVezDeExcecao() {
         server.expect(requestTo(org.hamcrest.Matchers.containsString("/route/")))
@@ -79,8 +74,6 @@ class OsrmRoutePlannerAdapterTest {
         assertThat(adapter.legDurationsSeconds(List.of(RODOVIARIA, UNIFOR))).isEmpty();
     }
 
-    /// Um ponto só não tem trecho pra medir. Sair pra rede aqui gastaria
-    /// requisição de um serviço com limite de uso pra receber erro.
     @Test
     void umPontoSoNemChegaAConsultar() {
         assertThat(adapter.legDurationsSeconds(List.of(RODOVIARIA)))

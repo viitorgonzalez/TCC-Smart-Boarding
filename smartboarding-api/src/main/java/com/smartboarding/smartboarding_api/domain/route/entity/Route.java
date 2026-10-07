@@ -29,27 +29,18 @@ public class Route {
     @Column(length = 255)
     private String description;
 
-    // Sem @Builder.Default o Lombok ignora o inicializador e toda rota criada via
-    // builder (POST /api/routes) nascia inativa — e rota inativa nunca ganha lista.
     @Column(name = "is_active", nullable = false)
     @Builder.Default
     private boolean isActive = true;
 
-    // Horário em que a lista do dia dessa rota passa a aceitar inscrição.
     @Column(name = "open_time", nullable = false)
     @Builder.Default
     private LocalTime openTime = DEFAULT_OPEN_TIME;
 
-    // Horário em que ela para de aceitar (RN18).
     @Column(name = "close_time", nullable = false)
     @Builder.Default
     private LocalTime closeTime = DEFAULT_CLOSE_TIME;
 
-    /// Aceita aluno que não declarou instituição no perfil.
-    ///
-    /// Falso por padrão: a instituição é o que diz onde a pessoa desce e em que
-    /// contagem ela entra, então deixar entrar sem ela é exceção que o admin
-    /// abre de propósito, não o estado natural da rota.
     @Column(name = "admits_no_institution", nullable = false)
     @Builder.Default
     private boolean admitsNoInstitution = false;

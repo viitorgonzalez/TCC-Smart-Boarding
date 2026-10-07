@@ -34,16 +34,12 @@ class StudentStopTest {
         assertThat(r.fallback()).isFalse();
     }
 
-    /// Dois alunos da mesma rota caem em paradas diferentes — é o ponto todo
-    /// do "tempo até a SUA instituição".
     @Test
     void alunosDeInstituicoesDiferentesCaemEmParadasDiferentes() {
         assertThat(StudentStop.resolve(rota(), UNIFOR).stop().getName()).isEqualTo("UNIFOR-MG");
         assertThat(StudentStop.resolve(rota(), IFMG).stop().getName()).isEqualTo("IFMG");
     }
 
-    /// Sem parada da instituição dele: a última, com aviso. Omitir deixaria o
-    /// aluno sem nenhuma noção de quando chega.
     @Test
     void semParadaDaInstituicaoCaiNaUltimaEAvisa() {
         var r = StudentStop.resolve(rota(), UUID.randomUUID());
@@ -57,7 +53,6 @@ class StudentStopTest {
         assertThat(StudentStop.resolve(rota(), null).fallback()).isTrue();
     }
 
-    /// Parada comum não é destino de ninguém: só ponto principal entra (RN23).
     @Test
     void paradaComumNuncaEEscolhida() {
         var so = List.of(parada("Av. Jair Leite", 1, false, UNIFOR));
@@ -70,8 +65,6 @@ class StudentStopTest {
         assertThat(StudentStop.resolve(List.of(), UNIFOR)).isNull();
     }
 
-    /// A ordem do trajeto é a sequence, não a de cadastro: o fallback precisa
-    /// ser a ÚLTIMA parada por onde o ônibus passa.
     @Test
     void oFallbackRespeitaAOrdemDoTrajetoNaoADeCadastro() {
         var foraDeOrdem = List.of(

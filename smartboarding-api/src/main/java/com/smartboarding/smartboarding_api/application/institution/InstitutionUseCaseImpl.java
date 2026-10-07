@@ -65,8 +65,6 @@ public class InstitutionUseCaseImpl implements CreateInstitutionUseCase, ListIns
     public void delete(UUID id) {
         institutionRepository.findById(id)
                 .orElseThrow(() -> new NotFoundException("Instituição não encontrada"));
-        // Aluno referencia a instituição e tira dela a própria rota (RN15).
-        // Apagar por baixo deixaria o aluno sem rota e sem lista, sem aviso.
         long students = userRepository.countByInstitutionId(id);
         if (students > 0) {
             throw new ConflictException("INSTITUTION_IN_USE",
@@ -81,8 +79,6 @@ public class InstitutionUseCaseImpl implements CreateInstitutionUseCase, ListIns
         Institution institution = institutionRepository.findById(institutionId)
                 .orElseThrow(() -> new NotFoundException("Instituição não encontrada"));
 
-        // RN15: trocar de rota exige desvincular antes, senão um vínculo errado
-        // silenciosamente move todos os alunos daquela instituição de transporte.
         UUID current = institution.getRouteId();
         if (routeId != null && current != null && !current.equals(routeId)) {
             boolean currentIsActive = routeRepository.findById(current)

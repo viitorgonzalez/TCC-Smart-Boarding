@@ -8,6 +8,5 @@ public record CreateInstitutionRequest(
         @Size(max = 255) String address,
         Double latitude,
         Double longitude,
-        /// Rota que passa a atender a instituição. Nulo = sem rota ainda.
         java.util.UUID routeId
 ) {}

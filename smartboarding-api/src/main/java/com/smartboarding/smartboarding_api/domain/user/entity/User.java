@@ -30,13 +30,9 @@ public class User implements UserDetails {
     @Column(nullable = false, unique = true, length = 100)
     private String email;
 
-    /// Nulo em conta criada pelo Google que ainda nao definiu senha local.
-    /// Guardar placeholder seria pior: viraria uma senha real e adivinhavel.
     @Column
     private String password;
 
-    /// Preenchido quando a conta esta vinculada a um login do Google. A conta
-    /// pode ter os dois caminhos ao mesmo tempo.
     @Column(name = "google_id", length = 64)
     private String googleId;
 
@@ -53,7 +49,6 @@ public class User implements UserDetails {
     @Column(length = 100)
     private String course;
 
-    // Referência, não texto: é dela que sai a rota do aluno (RN15).
     @Column(name = "institution_id")
     private UUID institutionId;
 
@@ -64,9 +59,6 @@ public class User implements UserDetails {
     @Builder.Default
     private Address address = new Address();
 
-    /// O endereço em texto livre que existia antes da V31. Fica só pra não
-    /// perder o que o aluno já tinha digitado — nada o lê pra operar, e some
-    /// quando todo mundo tiver preenchido o estruturado.
     @Column(name = "address_legacy", columnDefinition = "TEXT")
     private String addressLegacy;
 
@@ -79,9 +71,6 @@ public class User implements UserDetails {
     @Column(name = "updated_at")
     private LocalDateTime updatedAt;
 
-    // Default no builder porque o login agora recusa conta inativa: sem isto,
-    // quem esquecesse de setar criaria uma conta que nunca entra, e o erro
-    // apareceria como "conta desativada" num cadastro recem-feito.
     @Column(name = "is_active")
     @Builder.Default
     private boolean isActive = true;
@@ -132,8 +121,6 @@ public class User implements UserDetails {
         return googleId != null && !googleId.isBlank();
     }
 
-    /// Hibernate devolve o embutido nulo quando toda coluna está nula, então
-    /// quem pergunta pelo endereço nunca recebe null e não precisa checar.
     public Address getAddress() {
         if (address == null) address = new Address();
         return address;
@@ -143,23 +130,11 @@ public class User implements UserDetails {
         return getAddress().isComplete();
     }
 
-    /// O que falta pra entrar na lista do dia, pelos nomes dos campos.
-    ///
-    /// Devolve a lista toda de uma vez, não a primeira pendência: a mensagem
-    /// genérica obriga o aluno a descobrir por tentativa, um campo por viagem
-    /// perdida.
-    ///
-    /// [birthDate] e [course] ficam de fora — descrevem a pessoa, não a
-    /// operação do transporte, e travariam alguém fora do ônibus por um campo
-    /// que ninguém usa no dia da viagem.
     public List<String> missingForList() {
         List<String> faltando = new ArrayList<>();
         if (embranco(fullName)) faltando.add("fullName");
         if (embranco(phone)) faltando.add("phone");
         if (!hasCompleteAddress()) faltando.add("address");
-        // institutionId é derivado de user_institutions por um escritor só
-        // (syncPrimary), que o zera quando o último vínculo sai -- então nulo
-        // aqui significa mesmo "nenhuma instituição declarada".
         if (institutionId == null) faltando.add("institution");
         return faltando;
     }

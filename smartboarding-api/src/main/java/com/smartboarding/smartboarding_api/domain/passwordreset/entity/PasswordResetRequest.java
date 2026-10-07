@@ -6,8 +6,6 @@ import lombok.*;
 import java.time.LocalDateTime;
 import java.util.UUID;
 
-/// Pedido de redefinição de senha. Só o hash do código é guardado — o valor puro
-/// existe apenas no e-mail enviado.
 @Entity
 @Table(name = "password_reset_requests")
 @Getter

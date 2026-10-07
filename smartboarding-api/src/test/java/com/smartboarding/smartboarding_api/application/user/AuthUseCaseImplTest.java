@@ -38,8 +38,6 @@ class AuthUseCaseImplTest {
         return new AuthUseCaseImpl(userRepository, passwordEncoder, null);
     }
 
-    /// Só os testes de login precisam do encoder; o de registro passa null de
-    /// propósito, pra deixar claro que não emite token.
     private AuthUseCaseImpl useCaseComToken() {
         return new AuthUseCaseImpl(userRepository, passwordEncoder, jwtEncoder);
     }
@@ -75,8 +73,6 @@ class AuthUseCaseImplTest {
         assertThat(result.role()).isEqualTo("STUDENT");
     }
 
-    /// O scope sai sem o prefixo ROLE_ porque é o que o resource server compara
-    /// nas regras de autorização.
     @Test
     void tokenCarregaEmailNoSubjectEPapelNoScope() {
         var admin = contaAtiva("naiara@admin.com", Role.ADMIN);
@@ -96,8 +92,6 @@ class AuthUseCaseImplTest {
         assertThat(claims.getExpiresAt()).isAfter(claims.getIssuedAt());
     }
 
-    /// E-mail inexistente e senha errada devolvem a mesma mensagem: distinguir os
-    /// dois casos entregaria de graça quais e-mails existem na base.
     @Test
     void emailInexistenteESenhaErradaFalhamIgual() {
         var user = contaAtiva("fernanda@edu.unifor.br", Role.STUDENT);
@@ -132,8 +126,6 @@ class AuthUseCaseImplTest {
                 .isInstanceOf(UsernameNotFoundException.class);
     }
 
-    /// O switch do admin nao valia nada: sem esta checagem, desativar um aluno
-    /// nao o impedia de entrar de novo no minuto seguinte.
     @Test
     void contaDesativadaNaoEntra() {
         User desativada = User.builder().id(UUID.randomUUID())
@@ -147,9 +139,6 @@ class AuthUseCaseImplTest {
                 .hasMessageContaining("desativada");
     }
 
-    /// Mensagem diferente de credencial errada: quem foi desativado precisa
-    /// saber que o problema nao e a senha, senao fica tentando redefinir uma
-    /// senha que ja esta certa.
     @Test
     void contaDesativadaNaoSeConfundeComSenhaErrada() {
         User desativada = User.builder().id(UUID.randomUUID())

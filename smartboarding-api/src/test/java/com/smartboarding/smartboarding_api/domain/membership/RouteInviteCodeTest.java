@@ -36,8 +36,6 @@ class RouteInviteCodeTest {
         assertThat(c.isExpired(AGORA)).isTrue();
     }
 
-    /// O instante exato da expiração já conta como vencido: deixar passar daria
-    /// uma janela de ambiguidade bem no limite.
     @Test
     void oInstanteDaExpiracaoJaContaComoVencido() {
         var c = code(AGORA, null);
@@ -46,8 +44,6 @@ class RouteInviteCodeTest {
         assertThat(c.isUsable(AGORA)).isFalse();
     }
 
-    /// Revogar vale na hora, sem esperar o prazo — é o botão de pânico do admin
-    /// quando o código vaza.
     @Test
     void codigoRevogadoNaoServeMesmoDentroDoPrazo() {
         var c = code(AGORA.plusDays(30), AGORA.minusHours(1));
@@ -57,8 +53,6 @@ class RouteInviteCodeTest {
         assertThat(c.isExpired(AGORA)).isFalse();
     }
 
-    /// Revogado e expirado são estados distintos pro admin ver, mas valem o
-    /// mesmo na hora de usar.
     @Test
     void revogadoEExpiradoSaoDistintosMasAmbosBloqueiam() {
         var revogado = code(AGORA.plusDays(30), AGORA.minusHours(1));

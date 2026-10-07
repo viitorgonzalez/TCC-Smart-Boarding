@@ -18,8 +18,6 @@ import java.util.UUID;
 @Service
 public class RouteTimingUseCaseImpl implements RouteTimingUseCase {
 
-    /// Tempo de embarque em cada parada. É o que separa um número otimista de
-    /// um que o aluno pode usar pra decidir se dá tempo.
     private static final int BOARDING_MINUTES_PER_STOP = 1;
 
     private final StopRepositoryPort stopRepository;
@@ -36,8 +34,6 @@ public class RouteTimingUseCaseImpl implements RouteTimingUseCase {
     public void recalculateIfMissing(UUID routeId) {
         boolean jaTem = stopRepository.findAllByRouteIdOrderBySequenceAsc(routeId).stream()
                 .anyMatch(s -> s.getAvgMinutesFromStart() != null);
-        // Já calculado: repetir gastaria uma requisição num serviço com limite
-        // de uso pra chegar no mesmo número.
         if (jaTem) return;
         recalculate(routeId);
     }
@@ -47,8 +43,6 @@ public class RouteTimingUseCaseImpl implements RouteTimingUseCase {
     public void recalculate(UUID routeId) {
         List<Stop> todas = stopRepository.findAllByRouteIdOrderBySequenceAsc(routeId);
 
-        // Parada sem coordenada não vai pro planejador: mandá-la como (0,0)
-        // desenharia um trajeto passando pelo Golfo da Guiné.
         List<Stop> comCoordenada = todas.stream()
                 .filter(s -> s.getLatitude() != null && s.getLongitude() != null)
                 .toList();
@@ -64,8 +58,6 @@ public class RouteTimingUseCaseImpl implements RouteTimingUseCase {
 
         Optional<List<Double>> trechos = planner.legDurationsSeconds(pontos);
         if (trechos.isEmpty() || trechos.get().size() != comCoordenada.size() - 1) {
-            // Resposta ausente ou truncada. Completar com zero daria um tempo
-            // que parece certo e não é.
             limpar(todas);
             return;
         }
@@ -82,8 +74,6 @@ public class RouteTimingUseCaseImpl implements RouteTimingUseCase {
             alteradas.add(stop);
         }
 
-        // As sem coordenada continuam sem tempo: não dá pra medir o que não
-        // tem lugar no mapa.
         todas.stream().filter(s -> !comCoordenada.contains(s))
                 .forEach(s -> {
                     s.setAvgMinutesFromStart(null);

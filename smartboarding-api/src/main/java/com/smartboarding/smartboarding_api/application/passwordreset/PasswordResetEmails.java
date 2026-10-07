@@ -1,6 +1,5 @@
 package com.smartboarding.smartboarding_api.application.passwordreset;
 
-/// Texto do e-mail fora do use case: muda por motivo diferente do que muda a regra.
 final class PasswordResetEmails {
 
     static final String SUBJECT = "Redefinição de senha Smart Boarding";

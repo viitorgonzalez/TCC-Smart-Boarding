@@ -80,8 +80,6 @@ public class PasswordResetUseCaseImpl implements RequestPasswordResetUseCase, Re
                 PasswordResetEmails.code(code, codeTtlMinutes));
     }
 
-    // Silencioso: recusar em voz alta só quando existe pedido aberto entregaria
-    // ao chamador a informação de que aquele e-mail tem conta.
     private boolean isWithinCooldown(User user, LocalDateTime now) {
         return resetRepository.findLatestOpenByUserId(user.getId())
                 .map(PasswordResetRequest::getCreatedAt)
@@ -89,8 +87,6 @@ public class PasswordResetUseCaseImpl implements RequestPasswordResetUseCase, Re
                 .isPresent();
     }
 
-    // O envio roda dentro da transação: deixar a exceção subir desfaria o pedido
-    // inteiro e viraria 500. Quem não recebeu pede outro código.
     private void sendEmailBestEffort(String to, String subject, String htmlBody) {
         try {
             emailPort.send(to, subject, htmlBody);
@@ -103,10 +99,6 @@ public class PasswordResetUseCaseImpl implements RequestPasswordResetUseCase, Re
         return String.format("%06d", RANDOM.nextInt(1_000_000));
     }
 
-    // Sem @Transactional de propósito: o contador de tentativas é gravado e a
-    // exceção lançada em seguida. Numa transação única o rollback descartaria o
-    // incremento, o limite nunca seria atingido e a força bruta ficaria livre --
-    // foi exatamente o bug do fluxo de convite deste repo.
     @Override
     public void reset(String email, String code, String newPassword) {
         User user = userRepository.findByEmail(email).orElseThrow(this::invalidCode);
@@ -129,7 +121,6 @@ public class PasswordResetUseCaseImpl implements RequestPasswordResetUseCase, Re
         user.setPassword(passwordEncoder.encode(newPassword));
         userRepository.save(user);
 
-        // Uso único: código que segue valendo é replayável se vazar.
         request.setUsedAt(now);
         resetRepository.save(request);
         resetRepository.invalidateAllForUser(user.getId(), now);

@@ -55,9 +55,6 @@ public class ReportUseCaseImpl implements FindReportUseCase, GenerateReportUseCa
     @Override
     @Transactional
     public Report execute(DailyList dailyList) {
-        // Relatório é imutável e um por lista (RN8). Sem esta guarda, uma lista
-        // reaberta e fechada de novo geraria um segundo relatório e as leituras
-        // por lista passariam a encontrar mais de um resultado.
         var existing = reportRepository.findByDailyListId(dailyList.getId());
         if (existing.isPresent()) {
             log.info("Relatório da lista {} já existe, mantendo o original", dailyList.getId());
@@ -71,7 +68,8 @@ public class ReportUseCaseImpl implements FindReportUseCase, GenerateReportUseCa
                         "id", e.getUser().getId().toString(),
                         "fullName", e.getUser().getFullName(),
                         "email", e.getUser().getEmail(),
-                        "tripType", e.getTripType().name()
+                        "tripType", e.getTripType().name(),
+                        "addedByAdmin", String.valueOf(e.isAddedByAdmin())
                 ))
                 .toList();
 
@@ -83,8 +81,6 @@ public class ReportUseCaseImpl implements FindReportUseCase, GenerateReportUseCa
             snapshotJson = "[]";
         }
 
-        // RN16: o veículo proposto sai da quantidade real de inscritos no
-        // fechamento — é o que transforma a capacidade cadastrada em decisão.
         var allocation = VehicleAllocator.allocate(
                 vehicleRepository.findAllByRouteId(dailyList.getRoute().getId()), entries.size());
         String proposedJson;

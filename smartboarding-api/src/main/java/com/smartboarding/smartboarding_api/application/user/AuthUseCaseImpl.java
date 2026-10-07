@@ -45,9 +45,6 @@ public class AuthUseCaseImpl implements LoginUseCase, IssueTokenUseCase, UserDet
             throw new UnauthorizedException("Credenciais inválidas");
         }
 
-        // Mensagem diferente de credencial errada de propósito: quem foi
-        // desativado precisa saber que o problema não é a senha, senão fica
-        // tentando redefinir uma senha que já está certa.
         if (!user.isActive()) {
             throw new UnauthorizedException("Conta desativada. Procure o administrador.");
         }
@@ -63,9 +60,6 @@ public class AuthUseCaseImpl implements LoginUseCase, IssueTokenUseCase, UserDet
                 .orElseThrow(() -> new UsernameNotFoundException("Usuário não encontrado: " + email));
     }
 
-    /// Reaproveita a mesma emissao do login por senha: o caminho de entrada nao
-    /// muda o que a sessao e, e duplicar a geracao criaria dois formatos de
-    /// token pra manter em sincronia.
     @Override
     public AuthToken issueFor(User user) {
         return new AuthToken(generateToken(user), user.getFullName(), user.getRole().name(),

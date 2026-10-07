@@ -5,11 +5,6 @@ import java.time.LocalDateTime;
 import java.util.List;
 import java.util.UUID;
 
-/// Ficha completa do aluno pro admin. Carrega contato e nascimento porque o
-/// admin precisa falar com o aluno e conferir a matrícula.
-///
-/// A senha (hash incluso) nunca entra aqui: ela não tem uso de leitura nenhum,
-/// e o endpoint é hasRole("ADMIN") justamente porque o resto é dado pessoal.
 public record StudentProfileResponse(
         UUID id,
         String fullName,

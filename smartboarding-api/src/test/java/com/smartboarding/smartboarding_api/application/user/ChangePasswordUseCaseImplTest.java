@@ -77,8 +77,6 @@ class ChangePasswordUseCaseImplTest {
         verify(userRepository, never()).save(any());
     }
 
-    /// Conta de Google sem senha cai no POST (criar), não aqui: não há senha
-    /// antiga pra provar posse.
     @Test
     void recusaQuemAindaNaoTemSenha() {
         conta.setPassword(null);

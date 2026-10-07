@@ -39,9 +39,6 @@ class UpdateOwnProfileUseCaseImplTest {
         when(userRepository.save(any(User.class))).thenAnswer(i -> i.getArgument(0));
     }
 
-    /// Telefone é o contato dele. Errado só prejudica ele mesmo, então não há
-    /// o que um admin proteja ao revisar — só espera, e é espera que custa
-    /// viagem: sem telefone o aluno nem entra na lista.
     @Test
     void telefoneSalvaNaHora() {
         useCase.update(ALUNO, "37988887777", null);
@@ -56,8 +53,6 @@ class UpdateOwnProfileUseCaseImplTest {
         assertThat(conta.getCourse()).isEqualTo("Sistemas de Informação");
     }
 
-    /// Campo nulo = não foi pedida mudança nele. Aplicar tudo sobrescreveria
-    /// com nulo o que o aluno não quis mexer.
     @Test
     void campoNuloNaoApagaOQueJaExistia() {
         useCase.update(ALUNO, "37988887777", null);
@@ -65,8 +60,6 @@ class UpdateOwnProfileUseCaseImplTest {
         assertThat(conta.getCourse()).isEqualTo("Engenharia");
     }
 
-    /// Distinguir "não mandei" de "mandei vazio": o aluno que apaga o curso
-    /// está pedindo pra limpar, e string vazia é o jeito de dizer isso.
     @Test
     void stringVaziaLimpaOCampo() {
         useCase.update(ALUNO, null, "   ");
@@ -81,8 +74,6 @@ class UpdateOwnProfileUseCaseImplTest {
         assertThat(conta.getPhone()).isEqualTo("37988887777");
     }
 
-    /// O nome identifica na chamada do motorista: trocá-lo é virar outra pessoa
-    /// na lista. Ele continua passando pelo admin, e não tem entrada aqui.
     @Test
     void naoMexeNoNome() {
         useCase.update(ALUNO, "37988887777", "Direito");

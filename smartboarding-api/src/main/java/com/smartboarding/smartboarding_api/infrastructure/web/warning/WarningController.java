@@ -40,8 +40,6 @@ public class WarningController {
         return ResponseEntity.ok(ApiResponse.data(items));
     }
 
-    /// O aluno só enxerga as próprias — sem parâmetro, pra não virar caminho de
-    /// leitura das advertências alheias.
     @GetMapping("/me")
     public ResponseEntity<ApiResponse<List<WarningResponse>>> mine(Authentication auth) {
         User user = userRepository.findByEmail(auth.getName())

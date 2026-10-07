@@ -87,17 +87,12 @@ class UserStatusUseCaseImplTest {
 
     @Test
     void mudancaSemEfeitoNaoPoluiOLog() {
-        // Ja esta ativo: registrar "ativou" de novo encheria o historico de ruido
-        // e faria parecer que houve acao.
         useCase.setActive(STUDENT, true, ADMIN);
 
         verify(logRepository, never()).save(any());
         verify(userRepository, never()).save(any());
     }
 
-    /// Desativar existe pra conter aluno que abusa da lista. Valendo pra admin,
-    /// o primeiro clique errado tranca quem administra o sistema pra fora dele
-    /// -- e nao sobra ninguem pra desfazer.
     @Test
     void adminNaoPodeSerDesativado() {
         UUID outroAdmin = UUID.randomUUID();
@@ -127,7 +122,6 @@ class UserStatusUseCaseImplTest {
                 .hasMessageContaining("própria conta");
     }
 
-    /// Reativar continua livre: a trava e so pra nao trancar ninguem pra fora.
     @Test
     void reativarAdminContinuaPermitido() {
         UUID outroAdmin = UUID.randomUUID();
@@ -139,8 +133,6 @@ class UserStatusUseCaseImplTest {
         assertThat(useCase.setActive(outroAdmin, true, ADMIN).isActive()).isTrue();
     }
 
-    /// Promover e conceder acesso, nao criar conta: a conta ja existe e e da
-    /// pessoa. O log guarda quem concedeu.
     @Test
     void promoverGravaLogComOAdminQueConcedeu() {
         ArgumentCaptor<UserStatusLog> captor = ArgumentCaptor.forClass(UserStatusLog.class);
@@ -154,9 +146,6 @@ class UserStatusUseCaseImplTest {
         assertThat(captor.getValue().getUserId()).isEqualTo(STUDENT);
     }
 
-    /// PATCH role e declaracao de estado, nao acao: repetir tem que dar o mesmo
-    /// resultado. Duplo toque e retry de request que deu timeout nao podem virar
-    /// erro, e o log nao pode encher de linha duplicada.
     @Test
     void declararOMesmoPapelNaoGeraLogNemErro() {
         when(userRepository.findById(ADMIN)).thenReturn(Optional.of(
@@ -170,8 +159,6 @@ class UserStatusUseCaseImplTest {
         verify(userRepository, never()).save(any());
     }
 
-    /// Um clique errado tiraria o acesso de quem esta operando, e so outro admin
-    /// poderia devolver.
     @Test
     void ninguemRebaixaAPropriaConta() {
         when(userRepository.findById(ADMIN)).thenReturn(Optional.of(
@@ -183,8 +170,6 @@ class UserStatusUseCaseImplTest {
                 .hasMessageContaining("própria conta");
     }
 
-    /// Sem admin nenhum, ninguem promove ninguem de volta: a recuperacao seria
-    /// editar o banco a mao. Esta e a trava que impede o sistema de se trancar.
     @Test
     void oUltimoAdminNaoPodeSerRebaixado() {
         UUID outro = UUID.randomUUID();
@@ -210,8 +195,6 @@ class UserStatusUseCaseImplTest {
                 .isEqualTo(Role.STUDENT);
     }
 
-    /// Promover conta desativada produz um admin que nao consegue entrar: a tela
-    /// mostra acesso concedido e o login nega.
     @Test
     void contaDesativadaNaoPodeSerPromovida() {
         UUID inativo = UUID.randomUUID();
@@ -224,9 +207,6 @@ class UserStatusUseCaseImplTest {
                 .hasMessageContaining("desativada");
     }
 
-    /// A trava do ultimo admin so vale se a contagem e a decisao acontecerem sem
-    /// outra transacao no meio. Sem o lock, duas que rebaixam admins diferentes
-    /// leem 2, as duas passam, e o sistema fica sem administrador.
     @Test
     void rebaixarSerializaAntesDeContar() {
         UUID outro = UUID.randomUUID();
@@ -242,8 +222,6 @@ class UserStatusUseCaseImplTest {
         ordem.verify(userRepository).countAdmins();
     }
 
-    /// Promover nao mexe na contagem de admins pra baixo, entao nao precisa
-    /// segurar ninguem -- pagar o lock ali seria serializar promocao a toa.
     @Test
     void promoverNaoPegaOLock() {
         useCase.setRole(STUDENT, Role.ADMIN, ADMIN);

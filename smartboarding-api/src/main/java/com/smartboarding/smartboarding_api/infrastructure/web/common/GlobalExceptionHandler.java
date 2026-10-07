@@ -59,8 +59,6 @@ public class GlobalExceptionHandler {
         return ResponseEntity.status(400).body(Map.of("code", "VALIDATION_ERROR", "error", msg));
     }
 
-    // Sem isto o verbo errado cai no handler genérico e o cliente recebe 500,
-    // como se o servidor tivesse quebrado.
     @ExceptionHandler(HttpRequestMethodNotSupportedException.class)
     public ResponseEntity<Map<String, String>> handleMethodNotSupported(
             HttpRequestMethodNotSupportedException ex) {
@@ -69,9 +67,6 @@ public class GlobalExceptionHandler {
                 "error", "Método " + ex.getMethod() + " não é suportado nesse endpoint."));
     }
 
-    // Mesma razao do handler acima: pedido malformado do cliente caia onde cair
-    // no handler generico vira 500, e o app passa a exibir "erro no servidor"
-    // pra um request que o proprio cliente montou errado.
     @ExceptionHandler(MissingServletRequestParameterException.class)
     public ResponseEntity<Map<String, String>> handleMissingParam(
             MissingServletRequestParameterException ex) {
@@ -88,9 +83,6 @@ public class GlobalExceptionHandler {
                 "error", "Valor inválido para o parâmetro: " + ex.getName()));
     }
 
-    // Corpo malformado (JSON quebrado, valor fora do enum) estoura na
-    // desserialização, antes de @Valid rodar -- sem isto cai no handler
-    // genérico e um corpo que o próprio cliente montou errado vira 500.
     @ExceptionHandler(HttpMessageNotReadableException.class)
     public ResponseEntity<Map<String, String>> handleMalformedBody(HttpMessageNotReadableException ex) {
         return ResponseEntity.status(400).body(Map.of(
@@ -98,10 +90,6 @@ public class GlobalExceptionHandler {
                 "error", "Corpo da requisição inválido."));
     }
 
-    /// Toda escrita duplicada cai aqui. Os use cases checam antes de gravar pra
-    /// dar mensagem boa, mas entre a checagem e o insert cabe outra requisição --
-    /// duplo toque no botão basta. Quem realmente garante é a constraint UNIQUE;
-    /// sem este handler ela virava 500 num caso que é 409.
     @ExceptionHandler(DataIntegrityViolationException.class)
     public ResponseEntity<Map<String, String>> handleDuplicate(DataIntegrityViolationException ex) {
         log.warn("Violação de integridade: {}", ex.getMostSpecificCause().getMessage());
@@ -110,9 +98,6 @@ public class GlobalExceptionHandler {
                 "error", "Esse registro já existe."));
     }
 
-    // Spring resolve rota sem handler como tentativa de recurso estático antes
-    // de desistir -- sem este handler especifico, toda URL inexistente (endpoint
-    // removido incluido) cai no generico abaixo e vira 500 em vez do 404 que e.
     @ExceptionHandler(NoResourceFoundException.class)
     public ResponseEntity<Map<String, String>> handleNoResourceFound(NoResourceFoundException ex) {
         return ResponseEntity.status(404).body(Map.of(
@@ -126,9 +111,6 @@ public class GlobalExceptionHandler {
         return ResponseEntity.status(500).body(Map.of("code", "INTERNAL_SERVER_ERROR", "error", "Erro interno no servidor"));
     }
 
-    /// O details da exceção entra no mesmo nível de code e error. Aninhar num
-    /// objeto "details" obrigaria todo cliente a saber que existe um nível a
-    /// mais só pra ler um campo que quase sempre está ausente.
     private Map<String, Object> errorBody(AppException ex) {
         Map<String, Object> body = new LinkedHashMap<>();
         body.put("code", ex.getCode());

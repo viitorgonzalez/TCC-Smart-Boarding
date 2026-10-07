@@ -28,10 +28,6 @@ public class UpdateAddressUseCaseImpl implements UpdateAddressUseCase {
         User user = userRepository.findById(userId)
                 .orElseThrow(() -> new NotFoundException("Usuário não encontrado"));
 
-        // Guardar incompleto é de propósito: quem achou o CEP mas ainda não sabe
-        // o número volta depois. Quem cobra o endereço completo é a entrada na
-        // lista, num lugar só -- duplicar a regra aqui daria duas definições de
-        // "completo" pra divergirem.
         Address destino = user.getAddress();
         destino.setZipCode(normalizaCep(pedido.getZipCode()));
         destino.setStreet(limpo(pedido.getStreet()));
@@ -45,9 +41,6 @@ public class UpdateAddressUseCaseImpl implements UpdateAddressUseCase {
         return userRepository.save(user).getAddress();
     }
 
-    /// Guarda sempre no mesmo formato. O app pode mandar com ou sem hífen (o
-    /// teclado numérico não tem um), e duas grafias do mesmo CEP fariam a tela
-    /// mostrar diferente do que o aluno digitou da última vez.
     private static String normalizaCep(String valor) {
         String digitos = valor == null ? null : valor.replaceAll("\\D", "");
         if (digitos == null || digitos.isEmpty()) return null;
@@ -63,8 +56,6 @@ public class UpdateAddressUseCaseImpl implements UpdateAddressUseCase {
         return limpo == null ? null : limpo.toUpperCase();
     }
 
-    /// Branco vira nulo: guardar "" obrigaria isComplete() a conhecer duas
-    /// formas de vazio, e uma delas escaparia.
     private static String limpo(String valor) {
         if (valor == null) return null;
         String t = valor.trim();

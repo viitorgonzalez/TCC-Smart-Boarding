@@ -58,8 +58,6 @@ class RouteControllerTest extends WebMvcTestSupport {
                 .openTime(LocalTime.of(6, 0)).closeTime(LocalTime.of(17, 0)).isActive(true).build();
     }
 
-    /// Listar rotas já foi público. Deixou de ser: a lista é a porta pra lista
-    /// de presença, veículos e códigos de cada rota.
     @Test
     void listarRotasExigeSessao() throws Exception {
         mvc.perform(get("/api/routes")).andExpect(status().isUnauthorized());
@@ -100,8 +98,6 @@ class RouteControllerTest extends WebMvcTestSupport {
                 .andExpect(jsonPath("$.data.id").value(ROUTE_ID.toString()));
     }
 
-    /// O aluno não administra rota nenhuma, mas precisa da dele pro mapa e pro
-    /// horário — o vínculo de membro é o que abre a porta.
     @Test
     void alunoVeODetalheDaRotaEmQueEstaMatriculado() throws Exception {
         when(findRouteUseCase.findById(ROUTE_ID)).thenReturn(rota());
@@ -119,8 +115,6 @@ class RouteControllerTest extends WebMvcTestSupport {
                 .andExpect(status().isForbidden());
     }
 
-    /// Rota fora do alcance responde igual exista ou não: distinguir contaria a
-    /// quem não pode ver que aquela rota existe.
     @Test
     void rotaForaDoAlcanceNaoRevelaSeExiste() throws Exception {
         when(findRouteUseCase.findById(any())).thenThrow(new NotFoundException("Rota não encontrada"));
@@ -191,8 +185,6 @@ class RouteControllerTest extends WebMvcTestSupport {
         verify(updateRouteUseCase).execute(eq(ROUTE_ID), any(), eq(true), isNull());
     }
 
-    /// Mudar o horário dispara aviso aos alunos — o motivo vai no aviso, então
-    /// precisa chegar inteiro no use case.
     @Test
     void mudarHorarioRepassaOMotivo() throws Exception {
         when(updateRouteScheduleUseCase.execute(any(), any(), any(), any())).thenReturn(rota());

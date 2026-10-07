@@ -93,7 +93,6 @@ class NotificationControllerTest extends WebMvcTestSupport {
         verify(publishNotificationUseCase, never()).deleteAll(any());
     }
 
-    /// Ler o mural é de qualquer autenticado — é a caixa de avisos do aluno.
     @Test
     void alunoLeOProprioMural() throws Exception {
         mvc.perform(get("/api/notifications").with(student())).andExpect(status().isOk());
@@ -124,8 +123,6 @@ class NotificationControllerTest extends WebMvcTestSupport {
                 ROUTE_ID, 4, ADMIN_ID);
     }
 
-    /// Todo aviso pertence a uma rota: sem routeId o envio não sai, senão viraria
-    /// broadcast pra quem não pega aquele ônibus.
     @Test
     void avisoSemRotaERecusado() throws Exception {
         mvc.perform(post("/api/notifications/broadcast").with(admin())
@@ -159,8 +156,6 @@ class NotificationControllerTest extends WebMvcTestSupport {
                 .andExpect(jsonPath("$.data[0].expired").value(true));
     }
 
-    /// Em lote de propósito: apagar vários avisos um a um seria N requisições e N
-    /// recargas da tela.
     @Test
     void adminApagaVariosAvisosDeUmaVez() throws Exception {
         mvc.perform(delete("/api/notifications").with(admin())

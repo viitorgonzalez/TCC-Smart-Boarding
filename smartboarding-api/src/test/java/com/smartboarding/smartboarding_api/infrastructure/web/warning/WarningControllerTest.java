@@ -55,8 +55,6 @@ class WarningControllerTest extends WebMvcTestSupport {
                 .build();
     }
 
-    /// /api/warnings?userId=... é do admin. Se o aluno alcançasse esse endpoint,
-    /// passaria a ler advertência de qualquer colega trocando o parâmetro.
     @Test
     void alunoNaoListaAdvertenciaDeTerceiro() throws Exception {
         mvc.perform(get("/api/warnings").param("userId", ADMIN_ID.toString()).with(student()))
@@ -65,8 +63,6 @@ class WarningControllerTest extends WebMvcTestSupport {
         verify(manageWarningUseCase, never()).listPage(eq(ADMIN_ID), any());
     }
 
-    /// /me ignora qualquer parâmetro e usa o id do token — é o que torna o
-    /// endpoint seguro pro aluno.
     @Test
     void meUsaOUsuarioDoTokenEIgnoraParametro() throws Exception {
         when(manageWarningUseCase.list(STUDENT_ID)).thenReturn(List.of(advertencia()));
@@ -93,9 +89,6 @@ class WarningControllerTest extends WebMvcTestSupport {
         mvc.perform(get("/api/warnings/me").with(student())).andExpect(status().isUnauthorized());
     }
 
-    /// A listagem do admin vem paginada: a tela carrega conforme ele rola. O
-    /// /me do aluno não — é a lista curta dele, e paginar ali só adicionaria
-    /// um caminho a mais sem ganho.
     @Test
     void adminListaFiltrandoPorAluno() throws Exception {
         when(manageWarningUseCase.listPage(eq(STUDENT_ID), any()))

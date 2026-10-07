@@ -41,8 +41,6 @@ class JoinRouteUseCaseImplTest {
     private static final LocalDateTime AGORA = LocalDateTime.of(2026, 9, 11, 10, 0);
     private static final UUID ALUNO = UUID.randomUUID();
     private static final UUID ROTA = UUID.randomUUID();
-    /// Instituição que a rota atende — o padrão dos testes que não estão
-    /// exercitando o gate de instituição.
     private static final UUID ATENDIDA = UUID.randomUUID();
 
     @Mock RouteInviteCodeRepositoryPort codeRepository;
@@ -58,8 +56,6 @@ class JoinRouteUseCaseImplTest {
         useCase = new JoinRouteUseCaseImpl(codeRepository, memberRepository,
                 userInstitutionRepository, institutionRepository, routeRepository,
                 Clock.fixed(AGORA.toInstant(ZoneOffset.UTC), ZoneOffset.UTC));
-        // Por padrao o aluno ja tem instituicao E a rota a atende; os testes de
-        // gate sobrescrevem um ou outro.
         when(userInstitutionRepository.findAllByUserId(any())).thenReturn(List.of(
                 UserInstitution.builder().userId(ALUNO)
                         .institutionId(ATENDIDA).build()));
@@ -87,12 +83,9 @@ class JoinRouteUseCaseImplTest {
 
         assertThat(member.getUserId()).isEqualTo(ALUNO);
         assertThat(member.getRouteId()).isEqualTo(ROTA);
-        // Guardar a origem e o que permite contar quantos entraram por cada codigo.
         assertThat(member.getInviteCodeId()).isEqualTo(invite.getId());
     }
 
-    /// O código é digitado à mão: espaço colado e minúscula são erro de digitação,
-    /// não código errado.
     @Test
     void codigoEmMinusculaEComEspacoFunciona() {
         codigo("RU7K2M", AGORA.plusDays(30), null);
@@ -119,8 +112,6 @@ class JoinRouteUseCaseImplTest {
         verify(codeRepository, never()).findByCode(any());
     }
 
-    /// Expirado e revogado dão mensagens diferentes de propósito: o aluno precisa
-    /// saber se pede código novo ou se errou a digitação.
     @Test
     void codigoExpiradoDizQueExpirou() {
         codigo("RU7K2M", AGORA.minusDays(1), null);
@@ -141,8 +132,6 @@ class JoinRouteUseCaseImplTest {
                 .hasMessageContaining("cancelado");
     }
 
-    /// Revogado vence a checagem de prazo: dentro da validade, mas cancelado,
-    /// ainda assim não entra.
     @Test
     void revogadoBloqueiaMesmoDentroDoPrazo() {
         codigo("RU7K2M", AGORA.plusDays(30), AGORA.minusHours(2));
@@ -151,7 +140,6 @@ class JoinRouteUseCaseImplTest {
                 .hasMessageContaining("cancelado");
     }
 
-    /// Entrar duas vezes duplicaria o aluno em toda contagem da lista.
     @Test
     void alunoJaNaRotaNaoEntraDeNovo() {
         codigo("RU7K2M", AGORA.plusDays(30), null);
@@ -188,8 +176,6 @@ class JoinRouteUseCaseImplTest {
         assertThat(useCase.routesOf(ALUNO)).isEmpty();
     }
 
-    /// A instituicao diz onde o aluno desce e em que contagem ele entra. Sem
-    /// ela, entraria na lista alguem que o motorista nao sabe onde deixar.
     @Test
     void semInstituicaoNoPerfilNaoEntraEmRota() {
         codigo("RU7K2M", AGORA.plusDays(30), null);
@@ -202,9 +188,6 @@ class JoinRouteUseCaseImplTest {
         verify(memberRepository, never()).save(any());
     }
 
-    /// O gate do perfil rodava antes de consultar o código, pra poupar a
-    /// consulta. Deixou de poder: se perfil incompleto barra ou não agora
-    /// depende da rota, e a rota só é conhecida pelo código.
     @Test
     void semInstituicaoEmRotaQueExigeInstituicaoRecusa() {
         codigo("RU7K2M", AGORA.plusDays(30), null);
@@ -216,8 +199,6 @@ class JoinRouteUseCaseImplTest {
         verify(memberRepository, never()).save(any());
     }
 
-    /// Código que não existe é recusado antes de qualquer checagem de perfil —
-    /// sem rota não há o que conferir.
     @Test
     void codigoInexistenteRecusaAntesDeOlharOPerfil() {
         when(userInstitutionRepository.findAllByUserId(ALUNO)).thenReturn(List.of());
@@ -232,8 +213,6 @@ class JoinRouteUseCaseImplTest {
 
         assertThat(useCase.join(ALUNO, "RU7K2M").getRouteId()).isEqualTo(ROTA);
     }
-
-    // ─── Código preso a uma instituição ──────────────────────────────────────
 
     private static final UUID UNIFOR = UUID.randomUUID();
     private static final UUID IFMG = UUID.randomUUID();
@@ -253,8 +232,6 @@ class JoinRouteUseCaseImplTest {
                         .toList());
     }
 
-    /// A rota atende estas instituições. Sem declarar, a checagem de rota
-    /// recusa antes de chegar na do código.
     private void rotaAtende(UUID... institutionIds) {
         when(institutionRepository.findAll()).thenReturn(
                 java.util.Arrays.stream(institutionIds)
@@ -273,8 +250,6 @@ class JoinRouteUseCaseImplTest {
         assertThat(useCase.join(ALUNO, "UNI123").getRouteId()).isEqualTo(ROTA);
     }
 
-    /// Quem faz dois cursos declara duas instituições: basta o código casar com
-    /// uma delas.
     @Test
     void bastaTerAInstituicaoExigidaEntreAsSuas() {
         codigoDa(UNIFOR);
@@ -299,8 +274,6 @@ class JoinRouteUseCaseImplTest {
         verify(memberRepository, never()).save(any());
     }
 
-    /// Nulo é o código aberto: é o que os códigos gerados antes desta regra
-    /// continuam sendo, e eles não podem parar de funcionar.
     @Test
     void codigoSemInstituicaoValePraQualquerAluno() {
         codigoDa(null);
@@ -310,17 +283,12 @@ class JoinRouteUseCaseImplTest {
         assertThat(useCase.join(ALUNO, "UNI123").getRouteId()).isEqualTo(ROTA);
     }
 
-    // ─── A rota decide quais instituições entram ─────────────────────────────
-
     private void rotaAceitaSemInstituicao(boolean aceita) {
         when(routeRepository.findById(ROTA)).thenReturn(Optional.of(
                 Route.builder().id(ROTA).name("Rota Universitária")
                         .admitsNoInstitution(aceita).build()));
     }
 
-    /// A lista de instituições atendidas era enfeite: só o código era conferido,
-    /// então um código aberto deixava entrar aluno de instituição que aquela
-    /// rota nem atende.
     @Test
     void alunoDeInstituicaoQueARotaNaoAtendeNaoEntra() {
         codigoDa(null);
@@ -343,9 +311,6 @@ class JoinRouteUseCaseImplTest {
         assertThat(useCase.join(ALUNO, "UNI123").getRouteId()).isEqualTo(ROTA);
     }
 
-    /// Rota recém-criada ainda não atende ninguém. Recusar é mais honesto que
-    /// deixar entrar e o aluno descobrir depois que não aparece em contagem
-    /// alguma.
     @Test
     void rotaSemInstituicaoNenhumaRecusa() {
         codigoDa(null);
@@ -366,9 +331,6 @@ class JoinRouteUseCaseImplTest {
         assertThat(useCase.join(ALUNO, "UNI123").getRouteId()).isEqualTo(ROTA);
     }
 
-    /// A chave nasce desligada: deixar entrar sem instituição põe na lista
-    /// alguém que o motorista não sabe onde deixar, então é exceção que o
-    /// admin abre de propósito.
     @Test
     void porPadraoARotaNaoAceitaSemInstituicao() {
         codigoDa(null);
@@ -379,8 +341,6 @@ class JoinRouteUseCaseImplTest {
                 .hasMessageContaining("instituição no perfil");
     }
 
-    /// Aceitar sem instituição não afrouxa a regra pra quem TEM uma: continua
-    /// valendo que a rota precisa atender a dela.
     @Test
     void aceitarSemInstituicaoNaoLiberaInstituicaoAlheia() {
         codigoDa(null);
@@ -393,9 +353,6 @@ class JoinRouteUseCaseImplTest {
                 .hasMessageContaining("não atende a sua instituição");
     }
 
-    /// Aceitar sem instituição abre a porta do código ABERTO. Código preso a
-    /// uma instituição continua exigindo ela: quem não declarou nenhuma não é
-    /// aluno daquela instituição.
     @Test
     void aceitarSemInstituicaoNaoLiberaCodigoDeInstituicao() {
         codigoDa(UNIFOR);

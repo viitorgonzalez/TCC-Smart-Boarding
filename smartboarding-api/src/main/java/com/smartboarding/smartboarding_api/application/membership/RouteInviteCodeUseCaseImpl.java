@@ -23,12 +23,8 @@ import java.util.UUID;
 @Service
 public class RouteInviteCodeUseCaseImpl implements ManageRouteInviteCodeUseCase {
 
-    /// Sem O/0, I/1 e L: o código é lido em voz alta e copiado do quadro, e esses
-    /// pares são a fonte clássica de erro de digitação.
     private static final String ALPHABET = "ABCDEFGHJKMNPQRSTUVWXYZ23456789";
 
-    /// Colisão é improvável, mas o código é UNIQUE no banco: sem o retry, o azar
-    /// viraria erro 500 na cara do admin.
     private static final int MAX_GENERATION_ATTEMPTS = 10;
 
     private final RouteInviteCodeRepositoryPort codeRepository;
@@ -63,9 +59,6 @@ public class RouteInviteCodeUseCaseImpl implements ManageRouteInviteCodeUseCase 
         routeRepository.findById(routeId)
                 .orElseThrow(() -> new NotFoundException("Rota não encontrada com ID: " + routeId));
 
-        // Instituição inexistente travaria o código sem ninguém notar: quem
-        // recebesse o convite tomaria "você não estuda nessa instituição" sem
-        // ter como resolver.
         if (institutionId != null && institutionRepository.findById(institutionId).isEmpty()) {
             throw new NotFoundException("Instituição não encontrada com ID: " + institutionId);
         }
@@ -102,8 +95,6 @@ public class RouteInviteCodeUseCaseImpl implements ManageRouteInviteCodeUseCase 
     public RouteInviteCode revoke(UUID codeId) {
         RouteInviteCode code = codeRepository.findById(codeId)
                 .orElseThrow(() -> new NotFoundException("Código não encontrado"));
-        // Revogar de novo não é erro: o admin pode clicar duas vezes, e o
-        // resultado que ele quer já está valendo.
         if (code.getRevokedAt() == null) {
             code.setRevokedAt(LocalDateTime.now(clock));
             code = codeRepository.save(code);
@@ -115,8 +106,6 @@ public class RouteInviteCodeUseCaseImpl implements ManageRouteInviteCodeUseCase 
     @Override
     @Transactional(readOnly = true)
     public List<RouteInviteCode> listByRoute(UUID routeId) {
-        // Arquivado sai da tela: expirado e cancelado se acumulam e escondem o
-        // que ainda vale.
         return codeRepository.findAllByRouteIdAndArchivedAtIsNull(routeId);
     }
 

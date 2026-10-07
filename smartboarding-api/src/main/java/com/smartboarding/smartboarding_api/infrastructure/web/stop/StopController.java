@@ -59,9 +59,6 @@ public class StopController {
                                                             @RequestBody @Valid UpdateStopRequest request,
                                                             Authentication auth) {
         guard.ownsRoute(auth, routeId);
-        // Arrastar o pino no mapa manda só as coordenadas. Chamar a sobrecarga
-        // completa aí passaria institutionId nulo junto e desvincularia a
-        // instituição sem ninguém pedir.
         Stop salva = request.mexeNoVinculo()
                 ? manageStopsUseCase.update(stopId, request.name(), request.latitude(),
                         request.longitude(), request.institutionId(), request.isMainPoint())

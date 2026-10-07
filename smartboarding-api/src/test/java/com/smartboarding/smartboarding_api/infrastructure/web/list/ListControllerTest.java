@@ -77,8 +77,6 @@ class ListControllerTest extends WebMvcTestSupport {
 
     @BeforeEach
     void setUp() {
-        // O papel importa: quem conduz o ônibus não desce em lugar nenhum, e
-        // sem ele aqui o aluno não se distingue do admin.
         aluno = User.builder().id(STUDENT_ID).email("fernanda@edu.unifor.br")
                 .fullName("Fernanda Lima").institutionId(INSTITUTION_ID)
                 .role(com.smartboarding.smartboarding_api.domain.user.entity.Role.STUDENT)
@@ -95,10 +93,6 @@ class ListControllerTest extends WebMvcTestSupport {
         when(reportRepository.findByDailyListId(any())).thenReturn(Optional.empty());
         when(userRepository.findById(STUDENT_ID)).thenReturn(Optional.of(aluno));
         when(routeMemberRepository.existsByUserIdAndRouteId(STUDENT_ID, ROUTE_ID)).thenReturn(true);
-        // O admin tambem precisa existir aqui: sem isso o findById devolve
-        // vazio e o teste "o admin nao tem tempo de viagem" passaria por nao
-        // achar o usuario, nao por ele ser admin. Levou uma mutacao pra
-        // aparecer.
         when(userRepository.findById(ADMIN_ID)).thenReturn(Optional.of(
                 User.builder().id(ADMIN_ID).email("naiara@admin.com").fullName("Naiara")
                         .institutionId(INSTITUTION_ID)
@@ -106,8 +100,6 @@ class ListControllerTest extends WebMvcTestSupport {
                         .build()));
     }
 
-    /// A rota com as duas instituições, cada uma com seu tempo — é aqui que
-    /// dois alunos da mesma lista passam a ver números diferentes.
     private void rotaComDuasInstituicoes() {
         when(manageStopsUseCase.listByRoute(any())).thenReturn(List.of(
                 com.smartboarding.smartboarding_api.domain.stop.entity.Stop.builder()
@@ -138,8 +130,6 @@ class ListControllerTest extends WebMvcTestSupport {
         verify(findListUseCase, never()).findTodayLists(any());
     }
 
-    /// O id vem do token, não do request: aceitar userId do cliente deixaria um
-    /// aluno consultar e alterar a lista de outro.
     @Test
     void listaDeHojeUsaOUsuarioDoToken() throws Exception {
         when(findListUseCase.findTodayLists(STUDENT_ID)).thenReturn(List.of(lista()));
@@ -159,8 +149,6 @@ class ListControllerTest extends WebMvcTestSupport {
                 .andExpect(status().isUnauthorized());
     }
 
-    /// Consultar lista de qualquer data é do admin — o aluno tem /today e o
-    /// próprio histórico, não a agenda inteira da rota.
     @Test
     void byDateEDoAdminERepassaADataDoQueryParam() throws Exception {
         when(manageDailyListUseCase.findByDate(any())).thenReturn(List.of(lista()));
@@ -224,8 +212,6 @@ class ListControllerTest extends WebMvcTestSupport {
         verify(removeEntryUseCase).remove(STUDENT_ID, LIST_ID);
     }
 
-    /// Inclusão tardia é do admin: aluno chamando o endpoint de admin não pode
-    /// escolher em nome de terceiro nem escapar da advertência.
     @Test
     void alunoNaoPodeInscreverOutroPeloEndpointDeAdmin() throws Exception {
         mvc.perform(post("/api/lists/{id}/entries/admin", LIST_ID).with(student())
@@ -333,9 +319,6 @@ class ListControllerTest extends WebMvcTestSupport {
                 .andExpect(jsonPath("$.data[0].institutionName").value("Unifor"));
     }
 
-    /// A lista e compartilhada e o aluno ve quem embarca junto -- de proposito.
-    /// O e-mail, nao: o endpoint e authenticated(), entao manda-lo transformava a
-    /// lista num diretorio de contatos da turma, bastando chamar a API direto.
     @Test
     void alunoVeQuemEmbarcaMasNaoOEmailDeNinguem() throws Exception {
         when(findListUseCase.findEntriesByList(LIST_ID)).thenReturn(List.of(inscricao()));
@@ -356,8 +339,6 @@ class ListControllerTest extends WebMvcTestSupport {
                 .andExpect(jsonPath("$.data[0].email").value("fernanda@edu.unifor.br"));
     }
 
-    /// Nenhum e-mail de terceiro pode escapar no corpo inteiro, nao so no campo
-    /// que o teste acima olha.
     @Test
     void corpoDaListaNaoCarregaEmailNenhumParaAluno() throws Exception {
         when(findListUseCase.findEntriesByList(LIST_ID)).thenReturn(List.of(inscricao()));
@@ -376,8 +357,6 @@ class ListControllerTest extends WebMvcTestSupport {
                 .dailyList(lista()).tripType(TripType.ROUND_TRIP).isActive(true).build();
     }
 
-    /// A contagem por instituição é o que o admin usa pra saber quantos descem em
-    /// cada campus. Aluno sem instituição não pode sumir da conta.
     @Test
     void contagemAgrupaPorInstituicaoEAcusaOsSemVinculo() throws Exception {
         UUID outra = UUID.fromString("cccccccc-0000-0000-0000-000000000002");
@@ -393,7 +372,6 @@ class ListControllerTest extends WebMvcTestSupport {
 
         mvc.perform(get("/api/lists/{id}", LIST_ID).with(admin()))
                 .andExpect(status().isOk())
-                // TreeMap: ordem alfabetica estavel, nao a ordem de chegada.
                 .andExpect(jsonPath("$.data.entriesByInstitution[0].name").value("Sem instituição"))
                 .andExpect(jsonPath("$.data.entriesByInstitution[0].count").value(1))
                 .andExpect(jsonPath("$.data.entriesByInstitution[1].name").value("UECE"))
@@ -401,8 +379,6 @@ class ListControllerTest extends WebMvcTestSupport {
                 .andExpect(jsonPath("$.data.entriesByInstitution[2].count").value(2));
     }
 
-    /// RN16: a proposta de veículo sai do relatório do fechamento. Lista aberta
-    /// não propõe nada — o total de confirmados ainda muda.
     @Test
     void listaAbertaNaoTrazVeiculoProposto() throws Exception {
         when(findListUseCase.findById(LIST_ID)).thenReturn(lista());
@@ -436,8 +412,6 @@ class ListControllerTest extends WebMvcTestSupport {
                 .andExpect(jsonPath("$.data.capacityShortfall").value(3));
     }
 
-    /// JSON corrompido no relatório não pode derrubar a tela da lista: perde-se a
-    /// proposta, mas o déficit gravado continua valendo.
     @Test
     void relatorioComJsonQuebradoNaoDerrubaATela() throws Exception {
         var fechada = DailyList.builder().id(LIST_ID).date(LocalDate.of(2026, 9, 9))
@@ -483,18 +457,6 @@ class ListControllerTest extends WebMvcTestSupport {
                 .andExpect(jsonPath("$.code").value("LIST_ALREADY_EXISTS"));
     }
 
-    // ─── Desativar precisa fechar a lista, não só o painel do admin ──────────
-    //
-    // Entrar na lista cai em `anyRequest().authenticated()`, e autoridade vazia
-    // satisfaz isso. Enquanto conta desativada apenas perdia o papel, o aluno
-    // banido seguia entrando na lista do dia pela hora que faltava do token —
-    // exatamente o abuso que desativar existe pra conter. Estes testes mandam
-    // Bearer de verdade: é o único caminho que passa pelo converter (os
-    // post-processors põem authority direto no contexto e nunca o exercitam).
-
-    /// A inscrição fica stubada nos dois casos de propósito: com o aluno
-    /// desativado, o teste precisa reprovar em 201 — a prova de que ele entrava
-    /// na lista — e não num erro acidental de mock não configurado.
     private void alunoNoBanco(boolean ativo) {
         when(jwtDecoder.decode(BEARER_REAL))
                 .thenReturn(tokenComScope("fernanda@edu.unifor.br", "STUDENT"));
@@ -524,8 +486,6 @@ class ListControllerTest extends WebMvcTestSupport {
         verify(findListUseCase, never()).findTodayLists(any());
     }
 
-    /// O contraponto: sem ele, um converter que recusasse todo mundo deixaria os
-    /// dois testes acima verdes.
     @Test
     void alunoAtivoSegueEntrandoPeloTokenReal() throws Exception {
         alunoNoBanco(true);
@@ -535,8 +495,6 @@ class ListControllerTest extends WebMvcTestSupport {
 
         verify(addEntryUseCase).add(STUDENT_ID, LIST_ID, TripType.ROUND_TRIP);
     }
-
-    // ─── Veículo recomendado (RN16) ──────────────────────────────────────────
 
     private void frota(int... capacidades) {
         var veiculos = new java.util.ArrayList<Vehicle>();
@@ -548,8 +506,6 @@ class ListControllerTest extends WebMvcTestSupport {
         when(vehicleRepository.findAllByRouteId(ROUTE_ID)).thenReturn(veiculos);
     }
 
-    /// O aluno via a frota inteira e tinha que adivinhar em qual veículo ia.
-    /// Com a lista aberta a proposta é calculada na hora, pelo total atual.
     @Test
     void listaAbertaJaTrazOVeiculoRecomendado() throws Exception {
         frota(45, 15);
@@ -563,8 +519,6 @@ class ListControllerTest extends WebMvcTestSupport {
                 .andExpect(jsonPath("$.data[0].capacityShortfall").value(0));
     }
 
-    /// Dez cabem na van; quarenta não. O algoritmo escolhe o menor que cobre,
-    /// pra não mandar ônibus vazio levar dez.
     @Test
     void aRecomendacaoAcompanhaOTotalDeConfirmados() throws Exception {
         frota(45, 15);
@@ -586,8 +540,6 @@ class ListControllerTest extends WebMvcTestSupport {
                 .andExpect(jsonPath("$.data[0].capacityShortfall").value(5));
     }
 
-    /// Sem ninguém confirmado não há veículo a recomendar — e isso é diferente
-    /// de "a rota não tem frota".
     @Test
     void semConfirmadoNaoRecomendaVeiculo() throws Exception {
         frota(45, 15);
@@ -599,11 +551,6 @@ class ListControllerTest extends WebMvcTestSupport {
                 .andExpect(jsonPath("$.data[0].capacityShortfall").value(0));
     }
 
-    // ─── Tempo médio até a instituição do aluno ──────────────────────────────
-
-    /// O card mostrava o trajeto sem dizer quanto tempo leva. E o tempo é DELE:
-    /// a média do trajeto inteiro, pra quem desce no meio, é um número que não
-    /// é sobre a viagem dele.
     @Test
     void oCardTrazOTempoAteAInstituicaoDoAluno() throws Exception {
         rotaComDuasInstituicoes();
@@ -616,8 +563,6 @@ class ListControllerTest extends WebMvcTestSupport {
                 .andExpect(jsonPath("$.data[0].myTripTime.fallback").value(false));
     }
 
-    /// Nulo é "não sei" e a tela omite. Um zero ali o aluno leria como "chega
-    /// na hora" e perderia o ônibus.
     @Test
     void semTempoCalculadoOCampoVemNulo() throws Exception {
         when(manageStopsUseCase.listByRoute(any())).thenReturn(List.of(
@@ -631,7 +576,6 @@ class ListControllerTest extends WebMvcTestSupport {
                 .andExpect(jsonPath("$.data[0].myTripTime").doesNotExist());
     }
 
-    /// Quem conduz o ônibus não desce em lugar nenhum.
     @Test
     void oAdminNaoTemTempoDeViagem() throws Exception {
         rotaComDuasInstituicoes();
@@ -642,14 +586,6 @@ class ListControllerTest extends WebMvcTestSupport {
                 .andExpect(jsonPath("$.data[0].myTripTime").doesNotExist());
     }
 
-    // ─── IDOR em GET /lists/{id} ─────────────────────────────────────────────
-
-    /// A lista carrega nome da rota, total de inscritos, divisão por instituição
-    /// e as paradas. `findTodayLists` filtra por rota, mas buscar pelo id não
-    /// filtrava nada -- qualquer aluno lia a lista de qualquer rota.
-    ///
-    /// O trajeto da MESMA lista já devolvia 403. Guardar um e deixar o outro
-    /// aberto, sendo que este carrega mais dado, é a pior das duas opções.
     @Test
     void alunoNaoLeAListaDeUmaRotaQueNaoEDele() throws Exception {
         when(routeMemberRepository.existsByUserIdAndRouteId(STUDENT_ID, ROUTE_ID))
@@ -669,7 +605,6 @@ class ListControllerTest extends WebMvcTestSupport {
                 .andExpect(jsonPath("$.data.routeName").value("Rota Universitária"));
     }
 
-    /// O admin vê qualquer lista: é ele quem opera o transporte inteiro.
     @Test
     void oAdminLeQualquerLista() throws Exception {
         when(routeMemberRepository.existsByUserIdAndRouteId(ADMIN_ID, ROUTE_ID))
@@ -680,8 +615,6 @@ class ListControllerTest extends WebMvcTestSupport {
                 .andExpect(status().isOk());
     }
 
-    /// O usuário é resolvido UMA vez por requisição, não por lista: o admin com
-    /// várias listas do dia pagaria uma busca do mesmo usuário em cada uma.
     @Test
     void naoBuscaOUsuarioUmaVezPorLista() throws Exception {
         rotaComDuasInstituicoes();

@@ -6,11 +6,6 @@ public abstract class AppException extends RuntimeException {
 
     private final String code;
 
-    /// Dado extra que o cliente precisa pra agir, além do texto do erro.
-    ///
-    /// Existe porque "complete seu perfil" obriga o aluno a adivinhar qual
-    /// campo falta: o erro carrega a lista, e a tela mostra o que fazer. Vazio
-    /// na maioria dos erros, que se resolvem com a mensagem sozinha.
     private final Map<String, Object> details;
 
     protected AppException(String code, String message) {

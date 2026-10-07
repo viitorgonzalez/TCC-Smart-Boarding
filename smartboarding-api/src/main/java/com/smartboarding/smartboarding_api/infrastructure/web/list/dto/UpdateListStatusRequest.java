@@ -5,7 +5,6 @@ import jakarta.validation.constraints.NotNull;
 
 public record UpdateListStatusRequest(
         @NotNull ListStatus status,
-        /// Vai no aviso enviado aos alunos da rota.
         @jakarta.validation.constraints.NotBlank @jakarta.validation.constraints.Size(max = 500)
         String reason
 ) {}

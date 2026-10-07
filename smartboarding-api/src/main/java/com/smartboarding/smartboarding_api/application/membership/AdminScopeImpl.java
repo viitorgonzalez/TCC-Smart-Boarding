@@ -53,10 +53,6 @@ public class AdminScopeImpl implements AdminScope {
                 .filter(Objects::nonNull)
                 .collect(Collectors.toCollection(java.util.HashSet::new));
 
-        // Rota sem instituição nenhuma fica visível a todo admin. É o estado de
-        // uma rota recém-criada, e o vínculo com a instituição se faz DENTRO
-        // dela: sem esta linha, quem criasse uma rota não conseguiria mais
-        // abri-la pra vincular, e ela ficaria órfã pra sempre.
         Set<UUID> comDono = instituicoes.stream()
                 .map(Institution::getRouteId)
                 .filter(Objects::nonNull)
@@ -82,8 +78,6 @@ public class AdminScopeImpl implements AdminScope {
     @Override
     @Transactional(readOnly = true)
     public void assertAdministersInstitution(UUID adminId, UUID institutionId) {
-        // Nulo e o codigo aberto: nao pertence a instituicao nenhuma, entao nao
-        // ha dono pra conferir. Quem limita o alcance ai e a rota.
         if (institutionId == null) return;
         if (!institutionsOf(adminId).contains(institutionId)) {
             log.warn("Admin {} tentou agir na instituicao {}, fora do alcance dele",

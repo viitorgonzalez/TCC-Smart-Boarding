@@ -29,8 +29,6 @@ public class RouteUseCaseImpl implements CreateRouteUseCase, FindRouteUseCase,
     @Override
     @Transactional
     public Route execute(Route route) {
-        // @Builder.Default não protege contra um null explícito vindo do request:
-        // sem isso, criar rota sem informar horário violaria o NOT NULL da coluna.
         if (route.getOpenTime() == null) {
             route.setOpenTime(Route.DEFAULT_OPEN_TIME);
         }
@@ -71,8 +69,6 @@ public class RouteUseCaseImpl implements CreateRouteUseCase, FindRouteUseCase,
         if (route.getCloseTime() != null) {
             existing.setCloseTime(route.getCloseTime());
         }
-        // Nulo mantem o estado atual: sem isto, rota desativada pelo DELETE nao
-        // teria caminho de volta.
         if (isActive != null) {
             existing.setActive(isActive);
         }

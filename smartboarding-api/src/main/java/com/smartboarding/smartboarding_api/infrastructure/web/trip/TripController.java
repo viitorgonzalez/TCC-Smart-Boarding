@@ -53,11 +53,6 @@ public class TripController {
         this.routeMemberRepository = routeMemberRepository;
     }
 
-    /// Leitura do trajeto. O aluno acompanha por aqui.
-    ///
-    /// Até esta mudança o endpoint inteiro era `hasRole("ADMIN")` e não checava
-    /// rota nenhuma. Agora o aluno chega -- e por isso precisa do guard: sem
-    /// ele, qualquer aluno leria o trajeto de qualquer rota.
     @GetMapping("/{listId}")
     public ResponseEntity<ApiResponse<TripStatusResponse>> status(@PathVariable UUID listId,
                                                                    Authentication auth) {
@@ -89,7 +84,6 @@ public class TripController {
                 .orElseThrow(() -> new UnauthorizedException("Usuário autenticado não encontrado."));
     }
 
-    /// O aluno lê o trajeto da rota em que ele está, e só dela.
     private void assertPodeLer(User quem, DailyList list) {
         if (quem.getRole() == Role.ADMIN) return;
         if (!routeMemberRepository.existsByUserIdAndRouteId(
@@ -99,20 +93,14 @@ public class TripController {
         }
     }
 
-    /// [quem] nulo nas ações de conduzir: quem conduz o ônibus não viaja nele,
-    /// e calcular "a parada dele" ali seria inventar um destino.
     private TripStatusResponse statusOf(DailyList list, User quem) {
         TripLeg leg = list.getOutboundFinishedAt() == null ? TripLeg.OUTBOUND : TripLeg.RETURN;
 
-        // Filtra pela perna ANTES de indexar: a mesma parada tem checkpoint nas
-        // duas, e um toMap por stopId estouraria com chave duplicada assim que a
-        // volta comecasse.
         Map<UUID, TripCheckpoint> reached = checkpointRepository.findAllByDailyListId(list.getId())
                 .stream()
                 .filter(c -> c.getLeg() == leg)
                 .collect(Collectors.toMap(TripCheckpoint::getStopId, Function.identity()));
 
-        // Na volta o onibus refaz o mesmo caminho de tras pra frente.
         Comparator<Stop> ordem = leg == TripLeg.OUTBOUND
                 ? Comparator.comparingInt(Stop::getSequence)
                 : Comparator.comparingInt(Stop::getSequence).reversed();
@@ -132,20 +120,12 @@ public class TripController {
                 minhaParada(list, quem, leg, reached));
     }
 
-    /// Onde este aluno desce, e quanto falta.
-    ///
-    /// O tempo sai de `avg_minutes_from_start`, já calculado quando as paradas
-    /// mudaram: a diferença entre a parada dele e a última alcançada. Bater no
-    /// OSRM a cada consulta seria uma requisição por aluno a cada 20 segundos,
-    /// num serviço com limite de uso -- e o resultado seria o mesmo número.
     private TripStatusResponse.MyStop minhaParada(DailyList list, User quem,
                                                    TripLeg leg,
                                                    Map<UUID, TripCheckpoint> reached) {
         if (quem == null || quem.getRole() != Role.STUDENT) return null;
 
         List<Stop> todas = manageStopsUseCase.listByRoute(list.getRoute().getId());
-        // Mesma regra do card da lista, num lugar só: duas cópias mostrariam
-        // dois destinos diferentes pro mesmo aluno em telas vizinhas.
         StudentStop resolvida = StudentStop.resolve(todas, quem.getInstitutionId());
         if (resolvida == null) return null;
 
@@ -158,10 +138,6 @@ public class TripController {
                 eta(principais, dele, leg, reached, alcancada));
     }
 
-    /// Nulo é "não sei", e a tela omite.
-    ///
-    /// Na volta o ônibus refaz o caminho de trás pra frente e o aluno embarca
-    /// na instituição: "quanto falta até ela" não quer dizer nada ali.
     private Integer eta(List<Stop> principais, Stop dele, TripLeg leg,
                         Map<UUID, TripCheckpoint> reached, boolean alcancada) {
         if (leg != TripLeg.OUTBOUND || alcancada) return null;
@@ -172,12 +148,9 @@ public class TripController {
                 .filter(s -> s.getAvgMinutesFromStart() != null)
                 .max(Comparator.comparingInt(Stop::getSequence))
                 .orElse(null);
-        // Trajeto sem checkpoint ainda: o tempo é o do início até a parada dele.
         int decorridos = ultima == null ? 0 : ultima.getAvgMinutesFromStart();
 
         int falta = dele.getAvgMinutesFromStart() - decorridos;
-        // Negativo significa que o ônibus já passou sem marcar. Mostrar um
-        // tempo negativo é pior que não mostrar nada.
         return falta > 0 ? falta : null;
     }
 }

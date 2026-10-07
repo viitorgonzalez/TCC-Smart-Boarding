@@ -56,13 +56,6 @@ public class ListUseCaseImpl implements FindListUseCase, AddEntryUseCase, Remove
         this.clock = clock;
     }
 
-    // Filtrar a listagem não basta: sem esta checagem a API continuaria aceitando
-    // um POST direto na lista de outra rota.
-    /// O motorista precisa saber onde a pessoa embarca e como falar com ela.
-    /// Sem isso ele tem um nome na lista e mais nada.
-    ///
-    /// Mora aqui e não no app porque no app seria decorativa: quem chamasse a
-    /// API direto passaria.
     private void assertProfileComplete(User user) {
         if (user.getRole() != Role.STUDENT) {
             return;
@@ -86,9 +79,6 @@ public class ListUseCaseImpl implements FindListUseCase, AddEntryUseCase, Remove
         }
     }
 
-    // O status só vira CLOSED quando o agendador roda. Com a API fora do ar no
-    // horário, a lista seguiria OPEN aceitando inscrição — por isso a checagem é
-    // contra o relógio, não contra a flag (RN2/RN18).
     private void assertAcceptingChanges(DailyList list, String action) {
         if (list.getStatus() != ListStatus.OPEN) {
             throw new BadRequestException("LIST_CLOSED", action);
@@ -105,8 +95,6 @@ public class ListUseCaseImpl implements FindListUseCase, AddEntryUseCase, Remove
 
     @Override
     public List<DailyList> findTodayLists(UUID requesterId) {
-        // Todas as do dia, não só as abertas: filtrar por OPEN fazia a lista sumir
-        // da tela no instante do fechamento, inclusive pra quem estava inscrito.
         List<DailyList> today = dailyListRepository.findAllByDate(LocalDate.now(clock));
 
         User requester = userRepository.findById(requesterId)
@@ -117,8 +105,6 @@ public class ListUseCaseImpl implements FindListUseCase, AddEntryUseCase, Remove
 
         Set<UUID> routes = routesOf(requesterId);
         if (routes.isEmpty()) {
-            // Conta nova sem código usado ainda. Devolver tudo deixaria o aluno
-            // entrar em transporte que não é o dele.
             return List.of();
         }
         return today.stream()
@@ -133,9 +119,6 @@ public class ListUseCaseImpl implements FindListUseCase, AddEntryUseCase, Remove
                 userId, LocalDate.now(clock).minusMonths(months));
     }
 
-    /// As rotas do aluno vêm do vínculo criado ao usar o código da rota. Até a
-    /// V22 isso era derivado da instituição (RN15); agora a instituição é só
-    /// informação, e o aluno pode estar em mais de uma rota.
     private Set<UUID> routesOf(UUID userId) {
         return routeMemberRepository.findAllByUserId(userId).stream()
                 .map(RouteMember::getRouteId)
@@ -166,20 +149,16 @@ public class ListUseCaseImpl implements FindListUseCase, AddEntryUseCase, Remove
 
         Optional<ListEntry> existing = listEntryRepository.findByUserIdAndDailyListId(userId, listId);
 
-        // Só pra quem ainda não está na lista: quem já entrou o fez quando era
-        // permitido, e a direção segue editável enquanto a lista está aberta.
-        // Barrar aqui expulsaria de volta quem só quer trocar ida por volta.
         if (existing.isEmpty()) {
             assertProfileComplete(user);
         }
 
         if (existing.isPresent()) {
-            // Já existe: reativa (se saiu antes) e/ou atualiza a direção.
-            // Direção é editável enquanto a lista estiver aberta.
             ListEntry entry = existing.get();
             boolean wasInactive = !entry.isActive();
             entry.setActive(true);
             entry.setTripType(tripType);
+            entry.setAddedByAdmin(false);
             ListEntry saved = listEntryRepository.save(entry);
             if (wasInactive) {
                 notifyEnrollment(userId, dailyList);
