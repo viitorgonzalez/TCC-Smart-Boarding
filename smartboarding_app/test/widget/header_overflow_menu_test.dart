@@ -30,8 +30,6 @@ void main() {
     await tester.pump();
   }
 
-  /// O menu existe pra tirar peso visual do cabeçalho: as ações continuam lá,
-  /// só não como três blocos sólidos competindo entre si.
   testWidgets('as acoes ficam escondidas ate abrir o menu', (tester) async {
     await montar(tester);
 

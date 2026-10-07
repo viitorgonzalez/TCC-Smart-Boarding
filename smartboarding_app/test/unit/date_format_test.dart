@@ -17,8 +17,6 @@ void main() {
       expect(formatDate(''), '—');
     });
 
-    // Devolver a entrada crua é melhor que quebrar a tela: o usuário vê algo
-    // errado em vez de um app que não abre.
     test('string que não parseia volta como veio', () {
       expect(formatDate('nao-e-data'), 'nao-e-data');
     });
@@ -64,7 +62,6 @@ void main() {
   });
 
   group('timeUntilListClose', () {
-    // RN18: o horário vem da rota, não é fixo em 16:00.
     test('antes do fechamento devolve o tempo restante', () {
       final agora = DateTime(2026, 9, 9, 14, 30);
       expect(
@@ -97,6 +94,22 @@ void main() {
         isNull,
       );
       expect(timeUntilListClose(null, DateTime(2026, 9, 9, 10)), isNull);
+    });
+  });
+
+  group('brazilTimeFromUtc', () {
+    test('subtrai 3h do instante UTC', () {
+      final utc = DateTime.utc(2026, 10, 2, 6, 7, 44);
+      final brasil = brazilTimeFromUtc(utc);
+      expect(brasil, DateTime.utc(2026, 10, 2, 3, 7, 44));
+    });
+
+    test('corrige aparelho com fuso errado mas relógio certo', () {
+      final comoSeFosseGmt = DateTime.utc(2026, 10, 2, 6, 7, 44);
+      expect(
+        brazilTimeFromUtc(comoSeFosseGmt),
+        DateTime.utc(2026, 10, 2, 3, 7, 44),
+      );
     });
   });
 

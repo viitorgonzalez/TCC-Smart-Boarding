@@ -1,6 +1,5 @@
 import 'package:dio/dio.dart';
 
-/// Exceção centralizada com mensagens amigáveis ao usuário.
 class AppException implements Exception {
   final String message;
   const AppException(this.message);
@@ -8,7 +7,6 @@ class AppException implements Exception {
   @override
   String toString() => message;
 
-  /// Converte qualquer erro em uma mensagem legível.
   static String fromError(Object e) {
     if (e is AppException) return e.message;
     if (e is DioException) return _fromDio(e);
@@ -16,7 +14,6 @@ class AppException implements Exception {
   }
 
   static String _fromDio(DioException e) {
-    // Tenta extrair mensagem do body da resposta
     final data = e.response?.data;
     if (data is Map) {
       final msg = data['message'] ?? data['error'];
@@ -38,8 +35,6 @@ class AppException implements Exception {
     };
   }
 
-  /// Em `/auth/*` quem está do outro lado ainda não tem sessão: falar em
-  /// sessão expirada ali manda o usuário fazer o que ele já está fazendo.
   static bool _ehPortaDeEntrada(DioException e) =>
       e.requestOptions.path.contains('/auth/');
 

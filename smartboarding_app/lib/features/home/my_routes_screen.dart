@@ -11,11 +11,6 @@ import '../membership/screens/join_route_screen.dart';
 import 'my_route_screen.dart';
 import '../../core/widgets/app_list_group.dart';
 
-/// As rotas de que o aluno participa, e a porta pra entrar em mais uma.
-///
-/// O gesto é o do Google Classroom: as turmas de que você faz parte, com um
-/// "entrar com código" junto delas. Por isso a ação mora aqui e não escondida
-/// noutro canto — é aqui que a pessoa vem procurar quando recebe um código.
 class MyRoutesScreen extends StatelessWidget {
   const MyRoutesScreen({super.key});
 
@@ -25,8 +20,6 @@ class MyRoutesScreen extends StatelessWidget {
     ).push(MaterialPageRoute(builder: (_) => const JoinRouteScreen()));
   }
 
-  /// Abre a lista do dia já com a rota tocada em foco — sem isso, quem tem mais
-  /// de uma rota abriria a lista da rota errada.
   void _abrirLista(BuildContext context, String routeId) {
     context.read<MembershipProvider>().select(routeId);
     final listProvider = context.read<StudentListProvider>();
@@ -110,8 +103,6 @@ class MyRoutesScreen extends StatelessWidget {
                             'aqui e a lista do dia fica disponível.',
                       ),
                     ),
-                  // Grupo unico: uma pilha de cartoes fazia cada rota pesar o
-                  // mesmo que o bloco de entrar com codigo, que e a acao.
                   AppListGroup(
                     dividerIndent: 68,
                     children: [

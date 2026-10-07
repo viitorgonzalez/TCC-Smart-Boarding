@@ -1,4 +1,3 @@
-/// Um dia em que o aluno esteve na lista.
 class AttendanceDay {
   final String date;
   final String routeName;

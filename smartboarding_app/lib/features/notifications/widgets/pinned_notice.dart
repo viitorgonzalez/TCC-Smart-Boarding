@@ -4,7 +4,6 @@ import '../../../core/utils/date_format.dart';
 import '../models/notification_model.dart';
 import '../widgets/notice_board.dart';
 
-/// Os bilhetes do mural: o aviso e o cartão de mural vazio.
 class PinnedNotice extends StatelessWidget {
   final NotificationModel item;
   final bool canManage;
@@ -61,8 +60,6 @@ class PinnedNotice extends StatelessWidget {
                 ),
               ),
               if (canManage && !selecting)
-                // Margem negativa: o alvo de toque continua com 40px, mas o
-                // ícone alinha com a borda do texto em vez de afastá-lo.
                 Padding(
                   padding: const EdgeInsets.only(left: 8),
                   child: SizedBox(
@@ -123,8 +120,6 @@ class PinnedNotice extends StatelessWidget {
   }
 }
 
-/// Mural vazio também é um mural: um bilhete dizendo que está tudo calmo lê
-/// melhor do que a malha nua.
 class EmptyNote extends StatelessWidget {
   const EmptyNote({super.key});
 

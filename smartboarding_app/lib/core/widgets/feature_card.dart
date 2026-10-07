@@ -15,10 +15,6 @@ class FeatureCard extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    // Icone alinhado a esquerda, acima do rotulo, e nao centralizado num disco
-    // de 56px: o disco grande sobre rotulo centralizado gastava quase o dobro
-    // da altura pra dizer a mesma coisa, e oito itens de navegacao nao cabiam
-    // numa dobra.
     return Material(
       color: AppColors.surface,
       borderRadius: BorderRadius.circular(AppRadius.card),

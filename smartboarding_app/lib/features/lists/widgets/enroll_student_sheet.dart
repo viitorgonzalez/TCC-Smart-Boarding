@@ -4,7 +4,6 @@ import '../../../core/widgets/initials_avatar.dart';
 import '../../../core/theme/app_theme.dart';
 import '../../users/models/user_model.dart';
 
-/// Escolha do aluno e decisão sobre a advertência na inclusão tardia.
 class EnrollDecision {
   final bool issueWarning;
   final String? reason;
@@ -181,9 +180,6 @@ class EnrollSheetState extends State<EnrollSheet> {
   }
 }
 
-/// Confirmação final da inclusão tardia. Existe separada do EnrollSheet porque
-/// a ação é irreversível pelo lado do aluno: a advertência entra no histórico
-/// dele e sair de lá exige o admin apagar à mão.
 Future<bool> confirmEnroll(
   BuildContext context,
   UserModel student,

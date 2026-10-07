@@ -1,7 +1,5 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_map/flutter_map.dart';
-// latlong2 exporta uma classe Path própria, que sombreia a de dart:ui usada
-// no desenho do pino.
 import 'package:latlong2/latlong.dart' hide Path;
 import '../../../core/theme/app_theme.dart';
 import '../services/road_route_service.dart';
@@ -9,12 +7,10 @@ import 'map_button.dart';
 import '../models/map_stop.dart';
 import 'route_map_layers.dart';
 
-/// e o clique só cria parada em modo de adição — senão arrastar viraria diálogo.
 class RouteMap extends StatefulWidget {
   final List<MapStop> stops;
   final void Function(LatLng point)? onTapPoint;
 
-  /// No card o mapa é ilustração, não ferramenta: menor e sem controles.
   final bool compact;
 
   final VoidCallback? onTap;
@@ -25,7 +21,6 @@ class RouteMap extends StatefulWidget {
 
   final VoidCallback? onCancelMode;
 
-  /// Nulo deixa o mapa somente leitura (visão do aluno).
   const RouteMap({
     super.key,
     required this.stops,
@@ -64,8 +59,6 @@ class _RouteMapState extends State<RouteMap> {
     }
   }
 
-  /// Caminho por ruas entre as paradas. Se o serviço não responder, o mapa
-  /// segue mostrando a ligação reta — melhor que trajeto nenhum.
   Future<void> _loadRoadPath() async {
     final points = _located
         .map((s) => LatLng(s.latitude, s.longitude))
@@ -91,7 +84,6 @@ class _RouteMapState extends State<RouteMap> {
     return LatLng(located.first.latitude, located.first.longitude);
   }
 
-  /// Centralizar na primeira parada com zoom fixo escondia o resto do trajeto.
   CameraFit? get _fitAllStops {
     final points = _located
         .map((s) => LatLng(s.latitude, s.longitude))
@@ -125,19 +117,13 @@ class _RouteMapState extends State<RouteMap> {
                   options: MapOptions(
                     initialCenter: _center,
                     initialZoom: 13,
-                    // Só no card: a tela cheia abre centrada e o usuário navega.
                     initialCameraFit: widget.compact ? _fitAllStops : null,
-                    // Explícito pra garantir zoom pela roda do mouse, que é o
-                    // único gesto de zoom disponível sem tela sensível. No card
-                    // o mapa é ilustração: gesto ali deve rolar a página.
                     interactionOptions: InteractionOptions(
                       flags: widget.compact
                           ? InteractiveFlag.none
                           : InteractiveFlag.all,
                     ),
                     onTap: (_, point) {
-                      // Modo vindo de fora (mover/inserir) tem prioridade: o
-                      // toque é a colocação daquele ponto.
                       if (widget.modeLabel != null) {
                         widget.onTapPoint?.call(point);
                         return;

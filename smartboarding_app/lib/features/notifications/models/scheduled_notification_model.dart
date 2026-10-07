@@ -1,15 +1,12 @@
-/// Aviso recorrente de uma rota, disparado pela varredura do backend.
 class ScheduledNotificationModel {
   final String id;
   final String routeId;
   final String title;
   final String body;
 
-  /// DAILY | WEEKDAYS | WEEKLY
   final String frequency;
   final String sendAt;
 
-  /// Só para WEEKLY: 1=segunda … 7=domingo.
   final int? dayOfWeek;
   final int? durationHours;
   final bool active;

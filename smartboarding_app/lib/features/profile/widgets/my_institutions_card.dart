@@ -10,11 +10,6 @@ import '../../institutions/models/institution_model.dart';
 import '../../institutions/services/institution_service.dart';
 import '../services/profile_service.dart';
 
-/// Instituições da conta. Pro aluno é pré-requisito pra entrar em rota — sem
-/// nenhuma, o backend recusa o código com PROFILE_INCOMPLETE. Pro admin é o que
-/// permite travar um código de convite numa instituição.
-///
-/// Aceita mais de uma: quem faz dois cursos não precisa escolher qual declarar.
 class MyInstitutionsCard extends StatefulWidget {
   final VoidCallback? onChanged;
 
@@ -157,8 +152,6 @@ class _MyInstitutionsCardState extends State<MyInstitutionsCard> {
                 for (final id in _minhas)
                   Chip(
                     label: Text(_nome(id)),
-                    // A primeira declarada e a principal: e ela que decide em
-                    // que contagem da lista o aluno entra.
                     avatar: id == _minhas.first
                         ? const Icon(
                             Icons.star,

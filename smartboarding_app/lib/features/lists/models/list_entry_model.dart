@@ -3,12 +3,12 @@ class ListEntry {
   final String userId;
   final String fullName;
 
-  /// Nulo quando quem pediu a lista nao e admin: o aluno ve quem embarca junto,
-  /// mas nao o contato de ninguem.
   final String? email;
   final String? tripType;
   final String createdAt;
   final String? institutionName;
+
+  final bool addedByAdmin;
 
   const ListEntry({
     required this.id,
@@ -18,6 +18,7 @@ class ListEntry {
     this.tripType,
     required this.createdAt,
     this.institutionName,
+    this.addedByAdmin = false,
   });
 
   factory ListEntry.fromJson(Map<String, dynamic> json) {
@@ -29,6 +30,7 @@ class ListEntry {
       tripType: json['tripType'] as String?,
       createdAt: json['createdAt'] as String,
       institutionName: json['institutionName'] as String?,
+      addedByAdmin: json['addedByAdmin'] as bool? ?? false,
     );
   }
 }

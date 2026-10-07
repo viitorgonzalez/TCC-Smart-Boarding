@@ -14,7 +14,9 @@ Aluno/admin que esqueceu a senha pede um código por e-mail e define uma nova.
 - `ResetPasswordScreen` (aberta a partir da tela anterior, recebendo o e-mail):
   `POST /api/auth/reset-password {email, code, newPassword}` → `{success:true}` ou erro de código
   inválido/expirado/tentativas esgotadas. O código de 6 dígitos é digitado nesta mesma tela, acima
-  dos campos de senha — não vem por URL.
+  dos campos de senha — não vem por URL. Código e nova senha ficam na mesma tela porque o backend
+  valida os dois juntos numa chamada só; não há estado intermediário (ex.: "código validado")
+  pra guardar entre uma etapa e outra.
 
 ## Layout / campos
 

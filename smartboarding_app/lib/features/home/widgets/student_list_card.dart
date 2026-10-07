@@ -17,18 +17,10 @@ class StudentListCard extends StatelessWidget {
   final void Function(String tripType) onEnter;
   final VoidCallback onLeave;
 
-  /// O que falta no perfil, já em português. Vazio = pode entrar.
-  ///
-  /// Chega pronto de fora porque quem decide é o backend: ele é que recusa a
-  /// entrada, e refazer a conta aqui daria duas versões da regra.
   final List<String> missingProfile;
 
-  /// Atalho pro perfil. Sem ele o aviso diria o problema e deixaria a pessoa
-  /// procurar sozinha onde resolvê-lo.
   final VoidCallback? onFixProfile;
 
-  /// Abre o acompanhamento do trajeto. Só aparece com o ônibus na rua:
-  /// oferecer sempre levaria a uma tela que só diz "não começou".
   final VoidCallback? onFollowTrip;
 
   const StudentListCard({
@@ -108,7 +100,6 @@ class StudentListCard extends StatelessWidget {
               ),
               Expanded(
                 child: StatBlock(
-                  // Ja fechada, "fecha as" descreve um futuro que nao existe.
                   label: acceptingChanges ? 'Fecha às' : 'Fechou às',
                   value: hasCloseTime ? formatCloseTime(list.closeTime) : '—',
                   valueColor: acceptingChanges
@@ -127,9 +118,6 @@ class StudentListCard extends StatelessWidget {
               },
             ),
           ],
-          // Sempre o veiculo recomendado pro total atual, nunca a frota
-          // inteira: com "Onibus (45)" e "Van (15)" lado a lado o aluno tinha
-          // que adivinhar em qual dos dois ele ia.
           const SizedBox(height: 14),
           ProposedVehicle(
             vehicles: list.proposedVehicles,
@@ -141,8 +129,6 @@ class StudentListCard extends StatelessWidget {
             RoutePreview(list: list),
           ],
 
-          // Logo abaixo do trajeto de propósito: o mapa mostra o caminho, e a
-          // pergunta seguinte é sempre "quanto tempo isso leva pra mim".
           if (list.myTripTime case final tempo?) ...[
             const SizedBox(height: 14),
             _TempoDeViagem(tempo: tempo),
@@ -196,9 +182,6 @@ class StudentListCard extends StatelessWidget {
               CloseCountdown(closeTime: list.closeTime),
             ],
             const SizedBox(height: 18),
-            // Quem já está na lista entrou quando era permitido: o aviso de
-            // perfil não vale pra ele, e esconder o "Sair" por um campo em
-            // branco o prenderia numa viagem que ele não vai fazer.
             if (item.isEnrolled)
               OutlinedButton.icon(
                 style: OutlinedButton.styleFrom(
@@ -223,11 +206,6 @@ class StudentListCard extends StatelessWidget {
   }
 }
 
-/// Quanto a viagem leva até a instituição deste aluno.
-///
-/// O destino vem nomeado porque dois alunos do mesmo ônibus veem números
-/// diferentes: sem dizer até onde, quem compara com o colega conclui que o app
-/// está errado.
 class _TempoDeViagem extends StatelessWidget {
   final MyTripTime tempo;
 
@@ -266,10 +244,6 @@ class _TempoDeViagem extends StatelessWidget {
   }
 }
 
-/// O bloqueio, sinalizado antes do toque.
-///
-/// Aparece no lugar do botão e não como erro depois dele: descobrir a parede
-/// esbarrando nela é o que essa tela existe pra evitar.
 class _ProfileWarning extends StatelessWidget {
   final List<String> missing;
   final VoidCallback? onFix;
@@ -331,5 +305,3 @@ class _ProfileWarning extends StatelessWidget {
     );
   }
 }
-
-/// Resultado da RN16: o transporte definido pelo total de confirmados.

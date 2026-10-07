@@ -1,7 +1,6 @@
 import 'package:flutter/material.dart';
 import '../../../core/theme/app_theme.dart';
 
-/// Rótulos compartilhados com a seção que lista os avisos.
 const frequencyLabels = {
   'DAILY': 'Todo dia',
   'WEEKDAYS': 'Dias úteis',
@@ -18,8 +17,6 @@ const weekdayLabels = {
   7: 'domingo',
 };
 
-/// Formulário do aviso recorrente. Em arquivo próprio porque a seção só lista
-/// e alterna — criar é outro assunto, com seis campos e teclado.
 class ScheduledDraft {
   final String title;
   final String body;
@@ -82,7 +79,6 @@ class ScheduledNotificationFormState extends State<ScheduledNotificationForm> {
   @override
   Widget build(BuildContext context) {
     return Padding(
-      // Sem isto o teclado cobre os últimos campos do formulário.
       padding: EdgeInsets.only(bottom: MediaQuery.viewInsetsOf(context).bottom),
       child: SingleChildScrollView(
         padding: const EdgeInsets.fromLTRB(20, 0, 20, 24),

@@ -20,12 +20,9 @@ class SmartBoardingApp extends StatelessWidget {
   Widget build(BuildContext context) {
     return MultiProvider(
       providers: [
-        // Auth — global, persiste toda a sessão
         ChangeNotifierProvider(create: (_) => AuthProvider()..init()),
         ChangeNotifierProvider(create: (_) => MeProvider()..load()),
 
-        // Rotas do aluno: recarrega a cada troca de sessao, senao o proximo a
-        // logar herdaria as rotas do anterior.
         ChangeNotifierProxyProvider<AuthProvider, MembershipProvider>(
           create: (_) => MembershipProvider(),
           update: (_, auth, prev) {
@@ -49,8 +46,6 @@ class SmartBoardingApp extends StatelessWidget {
         debugShowCheckedModeBanner: false,
         theme: AppTheme.light,
         darkTheme: AppTheme.dark,
-        // O Figma desenhou só o tema claro; deixar seguir o sistema faria o
-        // app abrir escuro e fora do desenho em metade dos aparelhos.
         themeMode: ThemeMode.light,
         home: const AuthGate(),
       ),

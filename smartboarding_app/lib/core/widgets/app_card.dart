@@ -1,8 +1,6 @@
 import 'package:flutter/material.dart';
 import '../theme/app_theme.dart';
 
-/// Superfície branca sobre o fundo. O [surface] escolhe como ela se separa —
-/// ver [AppSurface].
 class AppCard extends StatelessWidget {
   final Widget child;
   final EdgeInsetsGeometry padding;
@@ -22,9 +20,6 @@ class AppCard extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final content = Padding(padding: padding, child: child);
-    // Material em vez de Container pintado: com a cor num DecoratedBox solto,
-    // o ink de qualquer ListTile com onTap la dentro era pintado ATRAS do fundo
-    // -- toque sem retorno visual, e o Flutter reclamando em debug.
     final material = Material(
       color: AppColors.surface,
       clipBehavior: Clip.antiAlias,
@@ -40,8 +35,6 @@ class AppCard extends StatelessWidget {
     );
 
     if (surface != AppSurface.floating) return material;
-    // A sombra vai num DecoratedBox por fora: no Material ela sai junto com o
-    // recorte e vaza por cima do proprio conteudo.
     return DecoratedBox(
       decoration: BoxDecoration(
         borderRadius: BorderRadius.circular(AppRadius.card),

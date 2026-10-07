@@ -5,8 +5,6 @@ import '../services/route_service.dart';
 import '../../../core/text/plural.dart';
 import '../../../core/widgets/app_list_group.dart';
 
-/// Frota que atende a rota. Capacidade é informação do transporte, não teto de
-/// inscrição — quem decide o veículo é o total de confirmados no fechamento.
 class RouteVehiclesCard extends StatelessWidget {
   final String routeId;
   final List<VehicleModel> vehicles;

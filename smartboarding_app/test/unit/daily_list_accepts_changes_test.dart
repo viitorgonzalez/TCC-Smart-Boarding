@@ -25,15 +25,11 @@ void main() {
     expect(lista(status: 'OPEN', closeTime: '23:59:00').acceptsChanges, isTrue);
   });
 
-  // Sem closeTime nao da pra afirmar que venceu; o status e a unica informacao
-  // disponivel, e derrubar o botao por falta de dado seria pior.
   test('sem horário de fechamento vale o status', () {
     expect(lista(status: 'OPEN').acceptsChanges, isTrue);
     expect(lista(status: 'OPEN', closeTime: '').acceptsChanges, isTrue);
   });
 
-  // O agendador so marca CLOSED na varredura seguinte (ate 5 min depois). Nessa
-  // janela o status ainda diz OPEN, mas entrar ja morre em 400 LIST_CLOSED.
   test('horário vencido não aceita, mesmo com status OPEN', () {
     expect(
       lista(status: 'OPEN', closeTime: '00:00:00').acceptsChanges,

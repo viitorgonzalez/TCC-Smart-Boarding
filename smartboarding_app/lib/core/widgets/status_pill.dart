@@ -15,8 +15,6 @@ class StatusPill extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    // Cores literais em vez do ColorScheme: o desenho usa um verde de
-    // confirmação próprio (#E8F5E9/#2E7D32) que não é derivável do seed.
     final (background, foreground) = switch (tone) {
       StatusPillTone.positive => (AppColors.positiveBg, AppColors.positiveFg),
       StatusPillTone.neutral => (AppColors.background, AppColors.textSecondary),

@@ -70,8 +70,6 @@ void main() {
     expect(find.text('Antigo'), findsOneWidget);
   });
 
-  // O mural é tema do app, não skin à parte: se alguém trouxer cor de fora da
-  // paleta, isto quebra.
   testWidgets('mural e bilhete usam as cores do design system', (tester) async {
     await tester.pumpWidget(wrap([note('a', 'Aviso')]));
     await tester.pumpAndSettle();

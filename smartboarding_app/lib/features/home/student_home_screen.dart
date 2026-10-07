@@ -45,8 +45,6 @@ class StudentHomeScreen extends StatelessWidget {
     final auth = context.watch<AuthProvider>();
     final name = auth.token?.fullName ?? '';
     final initial = name.isNotEmpty ? name[0].toUpperCase() : '?';
-    // O cabecalho e uma saudacao, nao um documento: o nome completo ocupa
-    // duas linhas e empurra as acoes pra fora da tela.
     final saudacao = primeiroNome(name, fallback: 'Aluno');
 
     return Scaffold(
@@ -70,8 +68,6 @@ class StudentHomeScreen extends StatelessWidget {
             trailing: Row(
               mainAxisSize: MainAxisSize.min,
               children: [
-                // Fixa, no modelo do Classroom: entrar em mais uma rota e acao
-                // normal, nao estado de excecao.
                 HeaderIconButton(
                   key: const Key('student_home_join_route'),
                   icon: Icons.add,
@@ -80,8 +76,6 @@ class StudentHomeScreen extends StatelessWidget {
                     MaterialPageRoute(builder: (_) => const JoinRouteScreen()),
                   ),
                 ),
-                // Perfil e sair sao ocasionais: nao precisam de alvo
-                // permanente disputando espaco com a acao do dia.
                 HeaderOverflowMenu(
                   items: [
                     HeaderMenuItem(
@@ -109,8 +103,6 @@ class StudentHomeScreen extends StatelessWidget {
               child: ListView(
                 padding: const EdgeInsets.all(20),
                 children: [
-                  // Sem rota nenhuma nao ha lista, aviso nem trajeto: mostrar o
-                  // status do dia aqui seria anunciar vazio sem dizer por que.
                   if (context.watch<MembershipProvider>().hasNoRoute) ...[
                     const NoRouteCard(),
                     const SizedBox(height: 24),
@@ -122,9 +114,6 @@ class StudentHomeScreen extends StatelessWidget {
                   const SectionTitle('O que você pode fazer'),
                   const SizedBox(height: 12),
                   GridView.count(
-                    // Sem padding explicito, uma grade aninhada consome o
-                    // padding do MediaQuery e abre um vao antes da primeira
-                    // linha.
                     padding: EdgeInsets.zero,
                     crossAxisCount: 2,
                     shrinkWrap: true,
@@ -170,7 +159,6 @@ class StudentHomeScreen extends StatelessWidget {
   }
 }
 
-/// Responde no painel a pergunta que o aluno abre o app pra fazer.
 class _TodayStatus extends StatelessWidget {
   const _TodayStatus();
 
@@ -203,9 +191,6 @@ class _TodayStatus extends StatelessWidget {
             value.first.list.routeName,
             AppColors.positiveFg,
           ),
-          // Lista fechada e sem inscricao: nao ha o que o aluno fazer, entao
-          // "ainda nao entrou" so sugere uma acao que nao existe mais. O caso
-          // vem ANTES do generico porque o generico casa com tudo.
           AsyncData(:final value)
               when value.every((i) => !i.list.acceptsChanges) =>
             (
@@ -225,8 +210,6 @@ class _TodayStatus extends StatelessWidget {
         return AppCard(
           child: Row(
             children: [
-              // Icone solto, sem disco: o disco de 52px era o resto do padrao
-              // antigo e brigava com o icone chapado do resto do app.
               Icon(icon, color: color, size: 28),
               const SizedBox(width: AppSpacing.lg),
               Expanded(

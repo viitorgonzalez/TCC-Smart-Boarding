@@ -7,19 +7,11 @@ import '../../../core/widgets/snackbar_utils.dart';
 import '../../institutions/models/institution_model.dart';
 import '../../institutions/providers/institution_provider.dart';
 
-/// Instituições atendidas pela rota. Aqui só se ESCOLHE entre as que existem —
-/// cadastrar e editar é na tela de Instituições.
-///
-/// Antes o caminho primário era "cadastrar nesta rota", o que espalhava o
-/// cadastro por dentro de cada rota e escondia a lista real do catálogo.
 class RouteInstitutionsCard extends StatefulWidget {
   final String routeId;
 
-  /// Estado inicial da chave.
   final bool admitsNoInstitution;
 
-  /// Salva a escolha. Lança em caso de falha — o card devolve a chave ao
-  /// estado anterior.
   final Future<void> Function(bool) onAdmitsNoInstitutionChanged;
 
   const RouteInstitutionsCard({
@@ -33,11 +25,6 @@ class RouteInstitutionsCard extends StatefulWidget {
   State<RouteInstitutionsCard> createState() => _RouteInstitutionsCardState();
 }
 
-/// O estado da chave mora aqui, e não na tela de detalhe.
-///
-/// A seção é construída uma vez no push: quando o detalhe chamava setState, esta
-/// subárvore não reconstruía, e a chave ficava mostrando o valor de antes do
-/// próprio toque — a tela mentindo sobre o que o servidor guardou.
 class _RouteInstitutionsCardState extends State<RouteInstitutionsCard> {
   late bool _aceita = widget.admitsNoInstitution;
   bool _salvando = false;
@@ -149,8 +136,6 @@ class _RouteInstitutionsCardState extends State<RouteInstitutionsCard> {
                   trailing: IconButton(
                     tooltip: 'Remover desta rota',
                     icon: const Icon(Icons.link_off, size: 20),
-                    // Desvincular nao apaga a instituicao: ela volta pro
-                    // catalogo, disponivel pra outra rota.
                     onPressed: () => _run(
                       context,
                       () => provider.linkRoute(i.id, null),
@@ -166,9 +151,6 @@ class _RouteInstitutionsCardState extends State<RouteInstitutionsCard> {
                 onTap: () => _escolher(context),
               ),
               const Divider(height: 1),
-              // A instituicao e o que diz onde a pessoa desce e em que contagem
-              // ela entra. Abrir mao disso e escolha deliberada do admin, e por
-              // isso a chave mora aqui, junto da lista de quem a rota atende.
               SwitchListTile(
                 key: const Key('route_admits_no_institution'),
                 value: _aceita,

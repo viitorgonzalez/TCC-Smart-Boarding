@@ -1,8 +1,6 @@
 import 'package:flutter/material.dart';
 import '../../../core/theme/app_theme.dart';
 
-/// Escolha da janela da lista. Fora da seção porque mudar horário é operação
-/// à parte: pede confirmação e avisa a rota.
 class SchedulePickerDialog extends StatefulWidget {
   final TimeOfDay openTime;
   final TimeOfDay closeTime;

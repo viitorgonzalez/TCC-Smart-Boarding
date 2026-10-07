@@ -66,8 +66,6 @@ void main() {
       .map((t) => t.data ?? '')
       .join(' | ');
 
-  /// Dois alunos no mesmo ônibus veem números diferentes. Sem nomear o
-  /// destino, quem vê o do colega conclui que o app está errado.
   testWidgets('o tempo nomeia a instituicao do aluno', (tester) async {
     await montar(tester, viagem());
 
@@ -87,7 +85,6 @@ void main() {
     expect(find.byKey(const Key('trip_follow_stop_p2_reached')), findsNothing);
   });
 
-  /// Nulo é "não sei". Mostrar zero viraria "o ônibus chegou".
   testWidgets('sem tempo calculado a tela omite em vez de mostrar zero', (
     tester,
   ) async {
@@ -108,8 +105,6 @@ void main() {
     expect(find.byKey(const Key('trip_follow_eta')), findsNothing);
   });
 
-  /// Um tempo até um lugar que não é o dele, sem aviso, é pior que tempo
-  /// nenhum.
   testWidgets('avisa quando a parada nao e da instituicao dele', (
     tester,
   ) async {
@@ -170,8 +165,6 @@ void main() {
     expect(find.byKey(const Key('trip_follow_not_started')), findsOneWidget);
   });
 
-  /// Timer vivo depois de sair da tela é vazamento e gasta bateria de quem
-  /// está no ônibus.
   testWidgets('sair da tela cancela o polling', (tester) async {
     await montar(tester, viagem());
     clearInteractions(service);

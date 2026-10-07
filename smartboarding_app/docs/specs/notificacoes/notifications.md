@@ -6,6 +6,8 @@
 ## Objetivo
 
 Histórico de notificações (aluno e admin) + envio manual pelo admin, com imagem opcional.
+Notificação é **persistida**, não só push: sobrevive à entrega — quem estava offline ou trocou
+de aparelho continua vendo na caixa de entrada depois.
 
 ## Dados & contrato
 
@@ -20,11 +22,18 @@ Histórico de notificações (aluno e admin) + envio manual pelo admin, com imag
 - FAB estilo "compor" do Gmail (só visível pro `ADMIN`) → abre `SendNotificationScreen`: título,
   corpo, picker de imagem, seletor de escopo (geral ou uma rota específica), confirmação antes
   de enviar.
+- No envio por rota (`BroadcastScreen`), o prazo de validade usa presets (1h/6h/24h/3 dias/7
+  dias/sem prazo) em vez de campo livre de data/hora: o admin pensa em "quanto tempo isso
+  importa", não em data e hora exatas. Com uma rota ativa só, ela já vem pré-selecionada —
+  escolher entre uma opção é cerimônia sem ganho.
 
 ## Estados
 
 - Inbox vazia, loading, erro de fetch.
 - Envio: validação de campos obrigatórios, confirmação antes de disparar, feedback de sucesso.
+
+A exclusão em lote usa um único `DELETE /api/notifications` com a lista de ids: apagar um a um
+seria N requisições e N recargas de tela.
 
 ## Regras aplicáveis
 

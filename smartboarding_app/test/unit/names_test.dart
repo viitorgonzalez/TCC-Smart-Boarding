@@ -10,8 +10,6 @@ void main() {
     expect(primeiroNome('Ana'), 'Ana');
   });
 
-  /// Nome vindo de formulário chega com espaço sobrando mais vezes do que se
-  /// imagina — e um espaço na frente faria o primeiro "nome" ser vazio.
   test('ignora espaco sobrando nas pontas e no meio', () {
     expect(primeiroNome('  Ana  Maria '), 'Ana');
   });

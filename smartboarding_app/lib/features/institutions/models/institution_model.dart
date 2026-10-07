@@ -3,7 +3,6 @@ class InstitutionModel {
   final String name;
   final String? address;
 
-  /// Rota que atende esta instituição (RN15). Nulo = sem rota vinculada.
   final String? routeId;
 
   const InstitutionModel({

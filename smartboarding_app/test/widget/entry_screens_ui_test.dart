@@ -7,8 +7,6 @@ import 'package:smartboarding_app/features/auth/screens/signup_screen.dart';
 
 import '../support/fake_http.dart';
 
-/// Lê os atributos do TextField montado — `AppTextField` os repassa, então é
-/// aqui que dá pra ver se chegaram.
 TextField campo(WidgetTester tester, Key chave) => tester.widget<TextField>(
   find.descendant(of: find.byKey(chave), matching: find.byType(TextField)),
 );
@@ -27,8 +25,6 @@ Future<void> abrir(WidgetTester tester, Widget tela) async {
 void main() {
   TestWidgetsFlutterBinding.ensureInitialized();
 
-  /// Sem autofillHints o gerenciador de senhas do aparelho nao oferece
-  /// preencher, e a pessoa digita e-mail e senha na mao em todo login.
   testWidgets('login declara o que cada campo guarda', (tester) async {
     await abrir(tester, const LoginScreen());
 
@@ -42,8 +38,6 @@ void main() {
     );
   });
 
-  /// `next` pula pro proximo campo e `done` envia. Sem isso o teclado mostra
-  /// "return", nao navega, e cada campo custa um toque a mais.
   testWidgets('login navega pelo teclado e envia no ultimo', (tester) async {
     await abrir(tester, const LoginScreen());
 
@@ -78,8 +72,6 @@ void main() {
     );
   });
 
-  /// Senha nova precisa ser marcada como nova: com `password`, o gerenciador
-  /// oferece a senha ANTIGA no cadastro em vez de sugerir uma forte.
   testWidgets('cadastro marca as senhas como novas', (tester) async {
     await abrir(tester, const SignupScreen());
 

@@ -15,9 +15,6 @@ void main() {
     return tester.takeException();
   }
 
-  /// Com a cor do card num DecoratedBox solto, o ink de um ListTile com onTap
-  /// era pintado ATRAS do fundo: o admin tocava e nao via retorno nenhum. Seis
-  /// telas poem ListTile dentro de AppCard, entao a correcao e aqui, no card.
   testWidgets('ListTile tocavel dentro do card nao reclama de Material', (
     tester,
   ) async {

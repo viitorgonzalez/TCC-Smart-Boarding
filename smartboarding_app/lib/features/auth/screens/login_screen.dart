@@ -34,8 +34,6 @@ class _LoginScreenState extends State<LoginScreen> {
   Future<void> _entrarComGoogle() async {
     setState(() => _loading = true);
     try {
-      // false = o usuario fechou a escolha de conta. Nao e erro: mostrar
-      // mensagem vermelha por desistencia irrita sem informar nada.
       await context.read<AuthProvider>().signInWithGoogle();
     } catch (e) {
       if (mounted) showErrorSnackBar(context, AppException.fromError(e));
@@ -61,8 +59,6 @@ class _LoginScreenState extends State<LoginScreen> {
 
   @override
   Widget build(BuildContext context) {
-    // As telas de autenticação são as únicas sobre Ash Grey no desenho; o resto
-    // do app é #F4F6F4 (ver design-system.md).
     return Scaffold(
       backgroundColor: AppColors.background,
       body: SafeArea(
@@ -73,13 +69,9 @@ class _LoginScreenState extends State<LoginScreen> {
             child: Column(
               crossAxisAlignment: CrossAxisAlignment.stretch,
               children: [
-                // A logo ja carrega o wordmark: repetir "Smart Boarding" em
-                // texto logo abaixo duplicaria o nome na mesma dobra.
                 Center(
                   child: Image.asset(
                     'assets/images/logo.png',
-                    // Limitado pela largura da tela, nao por um numero fixo:
-                    // em aparelho estreito um valor cravado estoura a margem.
                     width: MediaQuery.sizeOf(context).width * 0.72,
                     semanticLabel: 'Smart Boarding',
                   ),

@@ -51,16 +51,12 @@ void main() {
     expect(await service.lookup('35570-000'), isNotNull);
   });
 
-  /// A armadilha do ViaCEP: CEP inexistente responde **200** com {"erro": true}.
-  /// Tratar só o status deixaria passar resposta vazia como se fosse endereço
-  /// bom, e o aluno salvaria um endereço em branco achando que preencheu.
   test('CEP inexistente devolve nulo mesmo vindo com HTTP 200', () async {
     responde({'erro': true});
 
     expect(await service.lookup('99999999'), isNull);
   });
 
-  /// O mesmo campo já veio como string em versões diferentes do serviço.
   test('trata erro vindo como string tambem', () async {
     responde({'erro': 'true'});
 
@@ -87,8 +83,6 @@ void main() {
     expect(await service.lookup('35570000'), isNull);
   });
 
-  /// Entrada que nem CEP é não merece uma ida à rede: o formulário consulta a
-  /// cada tecla, e um request por dígito digitado é desperdício puro.
   test('CEP incompleto nem chega a consultar', () async {
     expect(await service.lookup('3557'), isNull);
 
@@ -101,9 +95,6 @@ void main() {
     verifyNever(() => dio.get<Map<String, dynamic>>(any()));
   });
 
-  /// O ViaCEP é de terceiro. Reaproveitar o cliente da API mandaria o Bearer
-  /// da sessão junto do request — entregando o token de um aluno a um host
-  /// que não tem nada a ver com o sistema.
   test('nao reaproveita o cliente autenticado da API', () {
     final proprio = CepService().dio;
 

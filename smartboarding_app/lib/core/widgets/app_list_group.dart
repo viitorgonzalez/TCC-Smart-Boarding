@@ -3,18 +3,9 @@ import 'package:flutter/material.dart';
 import '../theme/app_theme.dart';
 import 'app_card.dart';
 
-/// Itens relacionados numa superfície só, separados por divisor.
-///
-/// Substitui o padrão de um [Card] por item. Com um cartão por linha, cada
-/// rota da lista pesava o mesmo que um bloco de conteúdo solto, e a tela virava
-/// uma pilha de caixas de mesmo tamanho — o olho não achava onde começar.
-/// Agrupando, a lista lê como uma coisa só e o cartão volta a significar
-/// "conteúdo que merece destaque".
 class AppListGroup extends StatelessWidget {
   final List<Widget> children;
 
-  /// Recuo do divisor, alinhado ao texto quando os itens têm ícone à esquerda.
-  /// Divisor de ponta a ponta corta o ícone ao meio e suja a coluna.
   final double dividerIndent;
 
   const AppListGroup({
@@ -44,23 +35,15 @@ class AppListGroup extends StatelessWidget {
   }
 }
 
-/// Linha de uma [AppListGroup].
-///
-/// [trailing] é pra informação e navegação. Ação destrutiva não entra aqui:
-/// em vermelho cheio, ao lado do conteúdo, ela vira o elemento mais saturado
-/// da tela sendo o mais raro — vai pro [menu], atrás de um toque.
 class AppListItem extends StatelessWidget {
   final Widget? leading;
   final String title;
   final String? subtitle;
 
-  /// Subtítulo composto, quando texto puro não basta — um marcador de estado,
-  /// por exemplo. Tem precedência sobre [subtitle].
   final Widget? subtitleChild;
   final Widget? trailing;
   final VoidCallback? onTap;
 
-  /// Ações secundárias e destrutivas, num menu de três pontos.
   final List<PopupMenuEntry<VoidCallback>>? menu;
 
   const AppListItem({
@@ -119,7 +102,6 @@ class AppListItem extends StatelessWidget {
   }
 }
 
-/// Item de menu destrutivo, no vermelho da paleta.
 PopupMenuItem<VoidCallback> destructiveMenuItem({
   required String label,
   required IconData icon,
@@ -137,11 +119,6 @@ PopupMenuItem<VoidCallback> destructiveMenuItem({
   );
 }
 
-/// Ponto colorido antes do texto de estado.
-///
-/// Substitui a pílula quando ela competia por largura com o título: o ponto diz
-/// a mesma coisa com um oitavo do espaço, e o nome da rota volta a caber numa
-/// linha.
 class StatusDot extends StatelessWidget {
   final Color color;
   const StatusDot(this.color, {super.key});

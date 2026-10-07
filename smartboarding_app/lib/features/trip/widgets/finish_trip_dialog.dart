@@ -2,10 +2,6 @@ import 'package:flutter/material.dart';
 import '../../../core/theme/app_theme.dart';
 import '../models/trip_status_model.dart';
 
-/// Confirmação de encerramento. Lista as paradas não marcadas em vez de
-/// bloquear: o ônibus pode pular parada legitimamente (ninguém esperando), e
-/// travar o encerramento deixaria o admin preso no fim do dia. Mas ele precisa
-/// ver o que ficou pra trás antes de decidir — pode ter sido esquecimento.
 Future<bool> confirmFinishTrip(BuildContext context, TripStatus trip) async {
   final pendentes = trip.stops.where((s) => !s.reached).toList();
 

@@ -1,8 +1,6 @@
 import 'package:flutter/material.dart';
 import 'app_card.dart';
 
-/// Cartão de carregamento com a mesma moldura dos cartões de conteúdo, pra a
-/// seção não mudar de forma quando os dados chegam.
 class LoadingCard extends StatelessWidget {
   const LoadingCard({super.key});
 

@@ -58,8 +58,6 @@ void main() {
     await tester.pump();
   }
 
-  /// O pino ficava onde o dedo encostou: no meio do quarteirão ou no lado
-  /// errado da via. O aluno via uma parada que não é onde o ônibus encosta.
   testWidgets('a parada nasce na coordenada corrigida, nao na do toque', (
     tester,
   ) async {
@@ -84,8 +82,6 @@ void main() {
     ).called(1);
   });
 
-  /// OSRM público não tem SLA. Uma parada no lugar aproximado é melhor que
-  /// nenhuma parada.
   testWidgets('servico fora do ar ainda cria a parada, no ponto do toque', (
     tester,
   ) async {
@@ -109,8 +105,6 @@ void main() {
       ),
     ).called(1);
   });
-
-  // ─── Vínculo com a instituição (o bug do is_main_point) ───────────────────
 
   const unifor = InstitutionModel(id: 'i1', name: 'UNIFOR-MG', routeId: 'r1');
   const mapStop = MapStop(
@@ -160,8 +154,6 @@ void main() {
     await tester.pump();
   }
 
-  /// Sem este caminho, parada criada pelo app nunca vira ponto principal — e o
-  /// trajeto recusa todo checkpoint nela com STOP_NOT_MAIN_POINT.
   testWidgets('admin vincula a parada a uma instituicao', (tester) async {
     await montarComParada(tester);
 
@@ -182,8 +174,6 @@ void main() {
     ).called(1);
   });
 
-  /// "Nenhuma" é resposta, não desistência: é assim que se desfaz o vínculo.
-  /// Confundi-la com "fechou o menu" deixaria a parada presa à instituição.
   testWidgets('escolher "nenhuma" desfaz o vinculo', (tester) async {
     await montarComParada(tester);
 
@@ -204,7 +194,6 @@ void main() {
     ).called(1);
   });
 
-  /// Rota sem instituição nenhuma não tem o que oferecer: o menu seria um beco.
   testWidgets('sem instituicao na rota a acao nem aparece', (tester) async {
     await montarComParada(tester, instituicoes: const []);
 

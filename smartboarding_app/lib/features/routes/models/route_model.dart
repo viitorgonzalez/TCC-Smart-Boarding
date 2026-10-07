@@ -4,11 +4,8 @@ class RouteModel {
   final String? description;
   final bool isActive;
 
-  /// A rota aceita aluno que não declarou instituição no perfil. Nasce
-  /// desligada — é exceção que o admin abre de propósito.
   final bool admitsNoInstitution;
 
-  /// Horários em que a lista do dia abre e fecha (RN18).
   final String? openTime;
   final String? closeTime;
   final String createdAt;

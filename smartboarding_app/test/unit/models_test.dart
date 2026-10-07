@@ -48,8 +48,6 @@ void main() {
   });
 
   group('TripStatus.current: qual parada ganha o botão', () {
-    // Um "Marcar" por vez: se todas as pendentes ganhassem botão, dava pra
-    // marcar a última antes da primeira e furar a ordem do trajeto.
     test('é a primeira ainda não alcançada', () {
       final t = _trip(
         startedAt: '2026-09-09T06:00:00',
@@ -134,8 +132,6 @@ void main() {
       expect(p.statusHistory.first.activated, isFalse);
     });
 
-    // A API só manda o que o card precisa. Campos opcionais ausentes não podem
-    // derrubar o parsing.
     test('campos opcionais ausentes não quebram', () {
       final p = StudentProfile.fromJson({
         'id': 'aluno-1',

@@ -9,14 +9,9 @@ import '../models/trip_status_model.dart';
 import '../services/trip_service.dart';
 import '../widgets/trip_step_tile.dart';
 
-/// O aluno acompanha onde o ônibus parou.
-///
-/// Só dentro do app, como pedido: nada de push. Quem quer saber abre a tela;
-/// quem não quer não é interrompido.
 class TripFollowScreen extends StatefulWidget {
   final String listId;
 
-  /// Injetável pro teste; em produção constrói o seu.
   final TripService? service;
 
   const TripFollowScreen({super.key, required this.listId, this.service});
@@ -26,9 +21,6 @@ class TripFollowScreen extends StatefulWidget {
 }
 
 class _TripFollowScreenState extends State<TripFollowScreen> {
-  /// 20s: o dado muda a cada parada, e o trajeto dura minutos. Mais rápido
-  /// gastaria bateria de quem está no ônibus pra ganhar segundos que ninguém
-  /// percebe; mais lento faria a tela parecer travada.
   static const _intervalo = Duration(seconds: 20);
 
   late final TripService _service = widget.service ?? TripService();
@@ -46,8 +38,6 @@ class _TripFollowScreenState extends State<TripFollowScreen> {
 
   @override
   void dispose() {
-    // Timer vivo depois de sair é vazamento, e gasta bateria de quem está no
-    // ônibus justamente quando ela importa.
     _timer?.cancel();
     super.dispose();
   }
@@ -62,8 +52,6 @@ class _TripFollowScreenState extends State<TripFollowScreen> {
       });
     } catch (e) {
       if (!mounted) return;
-      // Só mostra erro se ainda não há nada na tela: uma falha de polling com
-      // dado bom à vista não deve apagar o que o aluno está lendo.
       if (_trip == null) setState(() => _erro = AppException.fromError(e));
     }
   }
@@ -126,8 +114,6 @@ class _TripFollowScreenState extends State<TripFollowScreen> {
                     done: stop.reached,
                     current: trip.current?.stopId == stop.stopId,
                     reachedAt: stop.reachedAt,
-                    // A parada dele em destaque: é o ponto que interessa nessa
-                    // lista, e sem marcação ele a procura a cada atualização.
                     highlighted: trip.myStop?.stopId == stop.stopId,
                   ),
               ],
@@ -177,7 +163,6 @@ class _MinhaParada extends StatelessWidget {
           const SizedBox(height: 6),
           Text(minha.stopName, style: texto.headlineSmall),
 
-          // Nulo é "não sei": mostrar zero viraria "o ônibus chegou".
           if (minha.etaMinutes case final min?) ...[
             const SizedBox(height: 14),
             Row(

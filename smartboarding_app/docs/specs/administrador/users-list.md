@@ -24,7 +24,9 @@ acesso, não cadastrar gente.
 
 ## Layout / seções
 
-- **Seletor de rota** no topo, quando existe mais de uma.
+- **Seletor de rota** no topo, quando existe mais de uma. Abre já escopado na primeira rota ativa
+  do admin (a base de usuários cresce sem teto, e o padrão é trabalhar por rota — ver o sistema
+  inteiro é a exceção, a um toque de distância via "Todas as rotas", não o ponto de partida).
 - **Filtro por papel** (`ADMIN`, `STUDENT`); sem filtro, a lista agrupa por papel nessa ordem.
 - **Lista**: nome, e-mail e papel. Tocar abre a ficha.
   - Mudou status ou papel na ficha, **a lista recarrega ao fechar**. O agrupamento e a etiqueta
@@ -34,7 +36,24 @@ acesso, não cadastrar gente.
 ## A ficha do usuário
 
 Abre como folha sobre a lista, com os dados cadastrais, as idas recentes e o histórico de
-mudanças de status. Duas ações:
+mudanças de status (`StudentProfile`, que espelha o DTO da API — contato e nascimento vêm, senha
+nunca vem, nem existe campo pra ela no modelo — decisão invertida em 09/09/2026: a ficha passou
+a carregar contato porque o admin precisa falar com o aluno; só a senha ficou de fora, por não
+ter uso de leitura nenhum). Só o admin alcança essa ficha: o endpoint por
+trás é `hasRole("ADMIN")` justamente porque ali trafega dado de contato. Campo de contato vazio
+(`ProfileInfoRows`) some da ficha, em vez de mostrar o rótulo com travessão — linha em branco só
+ocupa espaço e não informa nada. Identificar "é a minha própria conta" (`ehAPropriaConta`) usa o
+**e-mail**, não um id — é a mesma chave que o resto do app usa pra "sou eu"
+(`StudentListProvider.setUserEmail`), porque o token de sessão nunca carrega um id de usuário.
+`onChanged` só dispara depois de uma resposta bem-sucedida do backend — um `PATCH` recusado
+(ex.: `LAST_ADMIN`) não pode mandar a lista de trás recarregar como se algo tivesse mudado.
+Fechar a folha fica bloqueado (`PopScope.canPop: !busy`) enquanto uma requisição de ativar/
+desativar ou promover/rebaixar está em voo: sem a trava, fechar no meio do `PATCH` faria a folha
+sumir antes do `onChanged` disparar, e a lista de trás ficaria mostrando o papel antigo de uma
+conta que já mudou — seguro é mais honesto que aceitar o fechamento e devolver um resultado
+desatualizado. Depois de promover/rebaixar, a contagem de admins é recarregada: ela muda pra
+todo mundo, e precisa refletir aqui pra travar de novo se esta conta virou a última admin. Duas
+ações:
 
 - **Conta ativa** (switch) — desativar impede a pessoa de entrar, por senha ou pelo Google, e
   o acesso cai na requisição seguinte: a autoridade de cada chamada é lida do banco, não da

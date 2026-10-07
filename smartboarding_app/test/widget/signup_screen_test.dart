@@ -17,8 +17,6 @@ Future<void> abrir(WidgetTester tester) async {
   await tester.pumpAndSettle();
 }
 
-/// O TextField do Flutter nao expoe obscureText direto no finder, entao lemos do
-/// widget montado.
 bool escondido(WidgetTester tester, Key campo) {
   final field = tester.widget<TextField>(
     find.descendant(of: find.byKey(campo), matching: find.byType(TextField)),
@@ -36,8 +34,6 @@ void main() {
     expect(escondido(tester, const Key('signup_confirm_field')), isTrue);
   });
 
-  /// Um toggle so revelava OS DOIS campos: quem so queria conferir o que digitou
-  /// acabava expondo a outra senha sem querer.
   testWidgets('mostrar a senha nao revela a confirmacao', (tester) async {
     await abrir(tester);
 
@@ -68,7 +64,6 @@ void main() {
     expect(escondido(tester, const Key('signup_password_field')), isTrue);
   });
 
-  // Sem autofocus o usuario precisa de um toque a mais so pra comecar a digitar.
   testWidgets('o primeiro campo ja vem com foco', (tester) async {
     await abrir(tester);
 
@@ -97,8 +92,6 @@ void main() {
       find.byKey(const Key('signup_confirm_field')),
       '123',
     );
-    // O botao fica abaixo da dobra na viewport do teste; sem rolar ate ele o
-    // tap cai fora e nao dispara nada.
     await tester.ensureVisible(find.byKey(const Key('signup_submit_button')));
     await tester.pumpAndSettle();
     await tester.tap(find.byKey(const Key('signup_submit_button')));
@@ -123,8 +116,6 @@ void main() {
       find.byKey(const Key('signup_confirm_field')),
       'outra123',
     );
-    // O botao fica abaixo da dobra na viewport do teste; sem rolar ate ele o
-    // tap cai fora e nao dispara nada.
     await tester.ensureVisible(find.byKey(const Key('signup_submit_button')));
     await tester.pumpAndSettle();
     await tester.tap(find.byKey(const Key('signup_submit_button')));

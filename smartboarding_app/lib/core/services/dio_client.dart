@@ -7,11 +7,6 @@ class DioClient {
   static Dio? _instance;
   static final _storage = StorageService();
 
-  /// Chamado quando o servidor recusa o token da sessão. Quem liga é o
-  /// [AuthProvider], que derruba a sessão e devolve o usuário ao login.
-  ///
-  /// É um gancho, e não uma chamada direta ao provider, porque o cliente HTTP
-  /// é estático e não enxerga a árvore de widgets.
   static void Function()? onUnauthorized;
 
   static Dio get instance {
@@ -30,18 +25,11 @@ class DioClient {
       ),
     );
 
-    dio.interceptors.addAll([
-      _AuthInterceptor(_storage),
-      _ErrorInterceptor(),
-      // Descomente para debug:
-      // LogInterceptor(requestBody: true, responseBody: true),
-    ]);
+    dio.interceptors.addAll([_AuthInterceptor(_storage), _ErrorInterceptor()]);
 
     return dio;
   }
 }
-
-// ─── Injeta JWT em todas as requisições ──────────────────────────────────────
 
 class _AuthInterceptor extends Interceptor {
   final StorageService _storage;
@@ -59,8 +47,6 @@ class _AuthInterceptor extends Interceptor {
     handler.next(options);
   }
 }
-
-// ─── Converte DioException em AppException com mensagem amigável ─────────────
 
 class _ErrorInterceptor extends Interceptor {
   @override
@@ -81,9 +67,6 @@ class _ErrorInterceptor extends Interceptor {
     );
   }
 
-  /// 401 em `/auth/*` é credencial errada de quem está tentando entrar, não
-  /// sessão vencida — derrubar a sessão ali faria um erro de digitação na
-  /// senha desempilhar as telas de quem nem estava logado.
   bool _ehPortaDeEntrada(DioException err) =>
       err.requestOptions.path.contains('/auth/');
 }

@@ -39,8 +39,6 @@ void main() {
     expect(p.busy, isFalse);
   });
 
-  // Quem esta dirigindo toca com pressa. Sem a trava, o segundo toque vira um
-  // segundo checkpoint e morre em erro na cara dele.
   test('segundo toque durante a acao e ignorado', () async {
     final p = TripProvider(TripService(), 'l1');
 
@@ -57,8 +55,6 @@ void main() {
 
     await p.checkpoint('p1');
 
-    // Travar pra sempre apos um erro deixaria o trajeto inoperante ate reabrir
-    // a tela.
     expect(p.busy, isFalse);
   });
 

@@ -4,7 +4,6 @@ class UserModel {
   final String email;
   final String role;
 
-  /// Nome da instituição, resolvido pelo backend a partir da referência.
   final String? institution;
   final bool isActive;
 

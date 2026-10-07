@@ -32,13 +32,10 @@ class AdminListEntriesScreen extends StatelessWidget {
   }
 }
 
-// ─── Provider local (scoped) ──────────────────────────────────────────────────
-
 class _EntriesProvider extends ChangeNotifier {
   final ListService _service;
   final String listId;
 
-  /// A inclusão pelo admin escolhe entre os alunos da rota desta lista.
   final String routeId;
 
   AsyncValue<List<ListEntry>> _state = const AsyncLoading();
@@ -57,8 +54,6 @@ class _EntriesProvider extends ChangeNotifier {
     notifyListeners();
   }
 }
-
-// ─── UI ───────────────────────────────────────────────────────────────────────
 
 class _EntriesView extends StatelessWidget {
   final DailyList list;
@@ -113,7 +108,6 @@ class _EntriesView extends StatelessWidget {
               : RefreshIndicator(
                   onRefresh: provider.load,
                   child: ListView.builder(
-                    // +1 pelo cabeçalho com a divisão por instituição.
                     itemCount: entries.length + 1,
                     itemBuilder: (_, index) {
                       if (index == 0) {
@@ -133,14 +127,32 @@ class _EntriesView extends StatelessWidget {
                         ),
                         onTap: () =>
                             showStudentProfile(context, entries[i].userId),
-                        title: Text(entries[i].fullName),
+                        title: Row(
+                          mainAxisSize: MainAxisSize.min,
+                          children: [
+                            Flexible(child: Text(entries[i].fullName)),
+                            if (entries[i].addedByAdmin) ...[
+                              const SizedBox(width: 6),
+                              const Tooltip(
+                                message: 'Incluído pelo admin',
+                                child: Icon(
+                                  Icons.admin_panel_settings_outlined,
+                                  size: 16,
+                                  color: AppColors.deepTeal,
+                                ),
+                              ),
+                            ],
+                          ],
+                        ),
                         isThreeLine: true,
                         subtitle: Column(
                           crossAxisAlignment: CrossAxisAlignment.start,
                           children: [
                             Text(entries[i].email ?? '—'),
                             Text(
-                              'Entrou às ${formatTime(entries[i].createdAt)}',
+                              entries[i].addedByAdmin
+                                  ? 'Incluído pelo admin às ${formatTime(entries[i].createdAt)}'
+                                  : 'Entrou às ${formatTime(entries[i].createdAt)}',
                             ),
                           ],
                         ),
@@ -171,9 +183,6 @@ class _EntriesView extends StatelessWidget {
   }
 }
 
-/// Inclusão tardia: o admin põe o aluno na lista mesmo fechada, e decide se
-/// isso vira advertência — colocar o nome no prazo é responsabilidade do aluno,
-/// mas nem todo atraso é culpa dele.
 Future<void> _addStudent(
   BuildContext context,
   _EntriesProvider provider,
@@ -217,8 +226,6 @@ Future<void> _addStudent(
 Future<UserModel?> _pickStudent(BuildContext context, String routeId) async {
   List<UserModel> students;
   try {
-    // Todos, nao so a primeira pagina: a folha tem busca por nome, e buscar
-    // dentro de um pedaco encontraria so quem calhou de vir primeiro.
     students = (await UserService().getAllUsers(
       routeId: routeId,
     )).where((u) => u.role == 'STUDENT').toList();

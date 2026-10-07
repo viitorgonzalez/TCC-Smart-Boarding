@@ -2,9 +2,6 @@ import 'package:flutter/material.dart';
 import '../../../core/widgets/app_text_field.dart';
 import '../models/institution_model.dart';
 
-/// Formulário de instituição. Devolve nome e endereço, ou nulo se cancelar.
-/// Endereço vazio vira null em vez de string vazia — "" no banco aparece como
-/// campo em branco na tela e não se distingue de "não informado".
 Future<({String name, String? address})?> showInstitutionForm(
   BuildContext context, {
   InstitutionModel? existente,

@@ -69,8 +69,6 @@ void main() {
     );
   });
 
-  /// A carteirinha se mostra pra outra pessoa. CEP e cidade não ajudam numa
-  /// conferência presencial e não precisam circular numa tela dessas.
   testWidgets('nao expoe CEP, cidade nem e-mail', (tester) async {
     await montar(tester);
 
@@ -80,8 +78,6 @@ void main() {
     expect(texto, isNot(contains('fernanda@edu.unifor.br')));
   });
 
-  /// Carteirinha com lacuna não serve pra conferência nenhuma: melhor dizer o
-  /// que falta do que entregar um documento pela metade.
   testWidgets('perfil incompleto mostra o que falta em vez do cartao', (
     tester,
   ) async {
@@ -94,7 +90,6 @@ void main() {
     expect(find.byKey(const Key('student_card_body')), findsNothing);
   });
 
-  /// A validade é o vínculo ativo: é isso que a carteirinha atesta.
   testWidgets('sem rota ativa a carteirinha nao vale', (tester) async {
     await montar(tester, comRota: false);
 
@@ -102,8 +97,6 @@ void main() {
     expect(find.byKey(const Key('student_card_body')), findsNothing);
   });
 
-  /// Sem isso vira documento com aparência de oficial que ninguém auditou: o
-  /// app sabe o que o aluno declarou, não valida vínculo com a instituição.
   testWidgets('diz que nao e documento oficial', (tester) async {
     await montar(tester);
 

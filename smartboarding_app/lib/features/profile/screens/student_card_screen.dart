@@ -6,21 +6,9 @@ import '../../../core/widgets/empty_state.dart';
 import '../../../core/widgets/initials_avatar.dart';
 import '../models/profile_update_model.dart';
 
-/// Carteirinha de estudante virtual.
-///
-/// Mostra só o que serve numa conferência presencial: quem é a pessoa, onde
-/// estuda e onde mora. Do endereço, apenas rua, número e bairro — CEP e cidade
-/// não identificam ninguém de perto, e esta é uma tela que se aponta pra outra
-/// pessoa.
-///
-/// A validade é o vínculo ativo, não uma data: é exatamente isso que ela
-/// atesta. Reusar `users.expiry_date` seria pior que inútil — aquela coluna é
-/// o `isAccountNonExpired()` do Spring Security, e preenchê-la tiraria o login
-/// do aluno no dia em que a carteirinha vencesse.
 class StudentCardScreen extends StatelessWidget {
   final Me me;
 
-  /// O aluno está em alguma rota. É a condição de validade.
   final bool hasActiveRoute;
 
   const StudentCardScreen({
@@ -43,8 +31,6 @@ class StudentCardScreen extends StatelessWidget {
   }
 
   Widget _conteudo(BuildContext context) {
-    // Carteirinha pela metade não serve pra conferência nenhuma, e meia linha
-    // de endereço parece dado perdido. Melhor dizer o que falta.
     if (!me.profileCompleteForList) {
       return _Aviso(
         key: const Key('student_card_incomplete'),
@@ -108,8 +94,6 @@ class _Cartao extends StatelessWidget {
                 ],
               ),
               const Divider(height: 28),
-              // Rótulo órfão sobre um valor vazio parece campo que não
-              // carregou: cada bloco só existe se tiver o que mostrar.
               if (me.institution case final nome?)
                 _Campo(rotulo: 'Instituição', valor: nome),
               if (me.course case final curso? when curso.trim().isNotEmpty)

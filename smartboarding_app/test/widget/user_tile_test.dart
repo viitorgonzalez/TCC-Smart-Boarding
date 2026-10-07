@@ -10,10 +10,6 @@ import 'package:smartboarding_app/features/users/widgets/user_tile.dart';
 import '../support/fake_http.dart';
 import '../support/pump_until.dart';
 
-/// A linha da lista abre a ficha. O que precisa de rede aqui é o caminho de
-/// volta: a ficha só atualiza o estado dela, então quem abriu tem que recarregar
-/// a própria lista — senão o aluno recém-promovido continua no grupo "Alunos"
-/// com a etiqueta antiga até um pull-to-refresh.
 void main() {
   TestWidgetsFlutterBinding.ensureInitialized();
 
@@ -28,9 +24,6 @@ void main() {
     WidgetTester tester,
     UserProvider provider,
   ) async {
-    // A ficha é mais alta que a janela padrão de teste (800x600): aberta
-    // inteira, o conteúdo estouraria o viewport e o tap na ação de papel não
-    // acharia alvo.
     tester.view.physicalSize = const Size(1000, 1400);
     tester.view.devicePixelRatio = 1.0;
     addTearDown(tester.view.reset);
@@ -87,8 +80,6 @@ void main() {
     return http;
   }
 
-  /// Abre a folha e espera a ficha aparecer — as buscas do `initState` só andam
-  /// intercalando tempo real e relógio falso, por isso o `pumpUntil`.
   Future<void> abrirFicha(WidgetTester tester) async {
     await tester.tap(find.byType(ListTile));
     await pumpUntil(
@@ -96,9 +87,6 @@ void main() {
       () => find.byKey(const Key('profile_role_action')).evaluate().isNotEmpty,
       describe: 'a ficha do usuário carregar',
     );
-    // A folha entra deslizando de baixo. Enquanto a animação não termina o
-    // conteúdo está montado mas posicionado fora da tela, e o tap não acerta
-    // alvo nenhum.
     await tester.pumpAndSettle();
   }
 
@@ -129,8 +117,6 @@ void main() {
       describe: 'o PATCH de papel',
     );
 
-    // A recarga só dispara quando a folha fecha: showStudentProfile espera a
-    // rota modal sair antes de devolver o veredito.
     tester.state<NavigatorState>(find.byType(Navigator).first).pop();
     await pumpUntil(
       tester,
@@ -141,8 +127,6 @@ void main() {
     expect(http.requests.where((r) => r.path == '/api/users'), hasLength(1));
   });
 
-  /// Fechar a folha sem mexer em nada não pode custar uma requisição: a folha
-  /// abre de três telas e é o gesto mais comum da lista.
   testWidgets('fechar a ficha sem mudar nada não recarrega', (tester) async {
     final provider = UserProvider(UserService());
     final http = await montarLista(tester, provider);

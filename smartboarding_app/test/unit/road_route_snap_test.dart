@@ -26,9 +26,6 @@ void main() {
     );
   }
 
-  /// O toque cai no meio do quarteirão ou no lado errado da via. O OSRM gruda o
-  /// ponto na rua pra calcular, mas o PINO ficava no lugar errado — e o aluno
-  /// via uma parada que não é onde o ônibus encosta.
   test('devolve a coordenada grudada na via', () async {
     responde({
       'code': 'Ok',
@@ -46,8 +43,6 @@ void main() {
     expect(grudado.longitude, closeTo(-45.4267, 1e-6));
   });
 
-  /// GeoJSON é [longitude, latitude] — invertido em relação ao LatLng. Trocar a
-  /// ordem põe a parada em outro continente sem erro nenhum.
   test('nao inverte latitude com longitude', () async {
     responde({
       'code': 'Ok',
@@ -64,8 +59,6 @@ void main() {
     expect(grudado.longitude, -45.0);
   });
 
-  /// O OSRM público não tem SLA. Quem chama usa o ponto do toque: uma parada
-  /// no lugar aproximado é melhor que nenhuma parada.
   test('servico fora do ar devolve nulo', () async {
     when(
       () => dio.get(any(), queryParameters: any(named: 'queryParameters')),

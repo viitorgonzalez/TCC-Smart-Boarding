@@ -32,7 +32,6 @@ class ListService {
     await _dio.delete('/api/lists/$listId/entries');
   }
 
-  /// Dias de presença do aluno logado nos últimos [months] meses.
   Future<List<AttendanceDay>> getMyAttendance({int months = 6}) async {
     final response = await _dio.get(
       '/api/lists/my-attendance',
@@ -63,7 +62,6 @@ class ListService {
     await _dio.post('/api/lists', data: {'routeId': routeId, 'date': iso});
   }
 
-  /// [reason] é obrigatório: vira o aviso enviado aos alunos da rota.
   Future<void> setListStatus(
     String listId,
     String status,
@@ -75,13 +73,10 @@ class ListService {
     );
   }
 
-  /// O backend recusa se a lista já tiver relatório gerado (RN8).
   Future<void> deleteList(String listId) async {
     await _dio.delete('/api/lists/$listId');
   }
 
-  /// Inclusão pelo admin: entra mesmo com a lista fechada. [issueWarning] é a
-  /// escolha dele — nem toda inclusão tardia é falta do aluno.
   Future<void> addEntryAsAdmin(
     String listId, {
     required String userId,

@@ -3,8 +3,6 @@ import '../../../core/theme/app_theme.dart';
 import '../../../core/utils/date_format.dart';
 import '../models/student_profile_model.dart';
 
-/// Bloco de contato da ficha. Campo vazio some em vez de mostrar rótulo com
-/// travessão — linha em branco só ocupa espaço e não informa nada.
 class ProfileInfoRows extends StatelessWidget {
   final StudentProfile profile;
 

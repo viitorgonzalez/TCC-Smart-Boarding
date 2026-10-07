@@ -1,21 +1,14 @@
-/// Estado do trajeto do dia. `startedAt` nulo = não começou; `finishedAt`
-/// preenchido = encerrado.
 class TripStatus {
   final String listId;
   final String routeName;
   final String? startedAt;
 
-  /// Quando a ida acabou. Nulo = ainda na ida.
   final String? outboundFinishedAt;
   final String? finishedAt;
 
-  /// OUTBOUND ou RETURN. A API já manda as paradas na ordem certa de cada
-  /// perna — o app não reordena, só rotula.
   final String leg;
   final List<TripStop> stops;
 
-  /// Onde ESTE aluno desce, e quanto falta. Nulo pro admin, que conduz o
-  /// ônibus em vez de viajar nele.
   final MyStop? myStop;
 
   const TripStatus({
@@ -35,8 +28,6 @@ class TripStatus {
   bool get notStarted => startedAt == null;
   bool get finished => finishedAt != null;
 
-  /// Primeiro ponto ainda não alcançado — é o único que ganha botão, como no
-  /// desenho: um "Marcar" por vez.
   TripStop? get current {
     if (!inProgress) return null;
     for (final s in stops) {
@@ -84,22 +75,13 @@ class TripStop {
   );
 }
 
-/// A parada do aluno e o tempo até ela.
-///
-/// Dois alunos no mesmo ônibus veem números diferentes — por isso [stopName]
-/// vem junto: sem nomear o destino, quem vê o número do colega conclui que o
-/// app está errado.
 class MyStop {
   final String stopId;
   final String stopName;
 
-  /// A instituição do aluno não tem parada declarada, e isto é a última do
-  /// trajeto. A tela precisa dizer isso: um tempo até um lugar que não é o
-  /// dele, sem aviso, é pior que tempo nenhum.
   final bool fallback;
   final bool alreadyReached;
 
-  /// Nulo é "não sei", e a tela omite. Um zero viraria "o ônibus chegou".
   final int? etaMinutes;
 
   const MyStop({

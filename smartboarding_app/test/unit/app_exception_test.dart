@@ -19,8 +19,6 @@ DioException _dio({
 
 void main() {
   group('mensagem vinda da API', () {
-    // A API manda o motivo real no corpo. Preferir a mensagem genérica do status
-    // esconderia justamente a informação útil.
     test('usa "error" do corpo quando existe', () {
       final e = _dio(
         status: 409,
@@ -124,8 +122,6 @@ void main() {
     expect(const AppException('x').toString(), 'x');
   });
 
-  // Erro que não é nem AppException nem DioException não pode vazar stack trace
-  // pro usuário.
   test('erro qualquer vira mensagem genérica', () {
     expect(
       AppException.fromError(StateError('bug interno')),
@@ -137,8 +133,6 @@ void main() {
     );
   });
 
-  /// Um 401 na tela de login é senha errada, não sessão vencida: quem está ali
-  /// ainda não tem sessão nenhuma pra expirar.
   test('401 entrando fala de credencial, nao de sessao', () {
     final e = DioException(
       requestOptions: RequestOptions(path: '/auth/login'),
@@ -165,7 +159,6 @@ void main() {
     expect(AppException.fromError(e), contains('Sessão expirada'));
   });
 
-  /// A mensagem do servidor vence a genérica: ela diz o que de fato aconteceu.
   test('mensagem do servidor tem prioridade', () {
     final req = RequestOptions(path: '/auth/login');
     final e = DioException(

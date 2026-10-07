@@ -60,8 +60,6 @@ void main() {
       expect((envio.data as Map)['password'], 'segredo123');
     });
 
-    /// Confirmacao divergente tem que morrer no formulario. Se vazasse pro
-    /// backend, a conta ficaria com uma senha que o dono acha que nao digitou.
     testWidgets('confirmacao diferente nao envia nada', (tester) async {
       final http = await abrir(tester);
 
@@ -86,14 +84,15 @@ void main() {
       expect(find.byKey(const Key('password_current_field')), findsNothing);
     });
 
-    /// O 409 do backend (conta que ja tem senha) precisa virar mensagem, nao
-    /// excecao solta que derruba a tela de perfil.
     testWidgets('erro do backend vira mensagem na tela', (tester) async {
       await abrir(tester, status: 409);
 
       await preencher(tester, 'segredo123', 'segredo123');
 
-      expect(find.byType(SnackBar), findsOneWidget);
+      expect(
+        find.text('Conflito: já existe um registro com esses dados.'),
+        findsOneWidget,
+      );
     });
   });
 
@@ -110,8 +109,6 @@ void main() {
       expect((envio.data as Map)['newPassword'], 'nova456789');
     });
 
-    /// Sem a senha atual o backend recusaria de qualquer jeito, mas deixar
-    /// enviar gastaria uma ida ao servidor pra dizer o obvio.
     testWidgets('sem a senha atual nao envia nada', (tester) async {
       final http = await abrir(tester, trocando: true);
 
@@ -121,14 +118,12 @@ void main() {
       expect(find.text('Informe sua senha atual'), findsOneWidget);
     });
 
-    /// Senha atual errada volta 400. Tem que virar mensagem legivel, nao
-    /// silencio -- o usuario precisa saber que errou a senha, nao a nova.
     testWidgets('senha atual errada vira mensagem', (tester) async {
       await abrir(tester, trocando: true, status: 400);
 
       await preencher(tester, 'nova456789', 'nova456789', atual: 'chutei');
 
-      expect(find.byType(SnackBar), findsOneWidget);
+      expect(find.text('Dados inválidos na requisição.'), findsOneWidget);
     });
   });
 }

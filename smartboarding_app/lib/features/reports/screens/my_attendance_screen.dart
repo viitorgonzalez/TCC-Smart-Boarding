@@ -7,7 +7,6 @@ import '../../../core/widgets/trip_type_chip.dart';
 import '../../lists/services/list_service.dart';
 import '../models/attendance_model.dart';
 
-/// Log de comparecimento do aluno — o relatório operacional é do admin.
 class MyAttendanceScreen extends StatefulWidget {
   const MyAttendanceScreen({super.key});
 
@@ -93,7 +92,6 @@ class _MyAttendanceScreenState extends State<MyAttendanceScreen> {
     );
   }
 
-  /// Preserva a ordem do backend: do mais recente pro mais antigo.
   List<Widget> _byMonth(List<AttendanceDay> days) {
     final widgets = <Widget>[];
     String? currentKey;

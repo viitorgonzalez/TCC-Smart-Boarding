@@ -11,10 +11,7 @@ import '../providers/institution_provider.dart';
 import '../widgets/institution_form.dart';
 import '../../../core/widgets/app_list_group.dart';
 
-/// Catálogo de instituições. É aqui que elas nascem e são editadas; a tela da
-/// rota apenas escolhe entre as que existem.
 class InstitutionsScreen extends StatelessWidget {
-  /// Rotas só para exibir o nome de quem atende cada instituição.
   final List<RouteModel> routes;
 
   const InstitutionsScreen({super.key, this.routes = const []});
@@ -142,9 +139,6 @@ class InstitutionsScreen extends StatelessWidget {
                                         const StatusDot(AppColors.danger),
                                       Expanded(
                                         child: Text(
-                                          // Sem rota o aluno dessa instituicao
-                                          // nao enxerga lista nenhuma; dizer
-                                          // isso evita o misterio.
                                           rota == null
                                               ? 'Sem rota atendendo'
                                               : 'Atendida por $rota',

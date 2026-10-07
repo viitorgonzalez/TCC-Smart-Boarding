@@ -26,8 +26,6 @@ class _UserManagementScreenState extends State<UserManagementScreen> {
   @override
   void initState() {
     super.initState();
-    // Abre escopado na rota: a base de usuários cresce sem teto e o admin
-    // trabalha por rota. "Todas as rotas" continua a um toque.
     WidgetsBinding.instance.addPostFrameCallback((_) {
       final routes = switch (context.read<RouteProvider>().state) {
         AsyncData(:final value) => value.where((r) => r.isActive).toList(),
@@ -110,8 +108,6 @@ class _UserManagementScreenState extends State<UserManagementScreen> {
   }
 }
 
-/// Escopo da listagem. O padrão é a rota — ver o sistema inteiro é a exceção,
-/// não o ponto de partida.
 class _RouteScope extends StatelessWidget {
   final String? selected;
   final ValueChanged<String?> onSelected;

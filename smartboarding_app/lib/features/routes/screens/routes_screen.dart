@@ -22,8 +22,6 @@ class RoutesScreen extends StatefulWidget {
 }
 
 class _RoutesScreenState extends State<RoutesScreen> {
-  /// Lista de hoje por rota. O admin precisa ver o estado da lista sem entrar
-  /// em cada rota — é o resumo que a tela separada de listas dava antes.
   Map<String, DailyList> _todayLists = const {};
 
   @override
@@ -37,9 +35,7 @@ class _RoutesScreenState extends State<RoutesScreen> {
       final lists = await ListService().getListsByDate(DateTime.now());
       if (!mounted) return;
       setState(() => _todayLists = {for (final l in lists) l.routeId: l});
-    } catch (_) {
-      // O resumo é acessório: falhar aqui não pode esconder as rotas.
-    }
+    } catch (_) {}
   }
 
   @override
@@ -93,9 +89,6 @@ class _RoutesScreenState extends State<RoutesScreen> {
     RouteProvider provider, [
     RouteModel? route,
   ]) async {
-    // O push nasce no Navigator, acima de qualquer provider desta tela: o que
-    // nao for repassado aqui nao chega la. Faltando o InstitutionProvider, a
-    // secao "Instituicoes atendidas" do detalhe estourava ProviderNotFound.
     final institutionProvider = context.read<InstitutionProvider>();
 
     await Navigator.push<void>(
@@ -106,8 +99,6 @@ class _RoutesScreenState extends State<RoutesScreen> {
             ChangeNotifierProvider.value(value: provider),
             ChangeNotifierProvider.value(value: institutionProvider),
           ],
-          // Rota nova usa o formulário mínimo (só precisa de nome); editar abre
-          // a tela completa, com paradas, frota e instituições.
           child: route == null
               ? const RouteFormScreen()
               : RouteDetailScreen(route: route),
@@ -153,8 +144,6 @@ class _RoutesScreenState extends State<RoutesScreen> {
   }
 }
 
-// ─── Tile de rota ─────────────────────────────────────────────────────────────
-
 class _RouteTile extends StatelessWidget {
   final RouteModel route;
   final DailyList? todayList;
@@ -187,9 +176,6 @@ class _RouteTile extends StatelessWidget {
     return AppListItem(
       leading: const Icon(Icons.route_outlined, color: AppColors.deepTeal),
       title: route.name,
-      // Estado no subtitulo, e nao numa pilula a direita: a pilula disputava
-      // largura com o nome da rota e quebrava "Rota Universitaria de Formiga"
-      // em duas linhas.
       subtitleChild: Row(
         children: [
           if (lista != null)

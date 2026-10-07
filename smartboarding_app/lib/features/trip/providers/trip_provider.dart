@@ -11,8 +11,6 @@ class TripProvider extends ChangeNotifier {
   AsyncValue<TripStatus> _state = const AsyncLoading();
   AsyncValue<TripStatus> get state => _state;
 
-  /// Acao em voo. Sem isso o duplo toque vira dois checkpoints, e o segundo
-  /// morre em erro na cara de quem esta dirigindo.
   bool _busy = false;
   bool get busy => _busy;
 

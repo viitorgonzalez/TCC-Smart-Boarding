@@ -6,15 +6,10 @@ import '../../routes/models/map_stop.dart';
 import '../../routes/widgets/route_map.dart';
 import '../../../core/text/plural.dart';
 
-/// Blocos de apoio do cartão do aluno: veículo definido no fechamento (RN16)
-/// e prévia do trajeto.
 class ProposedVehicle extends StatelessWidget {
   final List<VehicleSummary> vehicles;
   final int shortfall;
 
-  /// Lista fechada: a escolha está congelada. Aberta, é previsão e muda
-  /// conforme entra e sai gente — dizer "definido" antes da hora seria promessa
-  /// que o app não pode cumprir.
   final bool definido;
 
   const ProposedVehicle({
@@ -61,8 +56,6 @@ class ProposedVehicle extends StatelessWidget {
           ),
           const SizedBox(height: 6),
           Text(switch (vehicles) {
-            // Zero confirmado nao precisa de veiculo nenhum ainda; dizer
-            // "nenhum disponivel" soaria como frota faltando.
             [] when shortfall == 0 =>
               definido
                   ? 'Nenhum passageiro confirmado'

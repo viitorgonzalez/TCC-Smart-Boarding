@@ -57,8 +57,6 @@ class ReportsScreen extends StatelessWidget {
   }
 }
 
-// ─── Tiles e estados ──────────────────────────────────────────────────────────
-
 class _ReportTile extends StatelessWidget {
   final ReportSummary report;
   const _ReportTile({required this.report});

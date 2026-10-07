@@ -23,8 +23,6 @@ class _BroadcastScreenState extends State<BroadcastScreen> {
   final _titleCtrl = TextEditingController();
   final _bodyCtrl = TextEditingController();
 
-  /// Nulo = sem prazo. Presets em vez de campo livre: o admin pensa em "quanto
-  /// tempo isso importa", não em data e hora exatas.
   int? _durationHours = 24;
   String? _routeId;
 
@@ -74,7 +72,6 @@ class _BroadcastScreenState extends State<BroadcastScreen> {
       AsyncData(:final value) => value.where((r) => r.isActive).toList(),
       _ => const <RouteModel>[],
     };
-    // Com uma rota só, escolher é cerimônia — já vem marcada.
     if (_routeId == null && routes.length == 1) {
       WidgetsBinding.instance.addPostFrameCallback((_) {
         if (mounted) setState(() => _routeId = routes.first.id);

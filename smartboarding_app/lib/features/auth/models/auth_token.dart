@@ -11,9 +11,6 @@ class AuthToken {
     required this.email,
   });
 
-  /// [fallbackEmail] cobre sessão antiga de API que ainda não mandava o campo.
-  /// Quem entra pelo Google nunca digita e-mail, então não há fallback possível
-  /// ali -- é da resposta que ele tem que vir.
   factory AuthToken.fromLogin(
     Map<String, dynamic> json, [
     String fallbackEmail = '',

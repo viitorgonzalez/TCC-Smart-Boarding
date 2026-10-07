@@ -1,4 +1,3 @@
-/// Parada de uma rota, na ordem de passagem (`sequence`).
 class StopModel {
   final String id;
   final String name;
@@ -6,11 +5,8 @@ class StopModel {
   final double? latitude;
   final double? longitude;
 
-  /// A instituição que esta parada serve, quando serve alguma. É dela que sai
-  /// o "tempo até a sua instituição" de cada aluno.
   final String? institutionId;
 
-  /// RN23: só ponto principal aceita checkpoint no trajeto.
   final bool isMainPoint;
 
   const StopModel({

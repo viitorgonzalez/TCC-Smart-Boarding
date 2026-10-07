@@ -1,7 +1,6 @@
 import 'package:flutter/material.dart';
 import '../../../core/models/trip_type.dart';
 
-/// Bottom sheet para escolher a direção (ida/volta). Retorna o valor da API.
 Future<String?> showTripTypePicker(BuildContext context, {String? current}) {
   return showModalBottomSheet<String>(
     context: context,

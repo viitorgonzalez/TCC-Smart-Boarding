@@ -3,9 +3,6 @@ import '../../../core/theme/app_theme.dart';
 import '../../../core/widgets/app_card.dart';
 import '../models/trip_status_model.dart';
 
-/// A única ação disponível, em destaque. O botão grande substitui o "Marcar"
-/// discreto da lista: quem está conduzindo o ônibus não deve caçar um link
-/// pequeno, e um alvo grande erra menos que um pequeno com diálogo por cima.
 class NextStopCard extends StatelessWidget {
   final TripStop stop;
   final bool busy;

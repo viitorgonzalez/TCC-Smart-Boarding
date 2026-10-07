@@ -6,8 +6,6 @@ import '../../../core/widgets/loading_filled_button.dart';
 import '../../../core/widgets/snackbar_utils.dart';
 import '../services/auth_service.dart';
 
-/// Código e nova senha na mesma tela: o backend valida os dois juntos, então não
-/// há estado intermediário pra guardar.
 class ResetPasswordScreen extends StatefulWidget {
   final String email;
   const ResetPasswordScreen({super.key, required this.email});

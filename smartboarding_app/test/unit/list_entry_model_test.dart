@@ -19,8 +19,6 @@ void main() {
     expect(entry.fullName, 'Fernanda Lima');
   });
 
-  // A API omite o e-mail quando quem pede nao e admin. Com o campo nao-nulavel
-  // o parsing estourava e derrubava a tela do aluno inteira.
   test('aluno recebe a lista sem e-mail e o parsing nao quebra', () {
     final entry = ListEntry.fromJson(payload(comEmail: false));
 
@@ -33,5 +31,17 @@ void main() {
     final entry = ListEntry.fromJson({...payload(), 'email': null});
 
     expect(entry.email, isNull);
+  });
+
+  test('marca quando foi o admin quem incluiu', () {
+    final entry = ListEntry.fromJson({...payload(), 'addedByAdmin': true});
+
+    expect(entry.addedByAdmin, isTrue);
+  });
+
+  test('sem o campo, assume que nao foi o admin', () {
+    final entry = ListEntry.fromJson(payload());
+
+    expect(entry.addedByAdmin, isFalse);
   });
 }

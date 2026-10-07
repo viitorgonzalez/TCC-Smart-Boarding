@@ -8,7 +8,6 @@ import '../models/scheduled_notification_model.dart';
 import '../services/notification_service.dart';
 import 'scheduled_notification_form.dart';
 
-/// Avisos que o backend dispara sozinho para quem está na rota.
 class ScheduledNotificationsSection extends StatefulWidget {
   final String routeId;
   const ScheduledNotificationsSection({super.key, required this.routeId});
@@ -57,8 +56,6 @@ class _ScheduledNotificationsSectionState
   }
 
   Future<void> _create() async {
-    // Bottom sheet em vez de AlertDialog: são seis campos e um teclado —
-    // o diálogo estourava a altura disponível.
     final draft = await showModalBottomSheet<ScheduledDraft>(
       context: context,
       isScrollControlled: true,
@@ -174,8 +171,6 @@ class _ScheduledTile extends StatelessWidget {
             color: active ? AppColors.deepTeal : AppColors.textSecondary,
           ),
           const SizedBox(width: 14),
-          // Expanded é o que impede o texto longo de empurrar as ações pra fora
-          // do card — o motivo do estouro anterior.
           Expanded(
             child: Column(
               crossAxisAlignment: CrossAxisAlignment.start,

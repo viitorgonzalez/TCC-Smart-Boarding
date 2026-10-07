@@ -4,9 +4,6 @@ import '../../../core/utils/async_value.dart';
 import '../models/institution_model.dart';
 import '../services/institution_service.dart';
 
-/// Catálogo de instituições. Existe separado da rota porque instituição não
-/// pertence a rota nenhuma: ela é cadastrada uma vez e depois atendida por uma
-/// rota — ou por nenhuma, enquanto não houver transporte pra lá.
 class InstitutionProvider extends ChangeNotifier {
   final InstitutionService _service;
 
@@ -21,8 +18,6 @@ class InstitutionProvider extends ChangeNotifier {
     _ => const [],
   };
 
-  /// As que ainda não têm rota. É a lista que a tela da rota oferece pra
-  /// vincular — mostrar as já vinculadas convidaria a roubar de outra rota.
   List<InstitutionModel> get unlinked =>
       all.where((i) => i.routeId == null).toList();
 
@@ -50,7 +45,6 @@ class InstitutionProvider extends ChangeNotifier {
     await load();
   }
 
-  /// [routeId] nulo desvincula.
   Future<void> linkRoute(String id, String? routeId) async {
     await _service.linkRoute(id, routeId);
     await load();

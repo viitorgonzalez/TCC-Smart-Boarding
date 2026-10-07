@@ -1,7 +1,5 @@
 import 'package:flutter/material.dart';
 
-/// Pergunta um texto curto. Devolve nulo se o usuário cancelar ou deixar em
-/// branco — quem chama não precisa distinguir os dois casos.
 Future<String?> promptText(
   BuildContext context, {
   required String title,

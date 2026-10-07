@@ -1,7 +1,6 @@
 import 'package:flutter/material.dart';
 import 'role_meta.dart';
 
-/// Cabeçalho de seção (um por papel), na ordem da hierarquia.
 class UserSectionHeader extends StatelessWidget {
   final String role;
   final int count;

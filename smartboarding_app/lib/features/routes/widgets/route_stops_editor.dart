@@ -1,6 +1,4 @@
 import 'package:flutter/material.dart';
-// latlong2 exporta uma classe Path própria, que sombreia a de dart:ui usada
-// no desenho do pino.
 import 'package:latlong2/latlong.dart' hide Path;
 import '../../../core/theme/app_theme.dart';
 import '../../../core/widgets/app_card.dart';
@@ -12,23 +10,14 @@ import '../services/road_route_service.dart';
 import '../services/route_service.dart';
 import 'route_map.dart';
 
-/// Trajeto da rota: mapa mais lista, com mover parada e inserir entre duas.
-///
-/// O modo pendente (o que o próximo toque no mapa significa) é estado só desta
-/// interação — fica aqui, não na tela da rota.
 class RouteStopsEditor extends StatefulWidget {
   final String routeId;
   final List<StopModel> stops;
 
-  /// Executa a chamada ao backend e recarrega a rota. Vem da tela porque o
-  /// recarregamento é compartilhado com as outras seções.
   final Future<void> Function(Future<void> Function(), String) run;
 
-  /// As instituições atendidas por esta rota. Vazio esconde a ação de
-  /// vincular: oferecer uma escolha sem opção é um beco.
   final List<InstitutionModel> institutions;
 
-  /// Injetáveis pro teste; em produção cada um constrói o seu.
   final RouteService? service;
   final RoadRouteService? roadService;
 
@@ -51,7 +40,6 @@ class RouteStopsEditorState extends State<RouteStopsEditor> {
   late final RouteService _service = widget.service ?? RouteService();
   late final RoadRouteService _road = widget.roadService ?? RoadRouteService();
 
-  /// Parada sendo reposicionada, ou depois da qual a próxima será inserida.
   StopModel? _pendingStop;
   _StopAction? _pendingAction;
 
@@ -119,8 +107,6 @@ class RouteStopsEditorState extends State<RouteStopsEditor> {
                       '${stop.longitude!.toStringAsFixed(4)}',
                     )
                   : const Text('sem coordenada'),
-              // Remover ja esta na folha que abre no toque; repetir aqui punha
-              // a acao destrutiva em vermelho no meio da lista.
               trailing: const Icon(
                 Icons.more_horiz,
                 color: AppColors.textSecondary,
@@ -138,19 +124,9 @@ class RouteStopsEditorState extends State<RouteStopsEditor> {
     _ => null,
   };
 
-  /// O toque no mapa muda de significado conforme o modo ativo.
-
-  /// Exposto pro teste porque simular um toque dentro do mapa exigiria
-  /// controlar a camera do flutter_map — e o que importa aqui e o que sai
-  /// daqui pro backend, nao o gesto.
   @visibleForTesting
   Future<void> onMapPoint(LatLng point) => _onMapPoint(point);
 
-  /// Gruda na via antes de qualquer coisa: as tres acoes (criar, mover,
-  /// inserir) saem deste mesmo ponto, e corrigir aqui cobre as tres.
-  ///
-  /// OSRM fora do ar devolve o ponto do toque -- parada no lugar aproximado e
-  /// melhor que nenhuma parada.
   Future<void> _onMapPoint(LatLng tocado) async {
     final point = await _road.snapToRoad(tocado) ?? tocado;
     if (!mounted) return;
@@ -198,9 +174,6 @@ class RouteStopsEditorState extends State<RouteStopsEditor> {
     );
   }
 
-  /// Exposto pro teste pela mesma razao do [onMapPoint]: tocar num marcador
-  /// dentro do flutter_map exigiria controlar a camera, e o que importa aqui e
-  /// o que sai daqui pro backend.
   @visibleForTesting
   Future<void> onTapStop(MapStop tapped) => _onTapStop(tapped);
 
@@ -209,8 +182,6 @@ class RouteStopsEditorState extends State<RouteStopsEditor> {
     final action = await showModalBottomSheet<_StopAction>(
       context: context,
       builder: (context) => SafeArea(
-        // Rolavel porque a folha cresce com o numero de opcoes: sem isso,
-        // aparelho baixo corta a ultima acao -- e a ultima e "Remover".
         child: SingleChildScrollView(
           child: Column(
             mainAxisSize: MainAxisSize.min,
@@ -244,8 +215,6 @@ class RouteStopsEditorState extends State<RouteStopsEditor> {
                 title: const Text('Renomear'),
                 onTap: () => Navigator.pop(context, _StopAction.rename),
               ),
-              // Só aparece quando há instituição na rota: oferecer a escolha sem
-              // opção seria um beco.
               if (widget.institutions.isNotEmpty)
                 ListTile(
                   key: const Key('stop_link_institution'),
@@ -311,18 +280,10 @@ class RouteStopsEditorState extends State<RouteStopsEditor> {
     return 'Instituição';
   }
 
-  /// Declarar a instituição é o que faz a parada aceitar checkpoint (RN23) e o
-  /// que permite calcular o tempo até ela pra cada aluno.
-  ///
-  /// Até a V32 esse vínculo era adivinhado pelo nome da parada — renomear a
-  /// quebrava em silêncio, e parada criada pelo app nunca virava ponto
-  /// principal.
   Future<void> _escolherInstituicao(StopModel stop) async {
     final escolha = await showModalBottomSheet<_EscolhaInstituicao>(
       context: context,
       builder: (context) => SafeArea(
-        // Rolavel porque a folha cresce com o numero de opcoes: sem isso,
-        // aparelho baixo corta a ultima acao -- e a ultima e "Remover".
         child: SingleChildScrollView(
           child: Column(
             mainAxisSize: MainAxisSize.min,
@@ -387,9 +348,6 @@ class RouteStopsEditorState extends State<RouteStopsEditor> {
 
 enum _StopAction { move, insertAfter, rename, linkInstitution, remove }
 
-/// Embrulha o id porque `null` também é resposta válida — é como se desfaz o
-/// vínculo. Devolver nulo puro do bottom sheet confundiria "escolheu nenhuma"
-/// com "fechou sem escolher".
 class _EscolhaInstituicao {
   final String? id;
   const _EscolhaInstituicao(this.id);

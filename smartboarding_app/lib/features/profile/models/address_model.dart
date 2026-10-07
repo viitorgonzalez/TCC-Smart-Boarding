@@ -1,8 +1,3 @@
-/// Endereço do aluno, campo a campo.
-///
-/// [complete] e [shortForm] vêm calculados do backend de propósito: a regra de
-/// "endereço completo" decide se o aluno entra na lista, e duas versões dela —
-/// uma em Java, outra aqui — divergiriam na primeira mudança.
 class Address {
   final String? zipCode;
   final String? street;
@@ -48,9 +43,6 @@ class Address {
     'complement': complement,
   };
 
-  /// O que o aluno ainda precisa preencher. Nomear os campos é o que permite à
-  /// tela dizer o que falta em vez de um "complete seu perfil" que obriga a
-  /// pessoa a adivinhar.
   static const camposObrigatorios = <String, String>{
     'zipCode': 'CEP',
     'street': 'Rua',

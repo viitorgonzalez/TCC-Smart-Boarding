@@ -5,7 +5,6 @@ import '../models/scheduled_notification_model.dart';
 class NotificationService {
   final _dio = DioClient.instance;
 
-  /// [durationHours] nulo é aviso sem prazo.
   Future<void> broadcast(
     String title,
     String body, {
@@ -23,7 +22,6 @@ class NotificationService {
     );
   }
 
-  /// Avisos visíveis pra quem está logado (aluno: gerais + da rota dele).
   Future<List<NotificationModel>> getNotifications() async {
     final response = await _dio.get('/api/notifications');
     final List data = response.data['data'] as List;
@@ -43,7 +41,6 @@ class NotificationService {
     await _dio.delete('/api/devices/token');
   }
 
-  /// Em lote: apagar um a um seria N requisições e N recargas de tela.
   Future<void> deleteNotifications(List<String> ids) async {
     await _dio.delete('/api/notifications', data: ids);
   }

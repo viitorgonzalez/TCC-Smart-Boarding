@@ -7,27 +7,13 @@ class AppRadius {
   static const pill = 20.0;
 }
 
-/// Três níveis de superfície, por intenção — não por gosto.
-///
-/// Quando tudo era caixa branca com fio, um card de rota, um item de menu e um
-/// bloco de estatística tinham o mesmo peso e nada liderava a tela.
-///
-/// - [grouped]: itens de uma lista. Sem fio; o fundo e os divisores separam.
-/// - [card]: conteúdo solto que precisa se destacar do fundo. Fio de 1px.
-/// - [floating]: o que de fato paira sobre o conteúdo (folha, botão). Sombra.
 enum AppSurface { grouped, card, floating }
 
-/// Proporção das grades de navegação (painel do admin, início do aluno).
-///
-/// Token porque estava cravado em duas telas e já tinha divergido: mexer numa
-/// deixava a outra com cartão oco.
 class AppGrid {
   static const featureAspectRatio = 1.9;
 }
 
 class AppShadow {
-  /// Difusa e quase sem deslocamento: o objetivo é destacar do fundo, não
-  /// simular objeto suspenso.
   static const floating = [
     BoxShadow(color: Color(0x14000000), blurRadius: 16, offset: Offset(0, 4)),
   ];
@@ -41,18 +27,13 @@ class AppSpacing {
   static const xl = 24.0;
 }
 
-/// Paleta do Figma (`docs/design/figma-screens/`). Os tons de apoio — fundo
-/// claro, stroke e texto secundário — não saem do `ColorScheme`: o Material
-/// deriva outros valores a partir do seed, e o desenho depende destes exatos.
 class AppColors {
-  static const ashGrey = Color(
-    0xFFCAD2C5,
-  ); // superfície de destaque sobre o fundo
-  static const background = Color(0xFFF4F6F4); // fundo de todas as telas
+  static const ashGrey = Color(0xFFCAD2C5);
+  static const background = Color(0xFFF4F6F4);
   static const mutedTeal = Color(0xFF84A98C);
-  static const deepTeal = Color(0xFF52796F); // primária
+  static const deepTeal = Color(0xFF52796F);
   static const darkSlate = Color(0xFF354F52);
-  static const charcoal = Color(0xFF2F3E46); // header escuro e texto principal
+  static const charcoal = Color(0xFF2F3E46);
   static const stroke = Color(0xFFD1DCD6);
   static const textSecondary = Color(0xFF4F6566);
   static const surface = Colors.white;
@@ -66,8 +47,6 @@ class AppColors {
 class AppTheme {
   static ThemeData get light => _build();
 
-  /// O Figma desenhou só o tema claro; o app roda travado nele (`main.dart`).
-  /// Mantido pra não quebrar `MaterialApp.darkTheme`.
   static ThemeData get dark => _build();
 
   static ThemeData _build() {
@@ -136,8 +115,6 @@ class AppTheme {
           horizontal: 16,
           vertical: 18,
         ),
-        // Contorno fixo: sem ele o campo só ganhava borda ao focar e sumia
-        // contra o cartão branco no resto do tempo.
         border: OutlineInputBorder(
           borderRadius: BorderRadius.circular(AppRadius.control),
           borderSide: const BorderSide(color: AppColors.stroke),
@@ -171,8 +148,6 @@ class AppTheme {
     return base.copyWith(textTheme: _textTheme(base.textTheme));
   }
 
-  /// O Figma usa 13 e 15px, que não existem na escala do Material 3 — sem
-  /// customizar o `TextTheme` os tamanhos não são reproduzíveis.
   static TextTheme _textTheme(TextTheme base) {
     final montserrat = GoogleFonts.montserratTextTheme(base);
     return montserrat.copyWith(

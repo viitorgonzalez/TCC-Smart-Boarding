@@ -1,8 +1,3 @@
-/// Código que o admin distribui pra quem vai entrar na rota.
-///
-/// [uses] é quantos alunos já entraram por ele — é o que diz se o código
-/// circulou ou se ninguém recebeu. [usable] vem pronto do backend porque
-/// "vale ou não vale" depende do relógio do servidor, não do aparelho.
 class InviteCode {
   final String id;
   final String code;
@@ -11,15 +6,10 @@ class InviteCode {
   final bool usable;
   final int uses;
 
-  /// Instituição exigida. Nulo é o código aberto: vale pra qualquer aluno.
   final String? institutionId;
 
-  /// Nome resolvido pelo backend — só o id obrigaria a tela a cruzar cada
-  /// código com o catálogo pra escrever uma linha.
   final String? institutionName;
 
-  /// Só vem preenchido na listagem que cruza rotas; dentro de uma rota só,
-  /// repetir o nome em cada linha seria ruído.
   final String? routeName;
   final String? routeId;
 
@@ -38,7 +28,6 @@ class InviteCode {
 
   bool get revoked => revokedAt != null;
 
-  /// Sem instituição, qualquer aluno entra.
   bool get aberto => institutionId == null;
   bool get expired => !usable && !revoked;
 
@@ -60,8 +49,6 @@ class InviteCode {
   );
 }
 
-/// Por quanto tempo um código novo vale. O rótulo é o que o admin lê; os dias
-/// viram a data que o backend guarda.
 enum CodeValidity {
   umDia('1 dia', 1),
   seteDias('7 dias', 7),

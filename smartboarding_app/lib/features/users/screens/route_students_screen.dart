@@ -7,8 +7,6 @@ import '../models/user_model.dart';
 import '../services/user_service.dart';
 import '../widgets/role_meta.dart';
 
-/// Todos os alunos atendidos por uma rota. Escopado por rota de propósito: a
-/// base de usuários cresce sem teto, e o admin trabalha sobre uma rota por vez.
 class RouteStudentsScreen extends StatefulWidget {
   final String routeId;
   final String routeName;
@@ -117,8 +115,6 @@ class _RouteStudentsScreenState extends State<RouteStudentsScreen> {
                           ? user.fullName[0].toUpperCase()
                           : '?',
                     ),
-                    // A lista filtra por papel e marca conta inativa: mudou
-                    // na ficha, recarrega.
                     onTap: () async {
                       final changed = await showStudentProfile(
                         context,

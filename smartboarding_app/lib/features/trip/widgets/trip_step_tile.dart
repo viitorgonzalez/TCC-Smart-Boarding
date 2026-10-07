@@ -2,17 +2,12 @@ import 'package:flutter/material.dart';
 import '../../../core/theme/app_theme.dart';
 import '../../../core/utils/date_format.dart';
 
-/// Uma parada na lista do trajeto. É leitura: a ação mora no card de próxima
-/// parada, um alvo só na tela. O horário registrado fica visível porque é o que
-/// permite conferir o ritmo do trajeto depois.
 class TripStepTile extends StatelessWidget {
   final String label;
   final bool done;
   final bool current;
   final String? reachedAt;
 
-  /// A parada que interessa a quem está lendo — na tela do aluno, a da
-  /// instituição dele. Sem marcação ele a procura na lista a cada atualização.
   final bool highlighted;
 
   const TripStepTile({

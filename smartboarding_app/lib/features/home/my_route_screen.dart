@@ -66,8 +66,6 @@ class MyRouteScreen extends StatelessWidget {
     );
   }
 
-  /// Recarrega o /me na volta: quem foi preencher o que faltava precisa ver o
-  /// botão voltar sem fechar e reabrir a tela.
   Future<void> _abrirPerfil(BuildContext context, MeProvider me) async {
     await Navigator.push<void>(
       context,

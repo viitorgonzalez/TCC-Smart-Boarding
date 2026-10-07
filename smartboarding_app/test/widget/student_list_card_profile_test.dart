@@ -18,9 +18,6 @@ void main() {
       status: 'OPEN',
       tripInProgress: emTrajeto,
       myTripTime: tempo,
-      // Sem closeTime de propósito: com um horário fixo, acceptsChanges vira
-      // falso depois dele e o card some inteiro -- o teste passaria de manhã e
-      // falharia à noite.
       closeTime: null,
       totalEntries: 3,
     ),
@@ -57,8 +54,6 @@ void main() {
     expect(find.byKey(const Key('list_profile_warning')), findsNothing);
   });
 
-  /// O ponto: descobrir o bloqueio só ao tocar no botão é fazer a pessoa
-  /// esbarrar numa parede que dava pra sinalizar.
   testWidgets('perfil incompleto troca o botao pelo aviso', (tester) async {
     await montar(tester, faltando: const ['Telefone', 'Endereço']);
 
@@ -66,7 +61,6 @@ void main() {
     expect(find.byKey(const Key('list_profile_warning')), findsOneWidget);
   });
 
-  /// "Complete seu perfil" obriga o aluno a adivinhar. O aviso nomeia.
   testWidgets('o aviso nomeia os campos que faltam', (tester) async {
     await montar(tester, faltando: const ['Telefone', 'Endereço']);
 
@@ -107,16 +101,12 @@ void main() {
     expect(foi, isTrue);
   });
 
-  /// Quem já está na lista entrou quando era permitido. Esconder o "Sair" por
-  /// um campo em branco o prenderia numa viagem que ele não vai fazer.
   testWidgets('quem ja esta na lista ainda consegue sair', (tester) async {
     await montar(tester, faltando: const ['Telefone'], inscrito: true);
 
     expect(find.text('Sair da lista'), findsOneWidget);
     expect(find.byKey(const Key('list_profile_warning')), findsNothing);
   });
-
-  // ─── Acompanhar trajeto ───────────────────────────────────────────────────
 
   Future<void> montarComTrajeto(
     WidgetTester tester, {
@@ -141,7 +131,6 @@ void main() {
     await tester.pump();
   }
 
-  /// Oferecer sempre levaria a uma tela que só diz "não começou".
   testWidgets('trajeto parado nao oferece acompanhar', (tester) async {
     await montarComTrajeto(tester, emTrajeto: false);
 
@@ -164,8 +153,6 @@ void main() {
     expect(foi, isTrue);
   });
 
-  // ─── Tempo médio até a instituição do aluno ───────────────────────────────
-
   Future<void> montarComTempo(WidgetTester tester, MyTripTime? tempo) async {
     await tester.pumpWidget(
       MaterialApp(
@@ -184,9 +171,6 @@ void main() {
     await tester.pump();
   }
 
-  /// O card mostrava o trajeto sem dizer quanto tempo leva — e o tempo é DELE:
-  /// a média do trajeto inteiro, pra quem desce no meio, não é sobre a viagem
-  /// dele.
   testWidgets('mostra o tempo nomeando a instituicao', (tester) async {
     await montarComTempo(
       tester,
@@ -198,8 +182,6 @@ void main() {
     expect(find.textContaining('UNIFOR-MG'), findsWidgets);
   });
 
-  /// Nulo é "não sei" e a tela omite. Um zero o aluno leria como "chega na
-  /// hora" e perderia o ônibus.
   testWidgets('sem tempo calculado o card nao inventa numero', (tester) async {
     await montarComTempo(tester, null);
 
@@ -207,8 +189,6 @@ void main() {
     expect(find.textContaining('min até'), findsNothing);
   });
 
-  /// Um tempo até um lugar que não é o dele, sem aviso, é pior que tempo
-  /// nenhum.
   testWidgets('avisa quando a parada nao e da instituicao dele', (
     tester,
   ) async {

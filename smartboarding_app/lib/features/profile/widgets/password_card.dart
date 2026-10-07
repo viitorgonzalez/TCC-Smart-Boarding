@@ -7,14 +7,7 @@ import '../../../core/widgets/loading_filled_button.dart';
 import '../../../core/widgets/snackbar_utils.dart';
 import '../services/profile_service.dart';
 
-/// Senha local da conta, nos dois casos que existem.
-///
-/// Com [changing] falso é a criação da primeira senha, de quem entrou pelo
-/// Google — não há senha antiga pra provar. Com [changing] verdadeiro é a
-/// troca, e aí a senha atual é obrigatória: sem ela, quem pegasse o celular
-/// desbloqueado trocaria a senha e tomaria a conta.
 class PasswordCard extends StatefulWidget {
-  /// A conta já tem senha: o caso é trocar, não criar.
   final bool changing;
   final VoidCallback? onSaved;
 
@@ -60,8 +53,6 @@ class _PasswordCardState extends State<PasswordCard> {
             ? 'Senha alterada.'
             : 'Senha criada. Agora você entra pelo Google ou por e-mail e senha.',
       );
-      // Limpa os campos: deixar a senha digitada na tela depois de salva é
-      // expô-la a quem olhar o aparelho por cima do ombro.
       _atualCtrl.clear();
       _senhaCtrl.clear();
       _confirmaCtrl.clear();

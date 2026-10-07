@@ -50,8 +50,6 @@ void main() {
     expect(find.text('Rota 2'), findsOneWidget);
   });
 
-  /// O gesto do Classroom: a porta pro codigo mora junto das turmas, nao
-  /// escondida noutro canto.
   testWidgets('entrar com codigo fica nesta tela', (tester) async {
     await abrir(tester, rotas: 1);
 
@@ -62,8 +60,6 @@ void main() {
     expect(find.byType(JoinRouteScreen), findsOneWidget);
   });
 
-  /// Sem rota nenhuma a tela nao pode ficar muda: e exatamente quando o aluno
-  /// precisa saber que existe um codigo e que ele vem do administrador.
   testWidgets('sem rota, explica como entrar', (tester) async {
     await abrir(tester, rotas: 0);
 

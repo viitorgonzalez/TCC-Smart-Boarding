@@ -4,7 +4,6 @@ class WarningModel {
   final String studentName;
   final String reason;
 
-  /// Data da lista que originou a advertência; nula se a lista foi apagada.
   final String? listDate;
   final String? issuedBy;
   final String createdAt;

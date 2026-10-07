@@ -1,8 +1,6 @@
 import '../../../core/services/dio_client.dart';
 import '../../routes/models/route_model.dart';
 
-/// As rotas do próprio usuário. O id sai do token no backend — o app nunca
-/// manda userId, senão daria pra operar em nome de outro.
 class MembershipService {
   final _dio = DioClient.instance;
 

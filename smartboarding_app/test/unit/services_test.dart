@@ -38,13 +38,10 @@ void main() {
       expect(token.token, 'jwt-abc');
       expect(token.fullName, 'Fernanda Lima');
       expect(token.role, 'STUDENT');
-      // Sessão persistida: sem isso o app pediria login a cada abertura.
       expect(await StorageService().getToken(), 'jwt-abc');
       expect(await StorageService().getEmail(), 'fernanda@edu.unifor.br');
     });
 
-    // O interceptor converte DioException em AppException com texto legível —
-    // é o que a tela mostra.
     test('credencial inválida vira mensagem amigável', () async {
       http.on(
         'POST',
@@ -67,7 +64,6 @@ void main() {
     });
   });
 
-  /// RN22: o app não pode diferenciar conta existente de inexistente.
   test(
     'forgotPassword não devolve nada que revele a existência da conta',
     () async {
@@ -117,7 +113,6 @@ void main() {
   });
 
   group('UserService', () {
-    /// A listagem vem paginada: a tela carrega conforme o admin rola.
     Map<String, dynamic> pagina(
       List<Map<String, dynamic>> itens, {
       int numero = 0,
@@ -151,20 +146,14 @@ void main() {
       expect((await UserService().getUsers()).items, isEmpty);
     });
 
-    /// A última página encerra o carregamento: sem isso a tela pediria páginas
-    /// que não existem enquanto o admin rolasse.
     test('a ultima pagina diz que acabou', () async {
-      // Página 1 de 3 (base 0): ainda há a 2.
       http.on('GET', '/api/users', body: pagina([], numero: 1, total: 3));
       expect((await UserService().getUsers(page: 1)).hasMore, isTrue);
 
-      // Página 2 de 3 é a última.
       http.on('GET', '/api/users', body: pagina([], numero: 2, total: 3));
       expect((await UserService().getUsers(page: 2)).hasMore, isFalse);
     });
 
-    /// A ficha do usuário só precisa do número. Baixar /api/users pra contar
-    /// levaria e-mail, telefone, endereço e nascimento de toda a base no fio.
     test('getAdminCount pede só a contagem', () async {
       http.on(
         'GET',
@@ -221,8 +210,6 @@ void main() {
     );
   });
 
-  /// O JWT guardado tem que viajar em toda requisição — sem isso o app logado
-  /// tomaria 401 em tudo.
   test('token salvo vai no header Authorization', () async {
     http = await installFakeHttp(token: 'jwt-abc');
     http.on(

@@ -7,8 +7,6 @@ import '../../../core/widgets/snackbar_utils.dart';
 import '../services/auth_service.dart';
 import 'reset_password_screen.dart';
 
-/// Pede o código de redefinição. Mesmo fundo das outras telas de
-/// autenticação (ver design-system.md).
 class ForgotPasswordScreen extends StatefulWidget {
   const ForgotPasswordScreen({super.key});
 
@@ -101,7 +99,6 @@ class _ForgotPasswordScreenState extends State<ForgotPasswordScreen> {
   }
 }
 
-/// Nunca afirma que a conta existe — o texto é o mesmo nos dois casos (RN22).
 class _SentNotice extends StatelessWidget {
   final String email;
   const _SentNotice({required this.email});

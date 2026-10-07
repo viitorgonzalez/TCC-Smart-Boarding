@@ -6,9 +6,6 @@ import '../support/fake_http.dart';
 void main() {
   TestWidgetsFlutterBinding.ensureInitialized();
 
-  /// O admin e obrigado a escrever o motivo da recusa justamente pro aluno ler
-  /// e corrigir. A tela lia /pending, que so devolve PENDING -- entao a recusa
-  /// nunca chegava: o formulario simplesmente destravava sem explicacao.
   test('a recusa e o motivo chegam ao aluno', () async {
     final http = await installFakeHttp(token: 'jwt');
     http.on(

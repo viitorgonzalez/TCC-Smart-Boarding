@@ -5,8 +5,6 @@ import 'package:smartboarding_app/core/services/dio_client.dart';
 
 import '../support/fake_http.dart';
 
-/// O 401 tratado só como texto deixava o usuário preso: a mensagem mandava
-/// entrar de novo, mas a sessão morta continuava valendo e toda ação falhava.
 void main() {
   TestWidgetsFlutterBinding.ensureInitialized();
 
@@ -31,8 +29,6 @@ void main() {
       throwsA(isA<DioException>()),
     );
 
-    // O encerramento sai do interceptor sem ser esperado -- na prática custa
-    // um frame, mas o teste precisa deixar a fila girar.
     await pumpEventQueue();
 
     expect(auth.status, AuthStatus.unauthenticated);
@@ -43,8 +39,6 @@ void main() {
     final http = await installFakeHttp(token: 'token-bom');
     final auth = await sessaoAberta(http);
 
-    // Senha errada responde 401 igual a token vencido. Tratar os dois do mesmo
-    // jeito faria um erro de digitação derrubar quem estava logado.
     http.on('POST', '/auth/login', status: 401);
     await expectLater(
       DioClient.instance.post<void>('/auth/login'),

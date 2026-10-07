@@ -15,8 +15,6 @@ class RouteService {
         .toList();
   }
 
-  /// Todos os códigos das rotas que o admin administra, numa chamada só —
-  /// é o que a tela de códigos consome.
   Future<List<InviteCode>> getAllInviteCodes() async {
     final response = await _dio.get('/api/invite-codes');
     final data = response.data['data'] as List<dynamic>;
@@ -25,11 +23,6 @@ class RouteService {
         .toList();
   }
 
-  /// Tira os códigos da tela do admin. O registro fica: quem entrou por eles
-  /// mantém a origem no relatório.
-  ///
-  /// Em lote porque o gesto é limpar uma lista cheia de código morto — um
-  /// pedido por linha faria o app disparar dezenas.
   Future<int> archiveInviteCodes(List<String> codeIds) async {
     final response = await _dio.delete(
       '/api/invite-codes',
@@ -38,8 +31,6 @@ class RouteService {
     return (response.data['data']?['archived'] as num?)?.toInt() ?? 0;
   }
 
-  /// [expiresAt] nulo deixa o backend aplicar a validade padrão dele.
-  /// [institutionId] nulo gera um código aberto a qualquer instituição.
   Future<InviteCode> generateInviteCode(
     String routeId, {
     DateTime? expiresAt,
@@ -87,8 +78,6 @@ class RouteService {
     return RouteModel.fromJson(response.data['data'] as Map<String, dynamic>);
   }
 
-  /// [admitsNoInstitution] nulo mantém o que está gravado: a tela de dados da
-  /// rota não conhece essa chave, e mandar falso dali a desligaria sem querer.
   Future<RouteModel> updateRoute(
     String id,
     String name,
@@ -107,8 +96,6 @@ class RouteService {
     return RouteModel.fromJson(response.data['data'] as Map<String, dynamic>);
   }
 
-  /// Endpoint separado do update comum: mexer na janela da lista exige [reason]
-  /// e dispara aviso pra rota inteira.
   Future<RouteModel> updateSchedule(
     String id, {
     required String openTime,
@@ -122,8 +109,6 @@ class RouteService {
     return RouteModel.fromJson(response.data['data'] as Map<String, dynamic>);
   }
 
-  /// [sequence] posiciona a parada no trajeto empurrando as seguintes; nulo
-  /// acrescenta no fim.
   Future<StopModel> addStop(
     String routeId,
     String name, {
@@ -143,7 +128,6 @@ class RouteService {
     return StopModel.fromJson(response.data['data'] as Map<String, dynamic>);
   }
 
-  /// [sequence] posiciona a parada no trajeto; nulo acrescenta no fim.
   Future<void> updateStop(
     String routeId,
     String stopId, {
@@ -157,11 +141,6 @@ class RouteService {
     );
   }
 
-  /// Declara (ou desfaz) o vínculo da parada com uma instituição.
-  ///
-  /// Chamada separada de [updateStop] porque o backend distingue "mover a
-  /// parada" de "mexer no vínculo": mandar `institutionId: null` junto das
-  /// coordenadas desvincularia a instituição só por arrastar o pino.
   Future<void> setStopInstitution(
     String routeId,
     String stopId, {

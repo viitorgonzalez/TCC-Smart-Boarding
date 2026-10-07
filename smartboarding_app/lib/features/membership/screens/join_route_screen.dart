@@ -8,7 +8,6 @@ import '../../../core/widgets/snackbar_utils.dart';
 import '../../profile/screens/profile_screen.dart';
 import '../providers/membership_provider.dart';
 
-/// Entrar numa rota com o código que o admin distribui.
 class JoinRouteScreen extends StatefulWidget {
   const JoinRouteScreen({super.key});
 
@@ -38,9 +37,6 @@ class _JoinRouteScreenState extends State<JoinRouteScreen> {
       Navigator.of(context).pop();
       showSuccessSnackBar(context, 'Você entrou na ${route.name}');
     } catch (e) {
-      // A mensagem vem do backend e distingue expirado de cancelado de
-      // inexistente -- o aluno precisa saber se pede codigo novo ou se errou
-      // a digitacao.
       if (mounted) showErrorSnackBar(context, AppException.fromError(e));
     } finally {
       if (mounted) setState(() => _loading = false);
@@ -66,8 +62,6 @@ class _JoinRouteScreenState extends State<JoinRouteScreen> {
                   ),
                 ),
                 const SizedBox(height: 16),
-                // O backend recusa o codigo se o perfil nao tiver instituicao.
-                // Dizer isso aqui evita o aluno descobrir so depois de digitar.
                 TextButton.icon(
                   key: const Key('join_open_profile'),
                   onPressed: () => Navigator.of(context).push(

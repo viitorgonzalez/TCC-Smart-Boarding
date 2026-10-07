@@ -33,8 +33,6 @@ void main() {
     expect(provider.hasMore, isFalse);
   });
 
-  /// A lista cresce sem teto: a tela pede a próxima parte ao rolar, e o que já
-  /// está na tela não pode sumir no caminho.
   test('loadMore acrescenta sem perder o que ja veio', () async {
     when(() => service.getUsers(routeId: null, page: 0)).thenAnswer(
       (_) async => PageResult(items: [usuario('1', 'Ana')], hasMore: true),
@@ -51,8 +49,6 @@ void main() {
     expect(provider.hasMore, isFalse);
   });
 
-  /// Sem mais o que trazer, rolar até o fim não pode disparar requisição — a
-  /// rolagem avisa a cada quadro.
   test('loadMore nao pede nada quando acabou', () async {
     when(() => service.getUsers(routeId: null, page: 0)).thenAnswer(
       (_) async => PageResult(items: [usuario('1', 'Ana')], hasMore: false),
@@ -64,7 +60,6 @@ void main() {
     verifyNever(() => service.getUsers(routeId: null, page: 1));
   });
 
-  /// Falhar ao buscar mais não pode apagar o que já está na tela.
   test('falha em loadMore preserva a lista', () async {
     when(() => service.getUsers(routeId: null, page: 0)).thenAnswer(
       (_) async => PageResult(items: [usuario('1', 'Ana')], hasMore: true),
