@@ -12,14 +12,6 @@ import org.testcontainers.junit.jupiter.Testcontainers;
 
 import static org.assertj.core.api.Assertions.assertThat;
 
-/// Sobe a aplicação com o mesmo `flyway.locations` de produção — só o schema,
-/// sem `db/seed`.
-///
-/// Prova as duas metades do problema que separou os dois diretórios: que a
-/// cadeia de migrations aplica sozinha num banco vazio (V3, V9, V22 e V26 mexem
-/// em `users` e precisam ser no-op sem as linhas de demonstração), e que o
-/// ambiente não nasce com administrador nenhum — que é a condição de que o
-/// bootstrap por `BOOTSTRAP_ADMIN_EMAIL` depende pra existir.
 @Testcontainers
 @SpringBootTest
 @TestPropertySource(properties = "spring.flyway.locations=classpath:db/migration")
