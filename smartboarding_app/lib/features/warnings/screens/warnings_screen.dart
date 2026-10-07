@@ -8,8 +8,6 @@ import '../../../core/widgets/snackbar_utils.dart';
 import '../models/warning_model.dart';
 import '../services/warning_service.dart';
 
-/// Advertências por não se inscrever no prazo. O aluno vê as próprias; o admin
-/// vê todas e pode remover — advertência aplicada por engano precisa sair.
 class WarningsScreen extends StatefulWidget {
   final bool canManage;
   const WarningsScreen({super.key, this.canManage = false});
@@ -22,6 +20,9 @@ class _WarningsScreenState extends State<WarningsScreen> {
   final _service = WarningService();
   List<WarningModel>? _items;
   String? _error;
+  int _page = 0;
+  bool _hasMore = false;
+  bool _loadingMore = false;
 
   @override
   void initState() {
@@ -33,17 +34,42 @@ class _WarningsScreenState extends State<WarningsScreen> {
     setState(() {
       _items = null;
       _error = null;
+      _page = 0;
+      _hasMore = false;
     });
     try {
-      final items = widget.canManage
-          ? await _service.getWarnings()
-          : await _service.getMine();
-      if (!mounted) return;
-      setState(() => _items = items);
+      if (widget.canManage) {
+        final result = await _service.getWarnings(page: 0);
+        if (!mounted) return;
+        setState(() {
+          _items = result.items;
+          _hasMore = result.hasMore;
+          _page = 1;
+        });
+      } else {
+        final items = await _service.getMine();
+        if (!mounted) return;
+        setState(() => _items = items);
+      }
     } catch (e) {
       if (!mounted) return;
       setState(() => _error = AppException.fromError(e));
     }
+  }
+
+  Future<void> _loadMore() async {
+    if (!_hasMore || _loadingMore) return;
+    setState(() => _loadingMore = true);
+    try {
+      final result = await _service.getWarnings(page: _page);
+      if (!mounted) return;
+      setState(() {
+        _items = [...(_items ?? []), ...result.items];
+        _hasMore = result.hasMore;
+        _page++;
+      });
+    } catch (_) {}
+    if (mounted) setState(() => _loadingMore = false);
   }
 
   Future<void> _delete(WarningModel warning) async {
@@ -130,16 +156,32 @@ class _WarningsScreenState extends State<WarningsScreen> {
       );
     }
 
-    return RefreshIndicator(
-      onRefresh: _load,
-      child: ListView.separated(
-        padding: const EdgeInsets.all(20),
-        itemCount: items.length,
-        separatorBuilder: (_, _) => const SizedBox(height: 12),
-        itemBuilder: (_, i) => _WarningCard(
-          warning: items[i],
-          showName: widget.canManage,
-          onDelete: widget.canManage ? () => _delete(items[i]) : null,
+    return NotificationListener<ScrollEndNotification>(
+      onNotification: (n) {
+        if (n.metrics.extentAfter < 300) _loadMore();
+        return false;
+      },
+      child: RefreshIndicator(
+        onRefresh: _load,
+        child: ListView.separated(
+          padding: const EdgeInsets.all(20),
+          itemCount: items.length + (_hasMore ? 1 : 0),
+          separatorBuilder: (_, _) => const SizedBox(height: 12),
+          itemBuilder: (_, i) {
+            if (i >= items.length) {
+              return const Center(
+                child: Padding(
+                  padding: EdgeInsets.all(16),
+                  child: CircularProgressIndicator(),
+                ),
+              );
+            }
+            return _WarningCard(
+              warning: items[i],
+              showName: widget.canManage,
+              onDelete: widget.canManage ? () => _delete(items[i]) : null,
+            );
+          },
         ),
       ),
     );
