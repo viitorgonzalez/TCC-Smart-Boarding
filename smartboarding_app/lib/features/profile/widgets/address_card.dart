@@ -1,36 +1,35 @@
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 
-import '../../../core/errors/app_exception.dart';
 import '../../../core/theme/app_theme.dart';
 import '../../../core/widgets/app_card.dart';
 import '../../../core/widgets/app_text_field.dart';
-import '../../../core/widgets/loading_filled_button.dart';
-import '../../../core/widgets/snackbar_utils.dart';
 import '../models/address_model.dart';
 import '../services/cep_service.dart';
-import '../services/profile_service.dart';
 
-/// Endereço do aluno, preenchido pelo CEP.
-///
-/// Card próprio, com botão de salvar próprio, porque o endereço vai direto pro
-/// backend enquanto nome ainda passa pela fila do admin. Dois botões com
-/// semânticas diferentes no mesmo formulário confundiriam: a pessoa não saberia
-/// o que já valeu e o que foi só pedido.
 class AddressCard extends StatefulWidget {
-  final Address initial;
-  final VoidCallback? onSaved;
+  final TextEditingController cepCtrl;
+  final TextEditingController ruaCtrl;
+  final TextEditingController bairroCtrl;
+  final TextEditingController cidadeCtrl;
+  final TextEditingController ufCtrl;
+  final TextEditingController numeroCtrl;
+  final TextEditingController complementoCtrl;
+  final bool readOnly;
 
-  /// Injetáveis pro teste; em produção cada um constrói o seu.
   final CepService? cepService;
-  final ProfileService? profileService;
 
   const AddressCard({
     super.key,
-    required this.initial,
-    this.onSaved,
+    required this.cepCtrl,
+    required this.ruaCtrl,
+    required this.bairroCtrl,
+    required this.cidadeCtrl,
+    required this.ufCtrl,
+    required this.numeroCtrl,
+    required this.complementoCtrl,
+    this.readOnly = false,
     this.cepService,
-    this.profileService,
   });
 
   @override
@@ -41,64 +40,39 @@ class _AddressCardState extends State<AddressCard> {
   static const _digitosDoCep = 8;
 
   late final CepService _cep = widget.cepService ?? CepService();
-  late final ProfileService _profile =
-      widget.profileService ?? ProfileService();
-
-  final _cepCtrl = TextEditingController();
-  final _ruaCtrl = TextEditingController();
-  final _bairroCtrl = TextEditingController();
-  final _cidadeCtrl = TextEditingController();
-  final _ufCtrl = TextEditingController();
-  final _numeroCtrl = TextEditingController();
-  final _complementoCtrl = TextEditingController();
   final _numeroFocus = FocusNode();
 
   bool _buscando = false;
-  bool _salvando = false;
 
-  /// Evita repetir a consulta do mesmo CEP a cada rebuild do campo.
   String? _ultimoConsultado;
+
+  void _aoDigitar() => setState(() {});
 
   @override
   void initState() {
     super.initState();
-    _cepCtrl.text = widget.initial.zipCode ?? '';
-    _ruaCtrl.text = widget.initial.street ?? '';
-    _bairroCtrl.text = widget.initial.neighborhood ?? '';
-    _cidadeCtrl.text = widget.initial.city ?? '';
-    _ufCtrl.text = widget.initial.state ?? '';
-    _numeroCtrl.text = widget.initial.streetNumber ?? '';
-    _complementoCtrl.text = widget.initial.complement ?? '';
-    _ultimoConsultado = _soDigitos(_cepCtrl.text);
-    _cepCtrl.addListener(_aoDigitarCep);
-    // Os campos que alimentam o aviso precisam reconstruí-lo enquanto se
-    // digita. Sem isto, quem preenche o número à mão continua vendo "falta
-    // preencher: Número" em vermelho e conclui que o app está quebrado -- o
-    // CEP atualizava porque a busca dele já chamava setState, e os outros não.
-    for (final c in [_cepCtrl, _ruaCtrl, _bairroCtrl, _numeroCtrl]) {
+    _ultimoConsultado = _soDigitos(widget.cepCtrl.text);
+    widget.cepCtrl.addListener(_aoDigitarCep);
+    for (final c in [
+      widget.cepCtrl,
+      widget.ruaCtrl,
+      widget.bairroCtrl,
+      widget.numeroCtrl,
+    ]) {
       c.addListener(_aoDigitar);
     }
   }
 
-  /// Só reconstrói: o texto já está nos controllers.
-  void _aoDigitar() => setState(() {});
-
   @override
   void dispose() {
-    _cepCtrl.removeListener(_aoDigitarCep);
-    for (final c in [_cepCtrl, _ruaCtrl, _bairroCtrl, _numeroCtrl]) {
-      c.removeListener(_aoDigitar);
-    }
+    widget.cepCtrl.removeListener(_aoDigitarCep);
     for (final c in [
-      _cepCtrl,
-      _ruaCtrl,
-      _bairroCtrl,
-      _cidadeCtrl,
-      _ufCtrl,
-      _numeroCtrl,
-      _complementoCtrl,
+      widget.cepCtrl,
+      widget.ruaCtrl,
+      widget.bairroCtrl,
+      widget.numeroCtrl,
     ]) {
-      c.dispose();
+      c.removeListener(_aoDigitar);
     }
     _numeroFocus.dispose();
     super.dispose();
@@ -107,7 +81,7 @@ class _AddressCardState extends State<AddressCard> {
   static String _soDigitos(String v) => v.replaceAll(RegExp(r'\D'), '');
 
   Future<void> _aoDigitarCep() async {
-    final digitos = _soDigitos(_cepCtrl.text);
+    final digitos = _soDigitos(widget.cepCtrl.text);
     if (digitos.length != _digitosDoCep || digitos == _ultimoConsultado) return;
     _ultimoConsultado = digitos;
 
@@ -116,52 +90,34 @@ class _AddressCardState extends State<AddressCard> {
     if (!mounted) return;
     setState(() => _buscando = false);
 
-    // Nulo é "não sei": os campos ficam como estão pra pessoa digitar. Limpar
-    // aqui apagaria o que ela já tinha escrito à mão.
     if (achado == null) return;
 
     setState(() {
-      _ruaCtrl.text = achado.street ?? _ruaCtrl.text;
-      _bairroCtrl.text = achado.neighborhood ?? _bairroCtrl.text;
-      _cidadeCtrl.text = achado.city ?? _cidadeCtrl.text;
-      _ufCtrl.text = achado.state ?? _ufCtrl.text;
+      widget.ruaCtrl.text = achado.street ?? widget.ruaCtrl.text;
+      widget.bairroCtrl.text = achado.neighborhood ?? widget.bairroCtrl.text;
+      widget.cidadeCtrl.text = achado.city ?? widget.cidadeCtrl.text;
+      widget.ufCtrl.text = achado.state ?? widget.ufCtrl.text;
     });
-    // O número é o único que o CEP não sabe, então é pra lá que o foco vai.
     _numeroFocus.requestFocus();
   }
-
-  Address get _montado => Address(
-    zipCode: _texto(_cepCtrl),
-    street: _texto(_ruaCtrl),
-    neighborhood: _texto(_bairroCtrl),
-    city: _texto(_cidadeCtrl),
-    state: _texto(_ufCtrl),
-    streetNumber: _texto(_numeroCtrl),
-    complement: _texto(_complementoCtrl),
-  );
 
   static String? _texto(TextEditingController c) {
     final t = c.text.trim();
     return t.isEmpty ? null : t;
   }
 
-  Future<void> _salvar() async {
-    setState(() => _salvando = true);
-    try {
-      await _profile.updateAddress(_montado);
-      if (!mounted) return;
-      showSuccessSnackBar(context, 'Endereço salvo');
-      widget.onSaved?.call();
-    } catch (e) {
-      if (mounted) showErrorSnackBar(context, AppException.fromError(e));
-    } finally {
-      if (mounted) setState(() => _salvando = false);
-    }
-  }
-
   @override
   Widget build(BuildContext context) {
-    final faltando = _montado.faltando;
+    final montado = Address(
+      zipCode: _texto(widget.cepCtrl),
+      street: _texto(widget.ruaCtrl),
+      neighborhood: _texto(widget.bairroCtrl),
+      city: _texto(widget.cidadeCtrl),
+      state: _texto(widget.ufCtrl),
+      streetNumber: _texto(widget.numeroCtrl),
+      complement: _texto(widget.complementoCtrl),
+    );
+    final faltando = montado.faltando;
 
     return AppCard(
       child: Column(
@@ -189,26 +145,29 @@ class _AddressCardState extends State<AddressCard> {
           AppTextField(
             key: const Key('address_zip_field'),
             label: 'CEP',
-            controller: _cepCtrl,
+            controller: widget.cepCtrl,
             icon: Icons.markunread_mailbox_outlined,
             hint: '00000-000',
             keyboardType: TextInputType.number,
             maxLength: 9,
             inputFormatters: [_CepFormatter()],
+            readOnly: widget.readOnly,
           ),
           const SizedBox(height: 12),
           AppTextField(
             key: const Key('address_street_field'),
             label: 'Rua',
-            controller: _ruaCtrl,
+            controller: widget.ruaCtrl,
             icon: Icons.place_outlined,
+            readOnly: widget.readOnly,
           ),
           const SizedBox(height: 12),
           AppTextField(
             key: const Key('address_neighborhood_field'),
             label: 'Bairro',
-            controller: _bairroCtrl,
+            controller: widget.bairroCtrl,
             icon: Icons.holiday_village_outlined,
+            readOnly: widget.readOnly,
           ),
           const SizedBox(height: 12),
           Row(
@@ -219,7 +178,8 @@ class _AddressCardState extends State<AddressCard> {
                 child: AppTextField(
                   key: const Key('address_city_field'),
                   label: 'Cidade',
-                  controller: _cidadeCtrl,
+                  controller: widget.cidadeCtrl,
+                  readOnly: widget.readOnly,
                 ),
               ),
               const SizedBox(width: 12),
@@ -227,9 +187,10 @@ class _AddressCardState extends State<AddressCard> {
                 child: AppTextField(
                   key: const Key('address_state_field'),
                   label: 'UF',
-                  controller: _ufCtrl,
+                  controller: widget.ufCtrl,
                   maxLength: 2,
                   textCapitalization: TextCapitalization.characters,
+                  readOnly: widget.readOnly,
                 ),
               ),
             ],
@@ -242,9 +203,10 @@ class _AddressCardState extends State<AddressCard> {
                 child: AppTextField(
                   key: const Key('address_number_field'),
                   label: 'Número',
-                  controller: _numeroCtrl,
+                  controller: widget.numeroCtrl,
                   focusNode: _numeroFocus,
                   keyboardType: TextInputType.number,
+                  readOnly: widget.readOnly,
                 ),
               ),
               const SizedBox(width: 12),
@@ -253,8 +215,9 @@ class _AddressCardState extends State<AddressCard> {
                 child: AppTextField(
                   key: const Key('address_complement_field'),
                   label: 'Complemento',
-                  controller: _complementoCtrl,
+                  controller: widget.complementoCtrl,
                   hint: 'Opcional',
+                  readOnly: widget.readOnly,
                 ),
               ),
             ],
@@ -282,22 +245,12 @@ class _AddressCardState extends State<AddressCard> {
               ],
             ),
           ],
-
-          const SizedBox(height: 16),
-          LoadingFilledButton(
-            key: const Key('address_save_button'),
-            loading: _salvando,
-            onPressed: _salvar,
-            label: 'Salvar endereço',
-          ),
         ],
       ),
     );
   }
 }
 
-/// Põe o hífen enquanto se digita. O teclado numérico não tem um, e sem isso o
-/// campo mostra 35570000 enquanto todo mundo lê CEP como 35570-000.
 class _CepFormatter extends TextInputFormatter {
   @override
   TextEditingValue formatEditUpdate(

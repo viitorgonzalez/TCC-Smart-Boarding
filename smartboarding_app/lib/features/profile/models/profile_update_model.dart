@@ -1,21 +1,20 @@
 import 'address_model.dart';
 
-/// Solicitação de alteração de perfil. Campo nulo = não foi pedida mudança
-/// nele — distinguir "não pedi" de "pedi vazio" é o que evita apagar dado que
-/// o aluno não quis mexer.
 class ProfileUpdate {
   final String id;
   final String userId;
   final String? studentName;
   final String? fullName;
   final String? phone;
-  final String? address;
+  final Address? address;
   final String? course;
   final String? institutionId;
   final String? birthDate;
   final String status;
   final String? rejectionReason;
   final String? createdAt;
+
+  final ProfileBefore before;
 
   const ProfileUpdate({
     required this.id,
@@ -30,38 +29,135 @@ class ProfileUpdate {
     this.birthDate,
     this.rejectionReason,
     this.createdAt,
+    this.before = const ProfileBefore(),
   });
 
   bool get pending => status == 'PENDING';
   bool get rejected => status == 'REJECTED';
 
-  factory ProfileUpdate.fromJson(Map<String, dynamic> json) => ProfileUpdate(
-    id: json['id'] as String,
-    userId: json['userId'] as String,
-    studentName: json['studentName'] as String?,
-    fullName: json['fullName'] as String?,
-    phone: json['phone'] as String?,
-    address: json['address'] as String?,
-    course: json['course'] as String?,
-    institutionId: json['institutionId'] as String?,
-    birthDate: json['birthDate'] as String?,
-    status: json['status'] as String,
-    rejectionReason: json['rejectionReason'] as String?,
-    createdAt: json['createdAt'] as String?,
-  );
+  factory ProfileUpdate.fromJson(Map<String, dynamic> json) {
+    final semEndereco =
+        json['zipCode'] == null &&
+        json['street'] == null &&
+        json['neighborhood'] == null &&
+        json['city'] == null &&
+        json['state'] == null &&
+        json['streetNumber'] == null &&
+        json['complement'] == null;
 
-  /// Os campos efetivamente pedidos, prontos pra exibir na fila do admin.
+    return ProfileUpdate(
+      id: json['id'] as String,
+      userId: json['userId'] as String,
+      studentName: json['studentName'] as String?,
+      fullName: json['fullName'] as String?,
+      phone: json['phone'] as String?,
+      address: semEndereco
+          ? null
+          : Address(
+              zipCode: json['zipCode'] as String?,
+              street: json['street'] as String?,
+              neighborhood: json['neighborhood'] as String?,
+              city: json['city'] as String?,
+              state: json['state'] as String?,
+              streetNumber: json['streetNumber'] as String?,
+              complement: json['complement'] as String?,
+            ),
+      course: json['course'] as String?,
+      institutionId: json['institutionId'] as String?,
+      birthDate: json['birthDate'] as String?,
+      status: json['status'] as String,
+      rejectionReason: json['rejectionReason'] as String?,
+      createdAt: json['createdAt'] as String?,
+      before: ProfileBefore.fromJson(json['before'] as Map<String, dynamic>?),
+    );
+  }
+
   Map<String, String> get changes => {
     'Nome': ?fullName,
     'Telefone': ?phone,
-    'Endereço': ?address,
+    if (address != null) 'Endereço': _resumoEndereco(address!),
     'Curso': ?course,
     'Nascimento': ?birthDate,
   };
+
+  List<ProfileFieldDiff> get diffs => [
+    if (fullName != null)
+      ProfileFieldDiff('Nome', before.fullName ?? '—', fullName!),
+    if (phone != null) ProfileFieldDiff('Telefone', before.phone ?? '—', phone!),
+    if (address != null)
+      ProfileFieldDiff(
+        'Endereço',
+        before.address == null ? '—' : _resumoEndereco(before.address!),
+        _resumoEndereco(address!),
+      ),
+    if (course != null) ProfileFieldDiff('Curso', before.course ?? '—', course!),
+    if (birthDate != null)
+      ProfileFieldDiff('Nascimento', before.birthDate ?? '—', birthDate!),
+  ];
+
+  static String _resumoEndereco(Address a) {
+    final partes = [
+      if (a.street != null) a.street!,
+      if (a.streetNumber != null) a.streetNumber!,
+      if (a.neighborhood != null) a.neighborhood!,
+    ];
+    return partes.isEmpty ? '(pedido)' : partes.join(', ');
+  }
 }
 
-/// Quem sou eu, do ponto de vista da sessão atual. [hasPassword] e [hasGoogle]
-/// dizem por quais caminhos esta conta entra.
+class ProfileFieldDiff {
+  final String label;
+  final String before;
+  final String after;
+  const ProfileFieldDiff(this.label, this.before, this.after);
+}
+
+class ProfileBefore {
+  final String? fullName;
+  final String? phone;
+  final String? course;
+  final String? birthDate;
+  final Address? address;
+
+  const ProfileBefore({
+    this.fullName,
+    this.phone,
+    this.course,
+    this.birthDate,
+    this.address,
+  });
+
+  factory ProfileBefore.fromJson(Map<String, dynamic>? json) {
+    if (json == null) return const ProfileBefore();
+    final semEndereco =
+        json['zipCode'] == null &&
+        json['street'] == null &&
+        json['neighborhood'] == null &&
+        json['city'] == null &&
+        json['state'] == null &&
+        json['streetNumber'] == null &&
+        json['complement'] == null;
+
+    return ProfileBefore(
+      fullName: json['fullName'] as String?,
+      phone: json['phone'] as String?,
+      course: json['course'] as String?,
+      birthDate: json['birthDate'] as String?,
+      address: semEndereco
+          ? null
+          : Address(
+              zipCode: json['zipCode'] as String?,
+              street: json['street'] as String?,
+              neighborhood: json['neighborhood'] as String?,
+              city: json['city'] as String?,
+              state: json['state'] as String?,
+              streetNumber: json['streetNumber'] as String?,
+              complement: json['complement'] as String?,
+            ),
+    );
+  }
+}
+
 class Me {
   final String id;
   final String fullName;
@@ -73,14 +169,8 @@ class Me {
   final String? course;
   final Address address;
 
-  /// O que falta pra entrar na lista, pelos nomes dos campos. Vem do backend
-  /// porque é ele quem recusa a entrada: refazer a conta aqui daria duas
-  /// versões da regra pra divergirem.
   final List<String> missingForList;
 
-  /// Nome da instituição principal, não o id: quem lê isso é a carteirinha, e
-  /// resolver o id aqui obrigaria a tela a baixar o catálogo inteiro pra
-  /// escrever uma linha.
   final String? institution;
 
   const Me({
@@ -99,8 +189,6 @@ class Me {
 
   bool get profileCompleteForList => missingForList.isEmpty;
 
-  /// Os rótulos do que falta, prontos pra tela. Um nome de campo cru na cara
-  /// do aluno ("address") não diz o que ele precisa fazer.
   static const rotulos = <String, String>{
     'fullName': 'Nome completo',
     'phone': 'Telefone',

@@ -29,9 +29,14 @@ public class ProfileUpdateRequestRepositoryAdapter
 
     @Override
     public List<ProfileUpdateRequest> findAllPending() {
-        // Mais antigo primeiro: a fila e ordem de chegada, senao pedido antigo
-        // afunda e fica sem resposta.
         return jpa.findAllByStatusOrderByCreatedAtAsc(ProfileUpdateStatus.PENDING);
+    }
+
+    @Override
+    public List<ProfileUpdateRequest> findAllByStatusOrAll(ProfileUpdateStatus status) {
+        return status == null
+                ? jpa.findAllByOrderByCreatedAtDesc()
+                : jpa.findAllByStatusOrderByCreatedAtDesc(status);
     }
 
     @Override

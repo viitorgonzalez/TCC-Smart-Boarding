@@ -15,5 +15,9 @@ public interface ProfileUpdateRequestJpaRepository
 
     List<ProfileUpdateRequest> findAllByStatusOrderByCreatedAtAsc(ProfileUpdateStatus status);
 
+    List<ProfileUpdateRequest> findAllByStatusOrderByCreatedAtDesc(ProfileUpdateStatus status);
+
+    List<ProfileUpdateRequest> findAllByOrderByCreatedAtDesc();
+
     List<ProfileUpdateRequest> findAllByUserIdOrderByCreatedAtDesc(UUID userId);
 }

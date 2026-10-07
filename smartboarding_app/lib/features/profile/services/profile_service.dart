@@ -5,15 +5,13 @@ import '../models/profile_update_model.dart';
 class ProfileService {
   final _dio = DioClient.instance;
 
-  /// Manda só o que mudou: campo ausente significa "não pedi mudança nele".
-  ///
-  /// Sobrou pouco: endereço, telefone e curso têm caminhos diretos
-  /// ([updateAddress] e [updateOwnProfile]). O que passa por aqui é o que
-  /// decide em qual transporte a pessoa entra.
   Future<ProfileUpdate> requestUpdate({
     String? fullName,
     String? institutionId,
     String? birthDate,
+    String? phone,
+    String? course,
+    Address? address,
   }) async {
     final response = await _dio.post(
       '/api/me/profile-requests',
@@ -21,6 +19,15 @@ class ProfileService {
         'fullName': ?fullName,
         'institutionId': ?institutionId,
         'birthDate': ?birthDate,
+        'phone': ?phone,
+        'course': ?course,
+        'zipCode': ?address?.zipCode,
+        'street': ?address?.street,
+        'neighborhood': ?address?.neighborhood,
+        'city': ?address?.city,
+        'state': ?address?.state,
+        'streetNumber': ?address?.streetNumber,
+        'complement': ?address?.complement,
       },
     );
     return ProfileUpdate.fromJson(
@@ -28,7 +35,6 @@ class ProfileService {
     );
   }
 
-  /// Nulo quando não há pedido em análise.
   Future<ProfileUpdate?> myPending() async {
     final response = await _dio.get('/api/me/profile-requests/pending');
     final data = response.data['data'];
@@ -39,6 +45,17 @@ class ProfileService {
 
   Future<List<ProfileUpdate>> pending() async {
     final response = await _dio.get('/api/profile-requests');
+    final List data = response.data['data'] as List;
+    return data
+        .map((e) => ProfileUpdate.fromJson(e as Map<String, dynamic>))
+        .toList();
+  }
+
+  Future<List<ProfileUpdate>> allRequests({String? status}) async {
+    final response = await _dio.get(
+      '/api/profile-requests/all',
+      queryParameters: {'status': ?status},
+    );
     final List data = response.data['data'] as List;
     return data
         .map((e) => ProfileUpdate.fromJson(e as Map<String, dynamic>))
@@ -56,8 +73,6 @@ class ProfileService {
     );
   }
 
-  /// Último pedido em qualquer estado: é por ele que a recusa e o motivo
-  /// chegam ao aluno. O /pending só devolve PENDING.
   Future<ProfileUpdate?> myLatest() async {
     final response = await _dio.get('/api/me/profile-requests/latest');
     final data = response.data['data'];
@@ -66,16 +81,11 @@ class ProfileService {
         : ProfileUpdate.fromJson(data as Map<String, dynamic>);
   }
 
-  /// Salva o endereço direto, sem passar pela fila do admin: ele diz onde o
-  /// aluno embarca, não em qual transporte ele entra. Como é pré-requisito pra
-  /// entrar na lista, depender de aprovação deixaria a pessoa travada esperando.
   Future<Address> updateAddress(Address endereco) async {
     final response = await _dio.put('/api/me/address', data: endereco.toJson());
     return Address.fromJson(response.data['data'] as Map<String, dynamic>);
   }
 
-  /// Telefone e curso, salvos direto. Mesma razão do endereço: alcançam a
-  /// pessoa ou a descrevem, mas não decidem em qual transporte ela entra.
   Future<void> updateOwnProfile({String? phone, String? course}) async {
     await _dio.put(
       '/api/me/profile',
@@ -88,13 +98,10 @@ class ProfileService {
     return Me.fromJson(response.data['data'] as Map<String, dynamic>);
   }
 
-  /// Define a senha local de quem entrou pelo Google e ainda não tem uma.
   Future<void> setLocalPassword(String password) async {
     await _dio.post('/api/me/password', data: {'password': password});
   }
 
-  /// Troca a senha de quem já tem uma. Verbo diferente do POST: lá se cria a
-  /// primeira senha, aqui se substitui uma existente provando posse da antiga.
   Future<void> changePassword(String current, String novaSenha) async {
     await _dio.put(
       '/api/me/password',
@@ -102,8 +109,14 @@ class ProfileService {
     );
   }
 
-  /// Instituições do próprio aluno. É pré-requisito pra entrar em rota, por
-  /// isso vive sob /me e não na área do admin.
+  Future<void> requestEmailChange(String newEmail) async {
+    await _dio.post('/api/me/email/request', data: {'newEmail': newEmail});
+  }
+
+  Future<void> confirmEmailChange(String code) async {
+    await _dio.post('/api/me/email/confirm', data: {'code': code});
+  }
+
   Future<List<String>> myInstitutions() async {
     final response = await _dio.get('/api/me/institutions');
     return (response.data['data'] as List).map((e) => e as String).toList();

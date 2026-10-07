@@ -10,21 +10,18 @@ import '../../../core/widgets/app_text_field.dart';
 import '../../../core/widgets/initials_avatar.dart';
 import '../../../core/widgets/loading_filled_button.dart';
 import '../../../core/widgets/snackbar_utils.dart';
+import '../models/address_model.dart';
 import '../models/profile_update_model.dart';
 import '../services/profile_service.dart';
 import '../../membership/providers/membership_provider.dart';
 import '../providers/me_provider.dart';
 import 'student_card_screen.dart';
 import '../widgets/address_card.dart';
+import '../widgets/email_card.dart';
 import '../widgets/my_institutions_card.dart';
 import '../widgets/own_data_card.dart';
 import '../widgets/password_card.dart';
 
-/// Perfil do próprio usuário.
-///
-/// O admin edita direto; o aluno envia solicitação e o admin decide. Nome e
-/// instituição do aluno decidem em que lista ele aparece, então mudá-los sozinho
-/// abriria caminho pra entrar em transporte que não é o dele.
 class ProfileScreen extends StatefulWidget {
   const ProfileScreen({super.key});
 
@@ -35,11 +32,34 @@ class ProfileScreen extends StatefulWidget {
 class _ProfileScreenState extends State<ProfileScreen> {
   final _service = ProfileService();
   final _formKey = GlobalKey<FormState>();
+
   final _nameCtrl = TextEditingController();
+  final _phoneCtrl = TextEditingController();
+  final _courseCtrl = TextEditingController();
+  final _cepCtrl = TextEditingController();
+  final _ruaCtrl = TextEditingController();
+  final _bairroCtrl = TextEditingController();
+  final _cidadeCtrl = TextEditingController();
+  final _ufCtrl = TextEditingController();
+  final _numeroCtrl = TextEditingController();
+  final _complementoCtrl = TextEditingController();
+  late final _todosCtrls = Listenable.merge([
+    _nameCtrl,
+    _phoneCtrl,
+    _courseCtrl,
+    _cepCtrl,
+    _ruaCtrl,
+    _bairroCtrl,
+    _cidadeCtrl,
+    _ufCtrl,
+    _numeroCtrl,
+    _complementoCtrl,
+  ]);
 
   ProfileUpdate? _pendente;
   bool _loading = true;
   bool _saving = false;
+  bool _preenchidoDoMe = false;
 
   @override
   void initState() {
@@ -51,16 +71,19 @@ class _ProfileScreenState extends State<ProfileScreen> {
   @override
   void dispose() {
     _nameCtrl.dispose();
+    _phoneCtrl.dispose();
+    _courseCtrl.dispose();
+    _cepCtrl.dispose();
+    _ruaCtrl.dispose();
+    _bairroCtrl.dispose();
+    _cidadeCtrl.dispose();
+    _ufCtrl.dispose();
+    _numeroCtrl.dispose();
+    _complementoCtrl.dispose();
     super.dispose();
   }
 
   Future<void> _load() async {
-    // Pelo MeProvider e nao por um /me proprio: o card da lista le o mesmo
-    // dado pra decidir se avisa o perfil incompleto. Com duas copias, salvar
-    // aqui deixaria o aviso de la mentindo ate a proxima abertura da tela.
-    //
-    // Sem await e com a falha engolida dentro do provider: o /me so alimenta
-    // avisos, e o perfil inteiro tem que abrir mesmo se ele nao responder.
     unawaited(context.read<MeProvider>().load());
     try {
       final ultimo = await _service.myLatest();
@@ -72,27 +95,84 @@ class _ProfileScreenState extends State<ProfileScreen> {
     }
   }
 
-  /// Só o que mudou vai no pedido: mandar tudo faria o admin revisar campos que
-  /// o aluno nem tocou.
-  String? _mudou(TextEditingController ctrl, String? atual) {
+  Future<void> _emailAlterado(AuthProvider auth) async {
+    await auth.logout();
+    if (mounted) {
+      showSuccessSnackBar(
+        context,
+        'E-mail alterado. Faça login de novo com o e-mail novo.',
+      );
+    }
+  }
+
+  void _preencherDoMe(Me me) {
+    if (_preenchidoDoMe) return;
+    _preenchidoDoMe = true;
+    _phoneCtrl.text = me.phone ?? '';
+    _courseCtrl.text = me.course ?? '';
+    _cepCtrl.text = me.address.zipCode ?? '';
+    _ruaCtrl.text = me.address.street ?? '';
+    _bairroCtrl.text = me.address.neighborhood ?? '';
+    _cidadeCtrl.text = me.address.city ?? '';
+    _ufCtrl.text = me.address.state ?? '';
+    _numeroCtrl.text = me.address.streetNumber ?? '';
+    _complementoCtrl.text = me.address.complement ?? '';
+  }
+
+  static String? _texto(TextEditingController c) {
+    final t = c.text.trim();
+    return t.isEmpty ? null : t;
+  }
+
+  String? _mudouTexto(TextEditingController ctrl, String? atual) {
     final novo = ctrl.text.trim();
     if (novo.isEmpty || novo == (atual ?? '')) return null;
     return novo;
   }
 
-  Future<void> _enviar() async {
-    if (!_formKey.currentState!.validate()) return;
-    final auth = context.read<AuthProvider>();
-    final nome = _mudou(_nameCtrl, auth.token?.fullName);
+  bool _enderecoMudou(Address atual) =>
+      _texto(_cepCtrl) != atual.zipCode ||
+      _texto(_ruaCtrl) != atual.street ||
+      _texto(_bairroCtrl) != atual.neighborhood ||
+      _texto(_cidadeCtrl) != atual.city ||
+      _texto(_ufCtrl) != atual.state ||
+      _texto(_numeroCtrl) != atual.streetNumber ||
+      _texto(_complementoCtrl) != atual.complement;
 
-    if (nome == null) {
-      showErrorSnackBar(context, 'Altere o nome antes de enviar.');
-      return;
+  bool _algoMudou(AuthProvider auth, Me? me) {
+    if (_mudouTexto(_nameCtrl, auth.token?.fullName) != null) return true;
+    if (me == null) return false;
+    if (_mudouTexto(_phoneCtrl, me.phone) != null) return true;
+    if (auth.isStudent && _mudouTexto(_courseCtrl, me.course) != null) {
+      return true;
     }
+    return _enderecoMudou(me.address);
+  }
+
+  Future<void> _enviar(AuthProvider auth, Me? me) async {
+    if (!_formKey.currentState!.validate()) return;
+    if (!_algoMudou(auth, me)) return;
 
     setState(() => _saving = true);
     try {
-      final p = await _service.requestUpdate(fullName: nome);
+      final p = await _service.requestUpdate(
+        fullName: _mudouTexto(_nameCtrl, auth.token?.fullName),
+        phone: me == null ? null : _mudouTexto(_phoneCtrl, me.phone),
+        course: (me == null || !auth.isStudent)
+            ? null
+            : _mudouTexto(_courseCtrl, me.course),
+        address: (me != null && _enderecoMudou(me.address))
+            ? Address(
+                zipCode: _texto(_cepCtrl),
+                street: _texto(_ruaCtrl),
+                neighborhood: _texto(_bairroCtrl),
+                city: _texto(_cidadeCtrl),
+                state: _texto(_ufCtrl),
+                streetNumber: _texto(_numeroCtrl),
+                complement: _texto(_complementoCtrl),
+              )
+            : null,
+      );
       if (!mounted) return;
       setState(() => _pendente = p);
       showSuccessSnackBar(context, 'Solicitação enviada para o administrador');
@@ -108,6 +188,8 @@ class _ProfileScreenState extends State<ProfileScreen> {
     final auth = context.watch<AuthProvider>();
     final nome = auth.token?.fullName ?? '';
     final emAnalise = _pendente?.pending ?? false;
+    final me = context.watch<MeProvider>().me;
+    if (me != null) _preencherDoMe(me);
 
     return Scaffold(
       appBar: AppBar(title: const Text('Meu perfil')),
@@ -144,61 +226,36 @@ class _ProfileScreenState extends State<ProfileScreen> {
                   ),
                 ),
                 const SizedBox(height: 20),
-                // Fica ACIMA do formulario: sem instituicao o aluno nao entra em
-                // rota nenhuma, entao e a primeira coisa que ele precisa
-                // resolver ao abrir o perfil.
                 const MyInstitutionsCard(),
                 const SizedBox(height: 20),
-                // Quem ainda nao tem senha cria a primeira; quem tem, troca
-                // provando a atual. Nao ha terceiro caso -- o card so some
-                // enquanto o /me nao respondeu.
-                if (context.watch<MeProvider>().me case final me?) ...[
-                  // So pro aluno: a carteirinha atesta vinculo de estudante,
-                  // e quem administra nao tem um pra atestar.
-                  if (auth.isStudent) ...[
-                    AppCard(
-                      child: ListTile(
-                        key: const Key('profile_open_student_card'),
-                        contentPadding: EdgeInsets.zero,
-                        leading: const Icon(
-                          Icons.badge_outlined,
-                          color: AppColors.deepTeal,
-                        ),
-                        title: const Text('Carteirinha'),
-                        subtitle: const Text(
-                          'Seus dados de estudante, pra mostrar na conferência',
-                        ),
-                        trailing: const Icon(Icons.chevron_right),
-                        onTap: () => Navigator.push<void>(
-                          context,
-                          MaterialPageRoute(
-                            builder: (_) => StudentCardScreen(
-                              me: me,
-                              hasActiveRoute: context
-                                  .read<MembershipProvider>()
-                                  .routes
-                                  .isNotEmpty,
-                            ),
+                if (me != null && auth.isStudent) ...[
+                  AppCard(
+                    child: ListTile(
+                      key: const Key('profile_open_student_card'),
+                      contentPadding: EdgeInsets.zero,
+                      leading: const Icon(
+                        Icons.badge_outlined,
+                        color: AppColors.deepTeal,
+                      ),
+                      title: const Text('Carteirinha'),
+                      subtitle: const Text(
+                        'Seus dados de estudante, pra mostrar na conferência',
+                      ),
+                      trailing: const Icon(Icons.chevron_right),
+                      onTap: () => Navigator.push<void>(
+                        context,
+                        MaterialPageRoute(
+                          builder: (_) => StudentCardScreen(
+                            me: me,
+                            hasActiveRoute: context
+                                .read<MembershipProvider>()
+                                .routes
+                                .isNotEmpty,
                           ),
                         ),
                       ),
                     ),
-                    const SizedBox(height: 20),
-                  ],
-                  // Fora do formulario de aprovacao de proposito: o endereco
-                  // vale na hora, e o nome ainda espera o admin. Misturar as
-                  // duas semanticas num botao so faria o aluno nao saber o que
-                  // ja valeu e o que foi so pedido.
-                  OwnDataCard(
-                    phone: me.phone,
-                    course: me.course,
-                    isStudent: auth.isStudent,
-                    onSaved: _load,
                   ),
-                  const SizedBox(height: 20),
-                  AddressCard(initial: me.address, onSaved: _load),
-                  const SizedBox(height: 20),
-                  PasswordCard(changing: me.hasPassword, onSaved: _load),
                   const SizedBox(height: 20),
                 ],
 
@@ -258,9 +315,6 @@ class _ProfileScreenState extends State<ProfileScreen> {
                   const SizedBox(height: 20),
                 ],
 
-                // So o nome sobrou aqui: ele identifica na chamada do
-                // motorista, entao troca-lo e virar outra pessoa na lista --
-                // e a unica coisa que ainda justifica um admin no meio.
                 Form(
                   key: _formKey,
                   child: Column(
@@ -273,20 +327,56 @@ class _ProfileScreenState extends State<ProfileScreen> {
                         icon: Icons.person_outline,
                         readOnly: emAnalise,
                       ),
-                      const SizedBox(height: 24),
-                      // Campo travado durante a analise: deixar editavel sugere
-                      // que da pra enviar outro, e o backend recusa com 409.
-                      LoadingFilledButton(
-                        key: const Key('profile_submit_button'),
-                        loading: _saving,
-                        onPressed: emAnalise ? null : _enviar,
-                        label: emAnalise
-                            ? 'Aguardando análise'
-                            : 'Enviar para aprovação',
+                      const SizedBox(height: 20),
+                      if (me != null) ...[
+                        OwnDataCard(
+                          phoneCtrl: _phoneCtrl,
+                          courseCtrl: _courseCtrl,
+                          isStudent: auth.isStudent,
+                          readOnly: emAnalise,
+                        ),
+                        const SizedBox(height: 20),
+                        AddressCard(
+                          cepCtrl: _cepCtrl,
+                          ruaCtrl: _ruaCtrl,
+                          bairroCtrl: _bairroCtrl,
+                          cidadeCtrl: _cidadeCtrl,
+                          ufCtrl: _ufCtrl,
+                          numeroCtrl: _numeroCtrl,
+                          complementoCtrl: _complementoCtrl,
+                          readOnly: emAnalise,
+                        ),
+                        const SizedBox(height: 20),
+                      ],
+                      ListenableBuilder(
+                        listenable: _todosCtrls,
+                        builder: (context, _) {
+                          final podeEnviar = !emAnalise && _algoMudou(auth, me);
+                          return LoadingFilledButton(
+                            key: const Key('profile_submit_button'),
+                            loading: _saving,
+                            onPressed: podeEnviar
+                                ? () => _enviar(auth, me)
+                                : null,
+                            label: emAnalise
+                                ? 'Aguardando análise'
+                                : 'Enviar para aprovação',
+                          );
+                        },
                       ),
                     ],
                   ),
                 ),
+                const SizedBox(height: 20),
+                if (me != null) ...[
+                  EmailCard(
+                    currentEmail: me.email,
+                    onChanged: () => _emailAlterado(auth),
+                  ),
+                  const SizedBox(height: 20),
+                  PasswordCard(changing: me.hasPassword, onSaved: _load),
+                  const SizedBox(height: 20),
+                ],
               ],
             ),
     );

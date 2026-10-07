@@ -44,6 +44,10 @@ class ProfileControllerTest extends WebMvcTestSupport {
             setLocalPasswordUseCase;
     @MockitoBean com.smartboarding.smartboarding_api.domain.user.port.in.ChangePasswordUseCase
             changePasswordUseCase;
+    @MockitoBean com.smartboarding.smartboarding_api.domain.emailchange.port.in.RequestEmailChangeUseCase
+            requestEmailChangeUseCase;
+    @MockitoBean com.smartboarding.smartboarding_api.domain.emailchange.port.in.ConfirmEmailChangeUseCase
+            confirmEmailChangeUseCase;
     @MockitoBean com.smartboarding.smartboarding_api.domain.user.port.in.UpdateAddressUseCase
             updateAddressUseCase;
     @MockitoBean com.smartboarding.smartboarding_api.domain.user.port.in.UpdateOwnProfileUseCase
@@ -85,8 +89,6 @@ class ProfileControllerTest extends WebMvcTestSupport {
         verify(useCase, never()).request(any(), any());
     }
 
-    /// O id sai do token: aceitar userId do corpo deixaria um aluno pedir
-    /// alteracao no perfil de outro.
     @Test
     void pedidoUsaOUsuarioDoToken() throws Exception {
         mvc.perform(post("/api/me/profile-requests").with(student())
@@ -101,8 +103,6 @@ class ProfileControllerTest extends WebMvcTestSupport {
 
     @Test
     void pedidoPendenteDuplicadoDevolve409() throws Exception {
-        // doThrow em vez de when(...): o when reavalia o stub do setUp com
-        // argumentos nulos antes de trocar o comportamento.
         org.mockito.Mockito.doThrow(new ConflictException(
                         "PENDING_REQUEST_EXISTS", "Você já tem uma solicitação em análise."))
                 .when(useCase).request(any(), any());
@@ -122,8 +122,6 @@ class ProfileControllerTest extends WebMvcTestSupport {
                 .andExpect(jsonPath("$.data").doesNotExist());
     }
 
-    /// A fila e do admin: um aluno vendo os pedidos leria nome, telefone e
-    /// endereco que colegas pediram pra mudar.
     @Test
     void filaEDecisoesSaoDoAdmin() throws Exception {
         UUID id = UUID.randomUUID();
@@ -144,6 +142,22 @@ class ProfileControllerTest extends WebMvcTestSupport {
     }
 
     @Test
+    void filaTrazOValorAtualAoLadoDoPedido() throws Exception {
+        var pedido = ProfileUpdateRequest.builder()
+                .id(UUID.randomUUID()).userId(STUDENT_ID)
+                .phone("37988887777").status(ProfileUpdateStatus.PENDING).build();
+        when(useCase.listPending()).thenReturn(List.of(pedido));
+        when(userRepository.findAll()).thenReturn(List.of(
+                User.builder().id(STUDENT_ID).fullName("Fernanda Lima")
+                        .phone("37911112222").build()));
+
+        mvc.perform(get("/api/profile-requests").with(admin()))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.data[0].phone").value("37988887777"))
+                .andExpect(jsonPath("$.data[0].before.phone").value("37911112222"));
+    }
+
+    @Test
     void adminAprovaRegistrandoQuemDecidiu() throws Exception {
         UUID id = UUID.randomUUID();
 
@@ -153,7 +167,6 @@ class ProfileControllerTest extends WebMvcTestSupport {
         verify(useCase).approve(id, ADMIN_ID);
     }
 
-    /// Sem motivo o aluno refaz o mesmo pedido sem saber o que corrigir.
     @Test
     void recusarSemMotivoERecusado() throws Exception {
         UUID id = UUID.randomUUID();
@@ -180,8 +193,6 @@ class ProfileControllerTest extends WebMvcTestSupport {
         verify(useCase).reject(id, "Nome não confere com o documento", ADMIN_ID);
     }
 
-    /// As instituicoes sao do proprio aluno: e pre-requisito pra entrar em rota,
-    /// entao o endpoint vive sob /me e usa o id do token.
     @Test
     void instituicoesUsamOUsuarioDoToken() throws Exception {
         UUID inst = UUID.randomUUID();
@@ -219,11 +230,6 @@ class ProfileControllerTest extends WebMvcTestSupport {
         verify(userInstitutionsUseCase).remove(STUDENT_ID, inst);
     }
 
-    // ─── Definir senha local ──────────────────────────────────────────────────
-
-    /// Quem entrou pelo Google define uma senha e passa a entrar pelos dois
-    /// caminhos. O id sai do token: aceitar userId deixaria definir a senha de
-    /// outro.
     @Test
     void definirSenhaUsaOUsuarioDoToken() throws Exception {
         mvc.perform(post("/api/me/password").with(student())
@@ -246,7 +252,6 @@ class ProfileControllerTest extends WebMvcTestSupport {
         verify(setLocalPasswordUseCase, never()).setPassword(any(), anyString());
     }
 
-    /// RN10: abaixo de 6 nao vira hash.
     @Test
     void senhaCurtaERecusadaAntesDoUseCase() throws Exception {
         mvc.perform(post("/api/me/password").with(student())
@@ -272,9 +277,6 @@ class ProfileControllerTest extends WebMvcTestSupport {
                 .andExpect(jsonPath("$.code").value("PASSWORD_ALREADY_SET"));
     }
 
-    /// A tela usa esses dois flags pra decidir se oferece "criar senha". Se o
-    /// /me mentisse, quem entrou pelo Google nao veria a opcao -- ou quem ja tem
-    /// senha veria e tomaria 409.
     @Test
     void meInformaPorOndeAContaEntra() throws Exception {
         mvc.perform(get("/api/me").with(student()))
@@ -294,7 +296,6 @@ class ProfileControllerTest extends WebMvcTestSupport {
         mvc.perform(get("/api/me")).andExpect(status().isUnauthorized());
     }
 
-    /// O hash nunca pode sair no corpo: a tela so precisa saber SE existe senha.
     @Test
     void meNaoExpoeOHashDaSenha() throws Exception {
         String corpo = mvc.perform(get("/api/me").with(admin()))
@@ -303,7 +304,74 @@ class ProfileControllerTest extends WebMvcTestSupport {
         org.assertj.core.api.Assertions.assertThat(corpo).doesNotContain("$2a$10$hash");
     }
 
-    // ─── PUT /api/me/address ──────────────────────────────────────────────────
+    @Test
+    void pedirTrocaDeEmailUsaOUsuarioDoToken() throws Exception {
+        mvc.perform(post("/api/me/email/request").with(student())
+                        .contentType(MediaType.APPLICATION_JSON)
+                        .content("""
+                                {"newEmail":"novo@edu.unifor.br"}"""))
+                .andExpect(status().isOk());
+
+        verify(requestEmailChangeUseCase).request(STUDENT_ID, "novo@edu.unifor.br");
+    }
+
+    @Test
+    void pedirTrocaDeEmailExigeToken() throws Exception {
+        mvc.perform(post("/api/me/email/request")
+                        .contentType(MediaType.APPLICATION_JSON)
+                        .content("""
+                                {"newEmail":"novo@edu.unifor.br"}"""))
+                .andExpect(status().isUnauthorized());
+
+        verify(requestEmailChangeUseCase, never()).request(any(), any());
+    }
+
+    @Test
+    void pedirTrocaComEmailInvalidoERecusadoAntesDoUseCase() throws Exception {
+        mvc.perform(post("/api/me/email/request").with(student())
+                        .contentType(MediaType.APPLICATION_JSON)
+                        .content("""
+                                {"newEmail":"nao-e-email"}"""))
+                .andExpect(status().isBadRequest());
+
+        verify(requestEmailChangeUseCase, never()).request(any(), any());
+    }
+
+    @Test
+    void confirmarTrocaDeEmailUsaOUsuarioDoToken() throws Exception {
+        mvc.perform(post("/api/me/email/confirm").with(student())
+                        .contentType(MediaType.APPLICATION_JSON)
+                        .content("""
+                                {"code":"123456"}"""))
+                .andExpect(status().isOk());
+
+        verify(confirmEmailChangeUseCase).confirm(STUDENT_ID, "123456");
+    }
+
+    @Test
+    void confirmarComCodigoForaDoFormatoERecusadoAntesDoUseCase() throws Exception {
+        mvc.perform(post("/api/me/email/confirm").with(student())
+                        .contentType(MediaType.APPLICATION_JSON)
+                        .content("""
+                                {"code":"abc"}"""))
+                .andExpect(status().isBadRequest());
+
+        verify(confirmEmailChangeUseCase, never()).confirm(any(), any());
+    }
+
+    @Test
+    void emailJaEmUsoDevolve409() throws Exception {
+        org.mockito.Mockito.doThrow(new com.smartboarding.smartboarding_api.shared.exception
+                        .ConflictException("EMAIL_ALREADY_EXISTS", "Esse e-mail já está em uso."))
+                .when(requestEmailChangeUseCase).request(any(), any());
+
+        mvc.perform(post("/api/me/email/request").with(student())
+                        .contentType(MediaType.APPLICATION_JSON)
+                        .content("""
+                                {"newEmail":"ocupado@edu.unifor.br"}"""))
+                .andExpect(status().isConflict())
+                .andExpect(jsonPath("$.code").value("EMAIL_ALREADY_EXISTS"));
+    }
 
     private static final String ENDERECO_JSON = """
             {"zipCode":"35570-000","street":"Av. Dr. Arnaldo de Senna",
@@ -311,8 +379,6 @@ class ProfileControllerTest extends WebMvcTestSupport {
              "streetNumber":"328"}
             """;
 
-    /// O endereço é do aluno e vale sozinho: passar pela fila de aprovação o
-    /// deixaria travado fora da lista até um admin agir.
     @Test
     void alunoSalvaOProprioEnderecoSemAbrirSolicitacao() throws Exception {
         when(updateAddressUseCase.update(eq(STUDENT_ID), any()))
@@ -327,8 +393,6 @@ class ProfileControllerTest extends WebMvcTestSupport {
         verify(useCase, never()).request(any(), any());
     }
 
-    /// O id sai do token. Aceitar um do corpo deixaria um aluno reescrever o
-    /// endereço de outro -- e endereço errado é o ônibus parando no lugar errado.
     @Test
     void enderecoVaiSempreProDonoDoToken() throws Exception {
         when(updateAddressUseCase.update(any(), any())).thenAnswer(inv -> inv.getArgument(1));
@@ -353,9 +417,6 @@ class ProfileControllerTest extends WebMvcTestSupport {
         verify(updateAddressUseCase, never()).update(any(), any());
     }
 
-    /// O app precisa saber o que falta ANTES de o aluno tocar no botão da
-    /// lista. Recalcular isso em Dart daria duas versões da regra, e a que
-    /// vale é a do backend -- que é quem recusa a entrada.
     @Test
     void meDizOQueFaltaProPerfilEntrarNaLista() throws Exception {
         mvc.perform(get("/api/me").with(student()))
