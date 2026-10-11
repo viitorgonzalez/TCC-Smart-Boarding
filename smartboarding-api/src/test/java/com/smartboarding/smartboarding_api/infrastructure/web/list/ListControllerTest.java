@@ -50,6 +50,9 @@ import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.status;
 
 @WebMvcTest(ListController.class)
+// O assembler real, não um mock: estes testes verificam o que ele monta
+// (contagem por instituição, veículo proposto, tempo de viagem).
+@org.springframework.context.annotation.Import(ListResponseAssembler.class)
 class ListControllerTest extends WebMvcTestSupport {
 
     private static final UUID LIST_ID = UUID.fromString("aaaaaaaa-0000-0000-0000-000000000001");
