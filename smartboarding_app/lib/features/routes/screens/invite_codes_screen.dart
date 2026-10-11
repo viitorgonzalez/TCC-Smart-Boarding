@@ -328,102 +328,107 @@ class _InviteCodesScreenState extends State<InviteCodesScreen> {
                 : ListView(
                     padding: const EdgeInsets.fromLTRB(20, 20, 20, 96),
                     children: [
-                for (final entrada in porRota.entries) ...[
-                  Padding(
-                    padding: const EdgeInsets.only(bottom: 8),
-                    child: Text(
-                      entrada.key,
-                      style: Theme.of(context).textTheme.titleMedium,
-                    ),
-                  ),
-                  AppCard(
-                    padding: const EdgeInsets.symmetric(vertical: 6),
-                    child: Column(
-                      children: [
-                        for (final code in entrada.value)
-                          ListTile(
-                            key: Key('code_${code.id}'),
-                            selected: _marcados.contains(code.id),
-                            selectedTileColor: AppColors.positiveBg,
-                            leading: _selecionando
-                                ? Checkbox(
-                                    key: Key('check_${code.id}'),
-                                    value: _marcados.contains(code.id),
-                                    onChanged: (_) => _alternarSelecao(code.id),
-                                  )
-                                : Icon(
-                                    code.usable
-                                        ? Icons.vpn_key_outlined
-                                        : Icons.key_off_outlined,
-                                    color: code.usable
-                                        ? AppColors.deepTeal
-                                        : AppColors.textSecondary,
-                                  ),
-                            title: Text(
-                              code.code,
-                              style: const TextStyle(
-                                fontFamily: 'monospace',
-                                fontSize: 20,
-                                letterSpacing: 2,
-                                fontWeight: FontWeight.w700,
-                              ),
-                            ),
-                            subtitle: Text(
-                              '${code.institutionName ?? 'Qualquer instituição'} · '
-                              '${_situacao(code)} · ${code.uses} '
-                              '${code.uses == 1 ? 'aluno entrou' : 'alunos entraram'}',
-                            ),
-                            onLongPress: _selecionando
-                                ? null
-                                : () => _entrarNaSelecao(code.id),
-                            onTap: _selecionando
-                                ? () => _alternarSelecao(code.id)
-                                : null,
-                            trailing: _selecionando
-                                ? null
-                                : code.usable
-                                ? Row(
-                                    mainAxisSize: MainAxisSize.min,
-                                    children: [
-                                      IconButton(
-                                        key: Key('copy_${code.id}'),
-                                        tooltip: 'Copiar código',
-                                        icon: const Icon(Icons.copy_outlined),
-                                        onPressed: _ocupado
-                                            ? null
-                                            : () async {
-                                                await Clipboard.setData(
-                                                  ClipboardData(
-                                                    text: code.code,
-                                                  ),
-                                                );
-                                                if (context.mounted) {
-                                                  showSuccessSnackBar(
-                                                    context,
-                                                    'Código copiado',
-                                                  );
-                                                }
-                                              },
-                                      ),
-                                      IconButton(
-                                        key: Key('revoke_${code.id}'),
-                                        tooltip: 'Cancelar código',
-                                        icon: const Icon(Icons.block_outlined),
-                                        onPressed: _ocupado
-                                            ? null
-                                            : () => _revogar(code),
-                                      ),
-                                    ],
-                                  )
-                                : null,
+                      for (final entrada in porRota.entries) ...[
+                        Padding(
+                          padding: const EdgeInsets.only(bottom: 8),
+                          child: Text(
+                            entrada.key,
+                            style: Theme.of(context).textTheme.titleMedium,
                           ),
+                        ),
+                        AppCard(
+                          padding: const EdgeInsets.symmetric(vertical: 6),
+                          child: Column(
+                            children: [
+                              for (final code in entrada.value)
+                                ListTile(
+                                  key: Key('code_${code.id}'),
+                                  selected: _marcados.contains(code.id),
+                                  selectedTileColor: AppColors.positiveBg,
+                                  leading: _selecionando
+                                      ? Checkbox(
+                                          key: Key('check_${code.id}'),
+                                          value: _marcados.contains(code.id),
+                                          onChanged: (_) =>
+                                              _alternarSelecao(code.id),
+                                        )
+                                      : Icon(
+                                          code.usable
+                                              ? Icons.vpn_key_outlined
+                                              : Icons.key_off_outlined,
+                                          color: code.usable
+                                              ? AppColors.deepTeal
+                                              : AppColors.textSecondary,
+                                        ),
+                                  title: Text(
+                                    code.code,
+                                    style: const TextStyle(
+                                      fontFamily: 'monospace',
+                                      fontSize: 20,
+                                      letterSpacing: 2,
+                                      fontWeight: FontWeight.w700,
+                                    ),
+                                  ),
+                                  subtitle: Text(
+                                    '${code.institutionName ?? 'Qualquer instituição'} · '
+                                    '${_situacao(code)} · ${code.uses} '
+                                    '${code.uses == 1 ? 'aluno entrou' : 'alunos entraram'}',
+                                  ),
+                                  onLongPress: _selecionando
+                                      ? null
+                                      : () => _entrarNaSelecao(code.id),
+                                  onTap: _selecionando
+                                      ? () => _alternarSelecao(code.id)
+                                      : null,
+                                  trailing: _selecionando
+                                      ? null
+                                      : code.usable
+                                      ? Row(
+                                          mainAxisSize: MainAxisSize.min,
+                                          children: [
+                                            IconButton(
+                                              key: Key('copy_${code.id}'),
+                                              tooltip: 'Copiar código',
+                                              icon: const Icon(
+                                                Icons.copy_outlined,
+                                              ),
+                                              onPressed: _ocupado
+                                                  ? null
+                                                  : () async {
+                                                      await Clipboard.setData(
+                                                        ClipboardData(
+                                                          text: code.code,
+                                                        ),
+                                                      );
+                                                      if (context.mounted) {
+                                                        showSuccessSnackBar(
+                                                          context,
+                                                          'Código copiado',
+                                                        );
+                                                      }
+                                                    },
+                                            ),
+                                            IconButton(
+                                              key: Key('revoke_${code.id}'),
+                                              tooltip: 'Cancelar código',
+                                              icon: const Icon(
+                                                Icons.block_outlined,
+                                              ),
+                                              onPressed: _ocupado
+                                                  ? null
+                                                  : () => _revogar(code),
+                                            ),
+                                          ],
+                                        )
+                                      : null,
+                                ),
+                            ],
+                          ),
+                        ),
+                        const SizedBox(height: 20),
                       ],
-                    ),
-                  ),
-                      const SizedBox(height: 20),
                     ],
-                  ],
-                ),
+                  ),
           ),
         ],
       ),

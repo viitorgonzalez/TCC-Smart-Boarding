@@ -107,10 +107,7 @@ void main() {
     await tester.tap(find.byKey(const Key('email_send_code')));
     await tester.pumpAndSettle();
 
-    await tester.enterText(
-      find.byKey(const Key('email_code_field')),
-      '123456',
-    );
+    await tester.enterText(find.byKey(const Key('email_code_field')), '123456');
     await tester.tap(find.byKey(const Key('email_confirm_code')));
     await tester.pumpAndSettle();
 
@@ -151,10 +148,7 @@ void main() {
     await tester.tap(find.byKey(const Key('email_send_code')));
     await tester.pumpAndSettle();
 
-    await tester.enterText(
-      find.byKey(const Key('email_code_field')),
-      '000000',
-    );
+    await tester.enterText(find.byKey(const Key('email_code_field')), '000000');
     await tester.tap(find.byKey(const Key('email_confirm_code')));
     await tester.pumpAndSettle();
 

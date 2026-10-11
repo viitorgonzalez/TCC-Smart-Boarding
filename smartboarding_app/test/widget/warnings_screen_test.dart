@@ -32,7 +32,9 @@ void main() {
     http.on(
       'GET',
       '/api/warnings/me',
-      body: {'data': [_warningJson()]},
+      body: {
+        'data': [_warningJson()],
+      },
     );
 
     await _pump(tester, canManage: false);
@@ -48,7 +50,10 @@ void main() {
       'GET',
       '/api/warnings',
       body: {
-        'data': {'content': [_warningJson()], 'totalPages': 1},
+        'data': {
+          'content': [_warningJson()],
+          'totalPages': 1,
+        },
       },
     );
 
@@ -67,7 +72,10 @@ void main() {
       'GET',
       '/api/warnings',
       body: {
-        'data': {'content': [_warningJson()], 'totalPages': 2},
+        'data': {
+          'content': [_warningJson()],
+          'totalPages': 2,
+        },
       },
     );
 

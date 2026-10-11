@@ -44,11 +44,14 @@ void main() {
       final diffs = update.diffs;
 
       expect(diffs.map((d) => d.label), containsAll(['Telefone', 'Endereço']));
-      expect(diffs, isNot(contains(isA<ProfileFieldDiff>().having(
-        (d) => d.label,
-        'label',
-        'Curso',
-      ))));
+      expect(
+        diffs,
+        isNot(
+          contains(
+            isA<ProfileFieldDiff>().having((d) => d.label, 'label', 'Curso'),
+          ),
+        ),
+      );
       final telefone = diffs.firstWhere((d) => d.label == 'Telefone');
       expect(telefone.before, '37911112222');
       expect(telefone.after, '37988887777');
@@ -64,13 +67,15 @@ void main() {
     });
 
     test('endereco compara o resumo antes e depois', () {
-      final update = ProfileUpdate.fromJson(payload(
-        before: {
-          'street': 'Rua Antiga',
-          'streetNumber': '10',
-          'neighborhood': 'Centro',
-        },
-      ));
+      final update = ProfileUpdate.fromJson(
+        payload(
+          before: {
+            'street': 'Rua Antiga',
+            'streetNumber': '10',
+            'neighborhood': 'Centro',
+          },
+        ),
+      );
 
       final endereco = update.diffs.firstWhere((d) => d.label == 'Endereço');
 

@@ -127,9 +127,14 @@ class _ProfileRequestsScreenState extends State<ProfileRequestsScreen> {
                 children: [
                   Expanded(
                     child: OutlinedButton.icon(
-                      icon: const Icon(Icons.cancel_outlined, color: AppColors.danger),
+                      icon: const Icon(
+                        Icons.cancel_outlined,
+                        color: AppColors.danger,
+                      ),
                       label: const Text('Recusar'),
-                      style: OutlinedButton.styleFrom(foregroundColor: AppColors.danger),
+                      style: OutlinedButton.styleFrom(
+                        foregroundColor: AppColors.danger,
+                      ),
                       onPressed: () => Navigator.pop(ctx, 'rejeitar'),
                     ),
                   ),
@@ -160,8 +165,7 @@ class _ProfileRequestsScreenState extends State<ProfileRequestsScreen> {
         value: _state,
         onRetry: _load,
         builder: (todos) {
-          int contar(_Filtro f) =>
-              todos.where((p) => _combinaCom(p, f)).length;
+          int contar(_Filtro f) => todos.where((p) => _combinaCom(p, f)).length;
 
           final filtrados = todos.where(_combina).toList();
 
@@ -191,7 +195,8 @@ class _ProfileRequestsScreenState extends State<ProfileRequestsScreen> {
                 child: filtrados.isEmpty
                     ? EmptyState(
                         icon: Icons.inbox_outlined,
-                        title: 'Nenhuma solicitação ${_rotulo(_filtro).toLowerCase()}',
+                        title:
+                            'Nenhuma solicitação ${_rotulo(_filtro).toLowerCase()}',
                       )
                     : RefreshIndicator(
                         onRefresh: _load,
@@ -290,7 +295,11 @@ class _DiffRow extends StatelessWidget {
               ),
               const Padding(
                 padding: EdgeInsets.symmetric(horizontal: 8),
-                child: Icon(Icons.arrow_forward, size: 16, color: AppColors.textSecondary),
+                child: Icon(
+                  Icons.arrow_forward,
+                  size: 16,
+                  color: AppColors.textSecondary,
+                ),
               ),
               Expanded(
                 child: Text(

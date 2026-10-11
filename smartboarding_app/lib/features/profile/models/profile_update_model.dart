@@ -83,14 +83,16 @@ class ProfileUpdate {
   List<ProfileFieldDiff> get diffs => [
     if (fullName != null)
       ProfileFieldDiff('Nome', before.fullName ?? '—', fullName!),
-    if (phone != null) ProfileFieldDiff('Telefone', before.phone ?? '—', phone!),
+    if (phone != null)
+      ProfileFieldDiff('Telefone', before.phone ?? '—', phone!),
     if (address != null)
       ProfileFieldDiff(
         'Endereço',
         before.address == null ? '—' : _resumoEndereco(before.address!),
         _resumoEndereco(address!),
       ),
-    if (course != null) ProfileFieldDiff('Curso', before.course ?? '—', course!),
+    if (course != null)
+      ProfileFieldDiff('Curso', before.course ?? '—', course!),
     if (birthDate != null)
       ProfileFieldDiff('Nascimento', before.birthDate ?? '—', birthDate!),
   ];
