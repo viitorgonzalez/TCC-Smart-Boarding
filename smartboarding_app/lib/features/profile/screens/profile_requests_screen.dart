@@ -9,6 +9,7 @@ import '../../../core/widgets/empty_state.dart';
 import '../../../core/widgets/snackbar_utils.dart';
 import '../models/profile_update_model.dart';
 import '../services/profile_service.dart';
+import '../widgets/profile_request_sheet.dart';
 
 class ProfileRequestsScreen extends StatefulWidget {
   const ProfileRequestsScreen({super.key});
@@ -102,57 +103,7 @@ class _ProfileRequestsScreenState extends State<ProfileRequestsScreen> {
 
   Future<void> _abrirDetalhe(ProfileUpdate p) async {
     if (!p.pending) return;
-    final acao = await showModalBottomSheet<String>(
-      context: context,
-      isScrollControlled: true,
-      showDragHandle: true,
-      builder: (ctx) => SafeArea(
-        child: Padding(
-          padding: const EdgeInsets.fromLTRB(16, 0, 16, 16),
-          child: Column(
-            mainAxisSize: MainAxisSize.min,
-            crossAxisAlignment: CrossAxisAlignment.start,
-            children: [
-              Text(
-                p.studentName ?? 'Solicitação',
-                style: const TextStyle(
-                  fontWeight: FontWeight.w700,
-                  fontSize: 18,
-                ),
-              ),
-              const SizedBox(height: 12),
-              for (final d in p.diffs) _DiffRow(diff: d),
-              const SizedBox(height: 16),
-              Row(
-                children: [
-                  Expanded(
-                    child: OutlinedButton.icon(
-                      icon: const Icon(
-                        Icons.cancel_outlined,
-                        color: AppColors.danger,
-                      ),
-                      label: const Text('Recusar'),
-                      style: OutlinedButton.styleFrom(
-                        foregroundColor: AppColors.danger,
-                      ),
-                      onPressed: () => Navigator.pop(ctx, 'rejeitar'),
-                    ),
-                  ),
-                  const SizedBox(width: 12),
-                  Expanded(
-                    child: FilledButton.icon(
-                      icon: const Icon(Icons.check_circle_outline),
-                      label: const Text('Aprovar'),
-                      onPressed: () => Navigator.pop(ctx, 'aprovar'),
-                    ),
-                  ),
-                ],
-              ),
-            ],
-          ),
-        ),
-      ),
-    );
+    final acao = await mostrarDetalheDaSolicitacao(context, p);
     if (acao == 'aprovar') await _aprovar(p);
     if (acao == 'rejeitar') await _rejeitar(p);
   }
@@ -259,58 +210,4 @@ class _ProfileRequestsScreenState extends State<ProfileRequestsScreen> {
     'REJECTED' => AppColors.danger,
     _ => AppColors.deepTeal,
   };
-}
-
-class _DiffRow extends StatelessWidget {
-  final ProfileFieldDiff diff;
-  const _DiffRow({required this.diff});
-
-  @override
-  Widget build(BuildContext context) {
-    return Padding(
-      padding: const EdgeInsets.symmetric(vertical: 6),
-      child: Column(
-        crossAxisAlignment: CrossAxisAlignment.start,
-        children: [
-          Text(
-            diff.label,
-            style: const TextStyle(
-              fontSize: 12,
-              fontWeight: FontWeight.w600,
-              color: AppColors.textSecondary,
-            ),
-          ),
-          const SizedBox(height: 2),
-          Row(
-            crossAxisAlignment: CrossAxisAlignment.start,
-            children: [
-              Expanded(
-                child: Text(
-                  diff.before,
-                  style: const TextStyle(
-                    decoration: TextDecoration.lineThrough,
-                    color: AppColors.textSecondary,
-                  ),
-                ),
-              ),
-              const Padding(
-                padding: EdgeInsets.symmetric(horizontal: 8),
-                child: Icon(
-                  Icons.arrow_forward,
-                  size: 16,
-                  color: AppColors.textSecondary,
-                ),
-              ),
-              Expanded(
-                child: Text(
-                  diff.after,
-                  style: const TextStyle(fontWeight: FontWeight.w600),
-                ),
-              ),
-            ],
-          ),
-        ],
-      ),
-    );
-  }
 }

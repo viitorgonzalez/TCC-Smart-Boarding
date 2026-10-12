@@ -1,15 +1,17 @@
-import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
+import 'package:flutter/material.dart';
 
 import '../../../core/errors/app_exception.dart';
-import '../../../core/theme/app_theme.dart';
-import '../../../core/widgets/app_card.dart';
+import '../../../core/widgets/option_sheet.dart';
 import '../../../core/widgets/snackbar_utils.dart';
 import '../../institutions/models/institution_model.dart';
 import '../../institutions/services/institution_service.dart';
 import '../models/invite_code_model.dart';
 import '../models/route_model.dart';
 import '../services/route_service.dart';
+import '../widgets/invite_codes_app_bar.dart';
+import '../widgets/invite_codes_list.dart';
+import '../widgets/invite_codes_states.dart';
 import '../../../core/text/plural.dart';
 
 class InviteCodesScreen extends StatefulWidget {
@@ -55,45 +57,16 @@ class _InviteCodesScreenState extends State<InviteCodesScreen> {
     }
   }
 
-  Future<T?> _escolher<T>(String titulo, List<(String, String, T)> opcoes) {
-    return showModalBottomSheet<T>(
-      context: context,
-      backgroundColor: AppColors.surface,
-      showDragHandle: true,
-      builder: (ctx) => SafeArea(
-        child: SingleChildScrollView(
-          child: Column(
-            mainAxisSize: MainAxisSize.min,
-            crossAxisAlignment: CrossAxisAlignment.stretch,
-            children: [
-              Padding(
-                padding: const EdgeInsets.fromLTRB(20, 0, 20, 8),
-                child: Text(titulo, style: Theme.of(ctx).textTheme.titleMedium),
-              ),
-              for (final (rotulo, detalhe, valor) in opcoes)
-                ListTile(
-                  key: Key('opcao_$rotulo'),
-                  title: Text(rotulo),
-                  subtitle: detalhe.isEmpty ? null : Text(detalhe),
-                  onTap: () => Navigator.pop(ctx, valor),
-                ),
-              const SizedBox(height: 12),
-            ],
-          ),
-        ),
-      ),
-    );
-  }
-
   Future<void> _gerar() async {
     final rota = widget.routes.length == 1
         ? widget.routes.single
-        : await _escolher<RouteModel>('Para qual rota?', [
+        : await escolherOpcao<RouteModel>(context, 'Para qual rota?', [
             for (final r in widget.routes) (r.name, '', r),
           ]);
     if (rota == null || !mounted) return;
 
-    final validade = await _escolher<CodeValidity>(
+    final validade = await escolherOpcao<CodeValidity>(
+      context,
       'Por quanto tempo o código vale?',
       [for (final v in CodeValidity.values) (v.label, '', v)],
     );
@@ -108,15 +81,16 @@ class _InviteCodesScreenState extends State<InviteCodesScreen> {
     }
     if (!mounted) return;
 
-    final instituicao = await _escolher<String>('Quem pode usar esse código?', [
-      (
-        'Qualquer instituição',
-        'Vale pra aluno de qualquer instituição cadastrada no app',
-        '',
-      ),
-      for (final i in instituicoes)
-        (i.name, 'Só alunos dessa instituição', i.id),
-    ]);
+    final instituicao =
+        await escolherOpcao<String>(context, 'Quem pode usar esse código?', [
+          (
+            'Qualquer instituição',
+            'Vale pra aluno de qualquer instituição cadastrada no app',
+            '',
+          ),
+          for (final i in instituicoes)
+            (i.name, 'Só alunos dessa instituição', i.id),
+        ]);
     if (instituicao == null || !mounted) return;
 
     setState(() => _ocupado = true);
@@ -249,59 +223,22 @@ class _InviteCodesScreenState extends State<InviteCodesScreen> {
     }
   }
 
-  String _situacao(InviteCode code) {
-    if (code.revoked) return 'Cancelado';
-    if (code.expired) return 'Expirado';
-    final ate = code.expiresAt;
-    if (ate == null) return 'Sem prazo';
-    return 'Vale até ${ate.day.toString().padLeft(2, '0')}/'
-        '${ate.month.toString().padLeft(2, '0')}/${ate.year}';
-  }
-
   @override
   Widget build(BuildContext context) {
     final visiveis = _visiveis;
 
-    final porRota = <String, List<InviteCode>>{};
-    for (final c in visiveis) {
-      porRota.putIfAbsent(c.routeName ?? 'Rota', () => []).add(c);
-    }
-
     final inutilizaveis = visiveis.where((c) => !c.usable).length;
 
     return Scaffold(
-      appBar: _selecionando
-          ? AppBar(
-              leading: IconButton(
-                key: const Key('exit_selection'),
-                icon: const Icon(Icons.close),
-                onPressed: _sairDaSelecao,
-              ),
-              title: Text(
-                '${_marcados.length} selecionado'
-                '${_marcados.length == 1 ? '' : 's'}',
-              ),
-              actions: [
-                IconButton(
-                  key: const Key('archive_selected'),
-                  tooltip: 'Apagar selecionados',
-                  icon: const Icon(Icons.delete_outline),
-                  onPressed: _ocupado ? null : _apagarMarcados,
-                ),
-              ],
-            )
-          : AppBar(
-              title: const Text('Códigos de acesso'),
-              actions: [
-                if (inutilizaveis > 0)
-                  IconButton(
-                    key: const Key('select_unusable'),
-                    tooltip: 'Selecionar expirados e cancelados',
-                    icon: const Icon(Icons.checklist),
-                    onPressed: _marcarInutilizaveis,
-                  ),
-              ],
-            ),
+      appBar: InviteCodesAppBar(
+        selecionando: _selecionando,
+        marcados: _marcados.length,
+        inutilizaveis: inutilizaveis,
+        ocupado: _ocupado,
+        onSair: _sairDaSelecao,
+        onApagarMarcados: _apagarMarcados,
+        onMarcarInutilizaveis: _marcarInutilizaveis,
+      ),
       floatingActionButton: _selecionando
           ? null
           : FloatingActionButton.extended(
@@ -313,7 +250,7 @@ class _InviteCodesScreenState extends State<InviteCodesScreen> {
       body: Column(
         children: [
           if (!_carregando && _codes.isNotEmpty && widget.routes.length > 1)
-            _FiltroDeRota(
+            FiltroDeRota(
               routes: widget.routes,
               selecionado: _rotaFiltro,
               onChanged: (id) => setState(() => _rotaFiltro = id),
@@ -322,200 +259,21 @@ class _InviteCodesScreenState extends State<InviteCodesScreen> {
             child: _carregando
                 ? const Center(child: CircularProgressIndicator())
                 : _codes.isEmpty
-                ? const _Vazio()
+                ? const SemCodigoNenhum()
                 : visiveis.isEmpty
-                ? const _SemCodigosNaRota()
-                : ListView(
-                    padding: const EdgeInsets.fromLTRB(20, 20, 20, 96),
-                    children: [
-                      for (final entrada in porRota.entries) ...[
-                        Padding(
-                          padding: const EdgeInsets.only(bottom: 8),
-                          child: Text(
-                            entrada.key,
-                            style: Theme.of(context).textTheme.titleMedium,
-                          ),
-                        ),
-                        AppCard(
-                          padding: const EdgeInsets.symmetric(vertical: 6),
-                          child: Column(
-                            children: [
-                              for (final code in entrada.value)
-                                ListTile(
-                                  key: Key('code_${code.id}'),
-                                  selected: _marcados.contains(code.id),
-                                  selectedTileColor: AppColors.positiveBg,
-                                  leading: _selecionando
-                                      ? Checkbox(
-                                          key: Key('check_${code.id}'),
-                                          value: _marcados.contains(code.id),
-                                          onChanged: (_) =>
-                                              _alternarSelecao(code.id),
-                                        )
-                                      : Icon(
-                                          code.usable
-                                              ? Icons.vpn_key_outlined
-                                              : Icons.key_off_outlined,
-                                          color: code.usable
-                                              ? AppColors.deepTeal
-                                              : AppColors.textSecondary,
-                                        ),
-                                  title: Text(
-                                    code.code,
-                                    style: const TextStyle(
-                                      fontFamily: 'monospace',
-                                      fontSize: 20,
-                                      letterSpacing: 2,
-                                      fontWeight: FontWeight.w700,
-                                    ),
-                                  ),
-                                  subtitle: Text(
-                                    '${code.institutionName ?? 'Qualquer instituição'} · '
-                                    '${_situacao(code)} · ${code.uses} '
-                                    '${code.uses == 1 ? 'aluno entrou' : 'alunos entraram'}',
-                                  ),
-                                  onLongPress: _selecionando
-                                      ? null
-                                      : () => _entrarNaSelecao(code.id),
-                                  onTap: _selecionando
-                                      ? () => _alternarSelecao(code.id)
-                                      : null,
-                                  trailing: _selecionando
-                                      ? null
-                                      : code.usable
-                                      ? Row(
-                                          mainAxisSize: MainAxisSize.min,
-                                          children: [
-                                            IconButton(
-                                              key: Key('copy_${code.id}'),
-                                              tooltip: 'Copiar código',
-                                              icon: const Icon(
-                                                Icons.copy_outlined,
-                                              ),
-                                              onPressed: _ocupado
-                                                  ? null
-                                                  : () async {
-                                                      await Clipboard.setData(
-                                                        ClipboardData(
-                                                          text: code.code,
-                                                        ),
-                                                      );
-                                                      if (context.mounted) {
-                                                        showSuccessSnackBar(
-                                                          context,
-                                                          'Código copiado',
-                                                        );
-                                                      }
-                                                    },
-                                            ),
-                                            IconButton(
-                                              key: Key('revoke_${code.id}'),
-                                              tooltip: 'Cancelar código',
-                                              icon: const Icon(
-                                                Icons.block_outlined,
-                                              ),
-                                              onPressed: _ocupado
-                                                  ? null
-                                                  : () => _revogar(code),
-                                            ),
-                                          ],
-                                        )
-                                      : null,
-                                ),
-                            ],
-                          ),
-                        ),
-                        const SizedBox(height: 20),
-                      ],
-                    ],
+                ? const SemCodigosNaRota()
+                : InviteCodesList(
+                    codes: visiveis,
+                    selecionando: _selecionando,
+                    marcados: _marcados,
+                    ocupado: _ocupado,
+                    onAlternar: _alternarSelecao,
+                    onEntrarNaSelecao: _entrarNaSelecao,
+                    onRevogar: _revogar,
                   ),
           ),
         ],
       ),
     );
   }
-}
-
-class _FiltroDeRota extends StatelessWidget {
-  final List<RouteModel> routes;
-  final String? selecionado;
-  final ValueChanged<String?> onChanged;
-
-  const _FiltroDeRota({
-    required this.routes,
-    required this.selecionado,
-    required this.onChanged,
-  });
-
-  @override
-  Widget build(BuildContext context) {
-    return SingleChildScrollView(
-      scrollDirection: Axis.horizontal,
-      padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 10),
-      child: Row(
-        children: [
-          FilterChip(
-            label: const Text('Todas'),
-            selected: selecionado == null,
-            onSelected: (_) => onChanged(null),
-          ),
-          for (final r in routes) ...[
-            const SizedBox(width: 8),
-            FilterChip(
-              label: Text(r.name),
-              selected: selecionado == r.id,
-              onSelected: (_) => onChanged(r.id),
-            ),
-          ],
-        ],
-      ),
-    );
-  }
-}
-
-class _SemCodigosNaRota extends StatelessWidget {
-  const _SemCodigosNaRota();
-
-  @override
-  Widget build(BuildContext context) => Center(
-    child: Padding(
-      padding: const EdgeInsets.all(32),
-      child: Text(
-        'Nenhum código desta rota',
-        style: Theme.of(context).textTheme.titleMedium,
-      ),
-    ),
-  );
-}
-
-class _Vazio extends StatelessWidget {
-  const _Vazio();
-
-  @override
-  Widget build(BuildContext context) => Center(
-    child: Padding(
-      padding: const EdgeInsets.all(32),
-      child: Column(
-        mainAxisSize: MainAxisSize.min,
-        children: [
-          const Icon(
-            Icons.vpn_key_outlined,
-            size: 48,
-            color: AppColors.textSecondary,
-          ),
-          const SizedBox(height: 16),
-          Text(
-            'Nenhum código criado',
-            style: Theme.of(context).textTheme.titleMedium,
-          ),
-          const SizedBox(height: 8),
-          const Text(
-            'Gere um código e mande pra turma — quem tiver ele entra na rota.',
-            textAlign: TextAlign.center,
-            style: TextStyle(color: AppColors.textSecondary),
-          ),
-        ],
-      ),
-    ),
-  );
 }

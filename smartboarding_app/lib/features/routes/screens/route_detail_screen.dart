@@ -1,30 +1,19 @@
 import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
-import '../widgets/route_institutions_card.dart';
-import '../widgets/route_stops_editor.dart';
-import '../widgets/route_vehicles_card.dart';
+import '../widgets/route_config_card.dart';
 import '../../../core/errors/app_exception.dart';
 import '../../../core/pagination/page_result.dart';
-import '../../../core/theme/app_theme.dart';
 import '../../../core/utils/date_format.dart';
 import '../../../core/widgets/app_card.dart';
 import '../../../core/widgets/snackbar_utils.dart';
 import '../../lists/widgets/daily_list_section.dart';
-import '../../notifications/widgets/scheduled_notifications_section.dart';
 import '../../users/models/user_model.dart';
-import '../../users/screens/route_students_screen.dart';
 import '../../users/services/user_service.dart';
-import '../../users/widgets/role_meta.dart';
-import '../../../core/widgets/initials_avatar.dart';
 import '../models/route_model.dart';
 import '../models/stop_model.dart';
 import '../models/vehicle_model.dart';
 import '../providers/route_provider.dart';
 import '../services/route_service.dart';
-import 'invite_codes_screen.dart';
-import 'route_section_screen.dart';
-import '../../../core/text/plural.dart';
-import '../../institutions/providers/institution_provider.dart';
 
 class RouteDetailScreen extends StatefulWidget {
   final RouteModel route;
@@ -157,76 +146,15 @@ class _RouteDetailScreenState extends State<RouteDetailScreen> {
 
                 const SectionTitle('Configuração da rota'),
                 const SizedBox(height: 12),
-                AppCard(
-                  padding: const EdgeInsets.symmetric(vertical: 6),
-                  child: Column(
-                    children: [
-                      _linha(
-                        chave: 'section_codes',
-                        icone: Icons.vpn_key_outlined,
-                        titulo: 'Códigos de acesso',
-                        detalhe: 'Quem pode entrar nesta rota',
-                        abre: () => InviteCodesScreen(routes: [widget.route]),
-                        telaPropria: true,
-                      ),
-                      _linha(
-                        chave: 'section_stops',
-                        icone: Icons.route_outlined,
-                        titulo: 'Trajeto',
-                        detalhe: contagem(_stops.length, 'parada', 'paradas'),
-                        abre: () => RouteStopsEditor(
-                          routeId: widget.route.id,
-                          stops: _stops,
-                          run: _run,
-                          institutions: context
-                              .read<InstitutionProvider>()
-                              .servedBy(widget.route.id),
-                        ),
-                      ),
-                      _linha(
-                        chave: 'section_vehicles',
-                        icone: Icons.directions_bus_outlined,
-                        titulo: 'Frota',
-                        detalhe: contagem(
-                          _vehicles.length,
-                          'veículo',
-                          'veículos',
-                        ),
-                        abre: () => RouteVehiclesCard(
-                          routeId: widget.route.id,
-                          vehicles: _vehicles,
-                          run: _run,
-                        ),
-                      ),
-                      _linha(
-                        chave: 'section_institutions',
-                        icone: Icons.school_outlined,
-                        titulo: 'Instituições atendidas',
-                        detalhe: 'Quais escolas usam esta rota',
-                        abre: () => RouteInstitutionsCard(
-                          routeId: widget.route.id,
-                          admitsNoInstitution: _admiteSemInstituicao,
-                          onAdmitsNoInstitutionChanged: _mudarAdmissao,
-                        ),
-                      ),
-                      _linha(
-                        chave: 'section_notices',
-                        icone: Icons.notifications_outlined,
-                        titulo: 'Avisos automáticos',
-                        detalhe: 'Mensagens que saem sozinhas',
-                        abre: () => ScheduledNotificationsSection(
-                          routeId: widget.route.id,
-                        ),
-                      ),
-                      _linha(
-                        chave: 'section_students',
-                        icone: Icons.people_outline,
-                        titulo: 'Alunos',
-                        detalhe: 'Quem está nesta rota',
-                        abre: _studentsCard,
-                      ),
-                    ],
-                  ),
+                RouteConfigCard(
+                  route: widget.route,
+                  stops: _stops,
+                  vehicles: _vehicles,
+                  students: _students,
+                  admitsNoInstitution: _admiteSemInstituicao,
+                  run: _run,
+                  onAdmitsNoInstitutionChanged: _mudarAdmissao,
+                  onSectionClosed: _reload,
                 ),
                 const SizedBox(height: 32),
               ],
@@ -257,48 +185,6 @@ class _RouteDetailScreenState extends State<RouteDetailScreen> {
     }
   }
 
-  Widget _linha({
-    required String chave,
-    required IconData icone,
-    required String titulo,
-    required String detalhe,
-    required Widget Function() abre,
-    bool telaPropria = false,
-  }) {
-    return ListTile(
-      key: Key(chave),
-      leading: Icon(icone, color: AppColors.deepTeal),
-      title: Text(titulo),
-      subtitle: Text(detalhe),
-      trailing: const Icon(Icons.chevron_right),
-      onTap: () => _abrirSecao(titulo, abre, telaPropria: telaPropria),
-    );
-  }
-
-  Future<void> _abrirSecao(
-    String titulo,
-    Widget Function() constroi, {
-    required bool telaPropria,
-  }) async {
-    final institutionProvider = context.read<InstitutionProvider>();
-    final routeProvider = context.read<RouteProvider>();
-
-    await Navigator.of(context).push(
-      MaterialPageRoute<void>(
-        builder: (_) => MultiProvider(
-          providers: [
-            ChangeNotifierProvider.value(value: institutionProvider),
-            ChangeNotifierProvider.value(value: routeProvider),
-          ],
-          child: telaPropria
-              ? constroi()
-              : RouteSectionScreen(title: titulo, child: constroi()),
-        ),
-      ),
-    );
-    if (mounted) await _reload();
-  }
-
   Widget _basics() {
     return AppCard(
       child: Column(
@@ -319,58 +205,6 @@ class _RouteDetailScreenState extends State<RouteDetailScreen> {
             onPressed: _saving ? null : _saveBasics,
             child: Text(_saving ? 'Salvando...' : 'Salvar dados da rota'),
           ),
-        ],
-      ),
-    );
-  }
-
-  Widget _studentsCard() {
-    final preview = sortUsersByName(_students).take(4).toList();
-
-    return AppCard(
-      padding: const EdgeInsets.symmetric(vertical: 6),
-      child: Column(
-        children: [
-          if (_students.isEmpty)
-            const ListTile(
-              title: Text('Nenhum aluno nesta rota'),
-              subtitle: Text(
-                'O aluno chega por convite e escolhe a instituição no cadastro.',
-              ),
-            ),
-          for (final student in preview)
-            ListTile(
-              leading: InitialsAvatar(
-                text: student.fullName.isNotEmpty
-                    ? student.fullName[0].toUpperCase()
-                    : '?',
-              ),
-              title: Text(student.fullName),
-              subtitle: Text(student.institution ?? student.email),
-            ),
-          if (_students.isNotEmpty) const Divider(height: 1),
-          if (_students.isNotEmpty)
-            ListTile(
-              leading: const Icon(
-                Icons.people_outline,
-                color: AppColors.deepTeal,
-              ),
-              title: Text(
-                _students.length == 1
-                    ? 'Ver o aluno da rota'
-                    : 'Ver todos os ${_students.length} alunos',
-              ),
-              trailing: const Icon(Icons.chevron_right),
-              onTap: () => Navigator.push(
-                context,
-                MaterialPageRoute(
-                  builder: (_) => RouteStudentsScreen(
-                    routeId: widget.route.id,
-                    routeName: widget.route.name,
-                  ),
-                ),
-              ),
-            ),
         ],
       ),
     );

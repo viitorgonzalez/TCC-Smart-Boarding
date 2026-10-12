@@ -5,12 +5,12 @@ import '../../../core/widgets/app_card.dart';
 import '../../../core/widgets/institution_breakdown.dart';
 import '../../../core/widgets/status_pill.dart';
 import '../../../core/widgets/trip_type_chip.dart';
-import '../../lists/models/daily_list_model.dart';
 import '../../lists/models/list_with_enrollment.dart';
 import 'close_countdown.dart';
 import 'list_members_sheet.dart';
 import 'trip_type_picker.dart';
 import 'route_preview.dart';
+import 'student_list_card_parts.dart';
 
 class StudentListCard extends StatelessWidget {
   final ListWithEnrollment item;
@@ -131,7 +131,7 @@ class StudentListCard extends StatelessWidget {
 
           if (list.myTripTime case final tempo?) ...[
             const SizedBox(height: 14),
-            _TempoDeViagem(tempo: tempo),
+            TempoDeViagem(tempo: tempo),
           ],
           if (item.isEnrolled) ...[
             const SizedBox(height: 16),
@@ -192,7 +192,7 @@ class StudentListCard extends StatelessWidget {
                 label: const Text('Sair da lista'),
               )
             else if (missingProfile.isNotEmpty)
-              _ProfileWarning(missing: missingProfile, onFix: onFixProfile)
+              ProfileWarning(missing: missingProfile, onFix: onFixProfile)
             else
               FilledButton.icon(
                 onPressed: () => _pickAndEnter(context),
@@ -200,106 +200,6 @@ class StudentListCard extends StatelessWidget {
                 label: const Text('Entrar na lista'),
               ),
           ],
-        ],
-      ),
-    );
-  }
-}
-
-class _TempoDeViagem extends StatelessWidget {
-  final MyTripTime tempo;
-
-  const _TempoDeViagem({required this.tempo});
-
-  @override
-  Widget build(BuildContext context) {
-    return Row(
-      key: const Key('list_trip_time'),
-      crossAxisAlignment: CrossAxisAlignment.start,
-      children: [
-        const Icon(Icons.schedule, size: 18, color: AppColors.deepTeal),
-        const SizedBox(width: 8),
-        Expanded(
-          child: Column(
-            crossAxisAlignment: CrossAxisAlignment.start,
-            children: [
-              Text(
-                'Cerca de ${tempo.avgMinutes} min até ${tempo.stopName}',
-                style: const TextStyle(
-                  fontWeight: FontWeight.w600,
-                  color: AppColors.charcoal,
-                ),
-              ),
-              if (tempo.fallback)
-                Text(
-                  'Sua instituição não tem parada declarada nesta rota — '
-                  'este é o último ponto do trajeto.',
-                  style: Theme.of(context).textTheme.bodySmall,
-                ),
-            ],
-          ),
-        ),
-      ],
-    );
-  }
-}
-
-class _ProfileWarning extends StatelessWidget {
-  final List<String> missing;
-  final VoidCallback? onFix;
-
-  const _ProfileWarning({required this.missing, this.onFix});
-
-  @override
-  Widget build(BuildContext context) {
-    return Container(
-      key: const Key('list_profile_warning'),
-      padding: const EdgeInsets.all(14),
-      decoration: BoxDecoration(
-        color: AppColors.danger.withValues(alpha: 0.08),
-        borderRadius: BorderRadius.circular(12),
-      ),
-      child: Column(
-        crossAxisAlignment: CrossAxisAlignment.start,
-        children: [
-          Row(
-            crossAxisAlignment: CrossAxisAlignment.start,
-            children: [
-              const Icon(
-                Icons.error_outline,
-                size: 18,
-                color: AppColors.danger,
-              ),
-              const SizedBox(width: 8),
-              Expanded(
-                child: Text(
-                  'Complete seu perfil para entrar na lista.',
-                  style: const TextStyle(
-                    color: AppColors.danger,
-                    fontWeight: FontWeight.w700,
-                  ),
-                ),
-              ),
-            ],
-          ),
-          const SizedBox(height: 6),
-          Padding(
-            padding: const EdgeInsets.only(left: 26),
-            child: Text(
-              'Falta: ${missing.join(', ')}.',
-              style: const TextStyle(color: AppColors.textSecondary),
-            ),
-          ),
-          const SizedBox(height: 10),
-          Align(
-            alignment: Alignment.centerLeft,
-            child: FilledButton.tonalIcon(
-              key: const Key('list_profile_fix_button'),
-              onPressed: onFix,
-              icon: const Icon(Icons.person_outline, size: 18),
-              label: const Text('Completar perfil'),
-            ),
-          ),
         ],
       ),
     );

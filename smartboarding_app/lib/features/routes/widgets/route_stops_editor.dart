@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 import 'package:latlong2/latlong.dart' hide Path;
 import '../../../core/theme/app_theme.dart';
 import '../../../core/widgets/app_card.dart';
+import '../../../core/widgets/option_sheet.dart';
 import '../../../core/widgets/text_prompt_dialog.dart';
 import '../../institutions/models/institution_model.dart';
 import '../models/map_stop.dart';
@@ -9,6 +10,7 @@ import '../models/stop_model.dart';
 import '../services/road_route_service.dart';
 import '../services/route_service.dart';
 import 'route_map.dart';
+import 'stop_action_sheet.dart';
 
 class RouteStopsEditor extends StatefulWidget {
   final String routeId;
@@ -41,7 +43,7 @@ class RouteStopsEditorState extends State<RouteStopsEditor> {
   late final RoadRouteService _road = widget.roadService ?? RoadRouteService();
 
   StopModel? _pendingStop;
-  _StopAction? _pendingAction;
+  StopAction? _pendingAction;
 
   @override
   Widget build(BuildContext context) {
@@ -118,8 +120,8 @@ class RouteStopsEditorState extends State<RouteStopsEditor> {
   }
 
   String? get _modeLabel => switch (_pendingAction) {
-    _StopAction.move => 'Toque no novo local de "${_pendingStop!.name}"',
-    _StopAction.insertAfter =>
+    StopAction.move => 'Toque no novo local de "${_pendingStop!.name}"',
+    StopAction.insertAfter =>
       'Toque onde entra a parada depois de "${_pendingStop!.name}"',
     _ => null,
   };
@@ -141,7 +143,7 @@ class RouteStopsEditorState extends State<RouteStopsEditor> {
       _pendingStop = null;
     });
 
-    if (action == _StopAction.move) {
+    if (action == StopAction.move) {
       await widget.run(
         () => _service.updateStop(
           widget.routeId,
@@ -179,79 +181,22 @@ class RouteStopsEditorState extends State<RouteStopsEditor> {
 
   Future<void> _onTapStop(MapStop tapped) async {
     final stop = widget.stops.firstWhere((s) => s.id == tapped.id);
-    final action = await showModalBottomSheet<_StopAction>(
-      context: context,
-      builder: (context) => SafeArea(
-        child: SingleChildScrollView(
-          child: Column(
-            mainAxisSize: MainAxisSize.min,
-            children: [
-              ListTile(
-                title: Text(
-                  stop.name,
-                  style: Theme.of(context).textTheme.titleMedium,
-                ),
-                subtitle: Text('Parada ${stop.sequence}'),
-              ),
-              const Divider(height: 1),
-              ListTile(
-                leading: const Icon(Icons.open_with, color: AppColors.deepTeal),
-                title: const Text('Mover para outro local'),
-                onTap: () => Navigator.pop(context, _StopAction.move),
-              ),
-              ListTile(
-                leading: const Icon(
-                  Icons.add_location_alt_outlined,
-                  color: AppColors.deepTeal,
-                ),
-                title: const Text('Inserir parada depois desta'),
-                onTap: () => Navigator.pop(context, _StopAction.insertAfter),
-              ),
-              ListTile(
-                leading: const Icon(
-                  Icons.edit_outlined,
-                  color: AppColors.deepTeal,
-                ),
-                title: const Text('Renomear'),
-                onTap: () => Navigator.pop(context, _StopAction.rename),
-              ),
-              if (widget.institutions.isNotEmpty)
-                ListTile(
-                  key: const Key('stop_link_institution'),
-                  leading: const Icon(
-                    Icons.school_outlined,
-                    color: AppColors.deepTeal,
-                  ),
-                  title: const Text('Instituição atendida'),
-                  subtitle: Text(
-                    _nomeDaInstituicao(stop) ?? 'Nenhuma — parada comum',
-                  ),
-                  onTap: () =>
-                      Navigator.pop(context, _StopAction.linkInstitution),
-                ),
-              ListTile(
-                leading: const Icon(
-                  Icons.delete_outline,
-                  color: AppColors.danger,
-                ),
-                title: const Text('Remover'),
-                onTap: () => Navigator.pop(context, _StopAction.remove),
-              ),
-            ],
-          ),
-        ),
-      ),
+    final action = await escolherAcaoDaParada(
+      context,
+      stop,
+      podeVincularInstituicao: widget.institutions.isNotEmpty,
+      instituicaoAtual: _nomeDaInstituicao(stop),
     );
     if (action == null || !mounted) return;
 
     switch (action) {
-      case _StopAction.move:
-      case _StopAction.insertAfter:
+      case StopAction.move:
+      case StopAction.insertAfter:
         setState(() {
           _pendingAction = action;
           _pendingStop = stop;
         });
-      case _StopAction.rename:
+      case StopAction.rename:
         final name = await promptText(
           context,
           title: 'Renomear parada',
@@ -262,9 +207,9 @@ class RouteStopsEditorState extends State<RouteStopsEditor> {
           () => _service.updateStop(widget.routeId, stop.id, name: name),
           'Parada renomeada',
         );
-      case _StopAction.linkInstitution:
+      case StopAction.linkInstitution:
         await _escolherInstituicao(stop);
-      case _StopAction.remove:
+      case StopAction.remove:
         await widget.run(
           () => _service.deleteStop(widget.routeId, stop.id),
           'Parada removida',
@@ -281,47 +226,24 @@ class RouteStopsEditorState extends State<RouteStopsEditor> {
   }
 
   Future<void> _escolherInstituicao(StopModel stop) async {
-    final escolha = await showModalBottomSheet<_EscolhaInstituicao>(
-      context: context,
-      builder: (context) => SafeArea(
-        child: SingleChildScrollView(
-          child: Column(
-            mainAxisSize: MainAxisSize.min,
-            children: [
-              const ListTile(
-                title: Text('Esta parada serve qual instituição?'),
-              ),
-              const Divider(height: 1),
-              ListTile(
-                key: const Key('stop_institution_none'),
-                leading: const Icon(Icons.not_interested),
-                title: const Text('Nenhuma — parada comum'),
-                onTap: () =>
-                    Navigator.pop(context, const _EscolhaInstituicao(null)),
-              ),
-              for (final i in widget.institutions)
-                ListTile(
-                  leading: const Icon(
-                    Icons.school_outlined,
-                    color: AppColors.deepTeal,
-                  ),
-                  title: Text(i.name),
-                  onTap: () =>
-                      Navigator.pop(context, _EscolhaInstituicao(i.id)),
-                ),
-            ],
-          ),
-        ),
-      ),
+    final escolha = await escolherOpcao<String>(
+      context,
+      'Esta parada serve qual instituição?',
+      [
+        ('Nenhuma — parada comum', 'a parada deixa de aceitar checkpoint', ''),
+        for (final i in widget.institutions) (i.name, '', i.id),
+      ],
+      keyOf: (id) =>
+          id.isEmpty ? const Key('stop_institution_none') : Key('inst_$id'),
     );
     if (escolha == null) return;
     await widget.run(
       () => _service.setStopInstitution(
         widget.routeId,
         stop.id,
-        institutionId: escolha.id,
+        institutionId: escolha.isEmpty ? null : escolha,
       ),
-      escolha.id == null ? 'Vínculo removido' : 'Instituição vinculada',
+      escolha.isEmpty ? 'Vínculo removido' : 'Instituição vinculada',
     );
   }
 
@@ -344,11 +266,4 @@ class RouteStopsEditorState extends State<RouteStopsEditor> {
       'Parada adicionada',
     );
   }
-}
-
-enum _StopAction { move, insertAfter, rename, linkInstitution, remove }
-
-class _EscolhaInstituicao {
-  final String? id;
-  const _EscolhaInstituicao(this.id);
 }
