@@ -4,7 +4,6 @@ import '../models/report_model.dart';
 class ReportService {
   final _dio = DioClient.instance;
 
-  /// Retorna a página [page] de relatórios (base 0).
   Future<({List<ReportSummary> items, bool hasMore})> getReports(
     int page,
   ) async {

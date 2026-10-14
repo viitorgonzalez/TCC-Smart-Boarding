@@ -20,15 +20,13 @@ import '../models/daily_list_model.dart';
 import '../screens/admin_list_entries_screen.dart';
 import '../services/list_service.dart';
 import 'schedule_picker_dialog.dart';
+import '../../../core/text/plural.dart';
 
-/// Lista de hoje da rota, embutida na tela da rota: uma rota tem no máximo uma
-/// lista por dia, então não faz sentido gerenciá-las numa tela separada.
 class DailyListSection extends StatefulWidget {
   final String routeId;
   final String? openTime;
   final String? closeTime;
 
-  /// A rota é recarregada quando o horário muda — quem exibe precisa saber.
   final ValueChanged<({String openTime, String closeTime})> onScheduleChanged;
 
   const DailyListSection({
@@ -52,11 +50,11 @@ class _DailyListSectionState extends State<DailyListSection> {
   @override
   void initState() {
     super.initState();
-    _reload();
+    _reload(mostrarCarregando: true);
   }
 
-  Future<void> _reload() async {
-    setState(() => _loading = true);
+  Future<void> _reload({bool mostrarCarregando = false}) async {
+    if (mostrarCarregando) setState(() => _loading = true);
     try {
       final lists = await _service.getListsByDate(DateTime.now());
       if (!mounted) return;
@@ -208,7 +206,12 @@ class _DailyListSectionState extends State<DailyListSection> {
                     ),
                     const SizedBox(height: 2),
                     Text(
-                      '${list.totalEntries} inscrito(s)',
+                      contagem(
+                        list.totalEntries,
+                        'inscrito',
+                        'inscritos',
+                        zero: 'Ninguém inscrito',
+                      ),
                       style: Theme.of(context).textTheme.bodyMedium?.copyWith(
                         color: AppColors.textSecondary,
                       ),

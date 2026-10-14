@@ -4,8 +4,6 @@ import '../../../core/utils/async_value.dart';
 import '../../routes/models/route_model.dart';
 import '../services/membership_service.dart';
 
-/// Rotas do aluno. Separado do resto porque a home inteira depende dele: sem
-/// rota nenhuma não há lista, aviso nem trajeto pra mostrar.
 class MembershipProvider extends ChangeNotifier {
   final MembershipService _service;
 
@@ -15,7 +13,6 @@ class MembershipProvider extends ChangeNotifier {
   AsyncValue<List<RouteModel>> _state = const AsyncLoading();
   AsyncValue<List<RouteModel>> get state => _state;
 
-  /// Rota em foco. Com várias, a home mostra uma por vez.
   String? _selectedId;
   String? get selectedId => _selectedId;
 
@@ -41,8 +38,6 @@ class MembershipProvider extends ChangeNotifier {
     try {
       final all = await _service.myRoutes();
       _state = AsyncData(all);
-      // Rota selecionada que sumiu (o aluno saiu dela) nao pode continuar em
-      // foco, senao a home fica pedindo dado de uma rota que ele nao tem mais.
       if (_selectedId != null && !all.any((r) => r.id == _selectedId)) {
         _selectedId = null;
       }
@@ -59,8 +54,6 @@ class MembershipProvider extends ChangeNotifier {
     notifyListeners();
   }
 
-  /// Entra na rota do código. Deixa a exceção subir: a tela precisa da mensagem
-  /// pra distinguir código errado de expirado.
   Future<RouteModel> join(String code) async {
     final route = await _service.joinWithCode(code);
     await load();

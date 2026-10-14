@@ -5,16 +5,23 @@ import com.smartboarding.smartboarding_api.domain.membership.entity.RouteInviteC
 import java.time.LocalDateTime;
 import java.util.UUID;
 
-/// [uses] conta quantos alunos entraram por este código — é o que o admin usa
-/// pra saber se o código circulou ou se ninguém recebeu.
-public record RouteInviteCodeResponse(UUID id, UUID routeId, String code,
+public record RouteInviteCodeResponse(UUID id, UUID routeId, String routeName, String code,
                                       LocalDateTime expiresAt, LocalDateTime revokedAt,
-                                      boolean usable, long uses) {
+                                      boolean usable, long uses,
+                                      UUID institutionId, String institutionName) {
 
-    public static RouteInviteCodeResponse from(RouteInviteCode code, long uses, LocalDateTime now) {
+    public static RouteInviteCodeResponse from(RouteInviteCode code, long uses,
+                                               LocalDateTime now, String institutionName) {
+        return from(code, uses, now, institutionName, null);
+    }
+
+    public static RouteInviteCodeResponse from(RouteInviteCode code, long uses,
+                                               LocalDateTime now, String institutionName,
+                                               String routeName) {
         return new RouteInviteCodeResponse(
-                code.getId(), code.getRouteId(), code.getCode(),
+                code.getId(), code.getRouteId(), routeName, code.getCode(),
                 code.getExpiresAt(), code.getRevokedAt(),
-                code.isUsable(now), uses);
+                code.isUsable(now), uses,
+                code.getInstitutionId(), institutionName);
     }
 }

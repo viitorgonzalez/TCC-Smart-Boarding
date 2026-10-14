@@ -2,6 +2,8 @@ package com.smartboarding.smartboarding_api.domain.user.port.out;
 
 import com.smartboarding.smartboarding_api.domain.user.entity.User;
 
+import org.springframework.data.domain.Page;
+import org.springframework.data.domain.Pageable;
 import java.util.List;
 import java.util.Optional;
 import java.util.UUID;
@@ -15,10 +17,13 @@ public interface UserRepositoryPort {
     long countActiveStudents();
     long countAdmins();
 
-    /// Segura quem mexe em papel de admin ate o fim da transacao corrente.
     void lockAdminRoleChanges();
     long countByInstitutionId(UUID institutionId);
     List<User> findByRouteId(UUID routeId);
+
+    Page<User> findPage(Pageable pageable);
+
+    Page<User> findPageByRouteId(UUID routeId, Pageable pageable);
 
     java.util.Optional<com.smartboarding.smartboarding_api.domain.user.entity.User> findByGoogleId(String googleId);
 }

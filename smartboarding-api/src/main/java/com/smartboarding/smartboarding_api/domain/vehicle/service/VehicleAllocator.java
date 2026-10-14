@@ -6,10 +6,6 @@ import java.util.ArrayList;
 import java.util.Comparator;
 import java.util.List;
 
-/// Algoritmo guloso da RN16: aloca o maior veículo primeiro e, pro resto,
-/// escolhe o MENOR que ainda cubra — evita mandar um ônibus vazio pra levar
-/// três pessoas. Heurística, não a combinação ótima: suficiente pro porte da
-/// frota de uma rota.
 public final class VehicleAllocator {
 
     private VehicleAllocator() {}
@@ -30,7 +26,6 @@ public final class VehicleAllocator {
         while (remaining > 0 && !available.isEmpty()) {
             Vehicle pick = smallestThatCovers(available, remaining);
             if (pick == null) {
-                // Ninguém cobre o resto sozinho: leva o maior e segue com o que sobrar.
                 pick = available.getFirst();
             }
             chosen.add(pick);

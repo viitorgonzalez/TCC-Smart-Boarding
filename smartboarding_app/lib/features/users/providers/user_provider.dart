@@ -14,14 +14,40 @@ class UserProvider extends ChangeNotifier {
 
   String? routeId;
 
+  bool _hasMore = true;
+  bool _carregandoMais = false;
+  int _pagina = 0;
+
+  bool get hasMore => _hasMore;
+
   Future<void> load() async {
     _state = const AsyncLoading();
     notifyListeners();
     try {
-      _state = AsyncData(await _service.getUsers(routeId: routeId));
+      final result = await _service.getUsers(routeId: routeId);
+      _state = AsyncData(result.items);
+      _hasMore = result.hasMore;
+      _pagina = 1;
     } catch (e) {
       _state = AsyncError(AppException.fromError(e));
     }
     notifyListeners();
+  }
+
+  Future<void> loadMore() async {
+    if (!_hasMore || _carregandoMais) return;
+    if (_state case AsyncData(:final value)) {
+      _carregandoMais = true;
+      try {
+        final result = await _service.getUsers(routeId: routeId, page: _pagina);
+        _state = AsyncData([...value, ...result.items]);
+        _hasMore = result.hasMore;
+        _pagina++;
+        notifyListeners();
+      } catch (_) {
+      } finally {
+        _carregandoMais = false;
+      }
+    }
   }
 }

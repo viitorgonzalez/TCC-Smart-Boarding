@@ -1,44 +1,49 @@
 import 'package:flutter/material.dart';
-// latlong2 exporta uma classe Path própria, que sombreia a de dart:ui usada
-// no desenho do pino.
 import 'package:latlong2/latlong.dart' hide Path;
 import '../../../core/theme/app_theme.dart';
 import '../../../core/widgets/app_card.dart';
+import '../../../core/widgets/option_sheet.dart';
 import '../../../core/widgets/text_prompt_dialog.dart';
+import '../../institutions/models/institution_model.dart';
 import '../models/map_stop.dart';
 import '../models/stop_model.dart';
+import '../services/road_route_service.dart';
 import '../services/route_service.dart';
 import 'route_map.dart';
+import 'stop_action_sheet.dart';
 
-/// Trajeto da rota: mapa mais lista, com mover parada e inserir entre duas.
-///
-/// O modo pendente (o que o próximo toque no mapa significa) é estado só desta
-/// interação — fica aqui, não na tela da rota.
 class RouteStopsEditor extends StatefulWidget {
   final String routeId;
   final List<StopModel> stops;
 
-  /// Executa a chamada ao backend e recarrega a rota. Vem da tela porque o
-  /// recarregamento é compartilhado com as outras seções.
   final Future<void> Function(Future<void> Function(), String) run;
+
+  final List<InstitutionModel> institutions;
+
+  final RouteService? service;
+  final RoadRouteService? roadService;
 
   const RouteStopsEditor({
     super.key,
     required this.routeId,
     required this.stops,
     required this.run,
+    this.institutions = const [],
+    this.service,
+    this.roadService,
   });
 
   @override
-  State<RouteStopsEditor> createState() => _RouteStopsEditorState();
+  RouteStopsEditorState createState() => RouteStopsEditorState();
 }
 
-class _RouteStopsEditorState extends State<RouteStopsEditor> {
-  final _service = RouteService();
+@visibleForTesting
+class RouteStopsEditorState extends State<RouteStopsEditor> {
+  late final RouteService _service = widget.service ?? RouteService();
+  late final RoadRouteService _road = widget.roadService ?? RoadRouteService();
 
-  /// Parada sendo reposicionada, ou depois da qual a próxima será inserida.
   StopModel? _pendingStop;
-  _StopAction? _pendingAction;
+  StopAction? _pendingAction;
 
   @override
   Widget build(BuildContext context) {
@@ -104,12 +109,9 @@ class _RouteStopsEditorState extends State<RouteStopsEditor> {
                       '${stop.longitude!.toStringAsFixed(4)}',
                     )
                   : const Text('sem coordenada'),
-              trailing: IconButton(
-                icon: const Icon(Icons.delete_outline, color: AppColors.danger),
-                onPressed: () => widget.run(
-                  () => _service.deleteStop(widget.routeId, stop.id),
-                  'Parada removida',
-                ),
+              trailing: const Icon(
+                Icons.more_horiz,
+                color: AppColors.textSecondary,
               ),
             ),
         ],
@@ -118,15 +120,18 @@ class _RouteStopsEditorState extends State<RouteStopsEditor> {
   }
 
   String? get _modeLabel => switch (_pendingAction) {
-    _StopAction.move => 'Toque no novo local de "${_pendingStop!.name}"',
-    _StopAction.insertAfter =>
+    StopAction.move => 'Toque no novo local de "${_pendingStop!.name}"',
+    StopAction.insertAfter =>
       'Toque onde entra a parada depois de "${_pendingStop!.name}"',
     _ => null,
   };
 
-  /// O toque no mapa muda de significado conforme o modo ativo.
+  @visibleForTesting
+  Future<void> onMapPoint(LatLng point) => _onMapPoint(point);
 
-  Future<void> _onMapPoint(LatLng point) async {
+  Future<void> _onMapPoint(LatLng tocado) async {
+    final point = await _road.snapToRoad(tocado) ?? tocado;
+    if (!mounted) return;
     final action = _pendingAction;
     final target = _pendingStop;
     if (action == null) {
@@ -138,7 +143,7 @@ class _RouteStopsEditorState extends State<RouteStopsEditor> {
       _pendingStop = null;
     });
 
-    if (action == _StopAction.move) {
+    if (action == StopAction.move) {
       await widget.run(
         () => _service.updateStop(
           widget.routeId,
@@ -171,65 +176,27 @@ class _RouteStopsEditorState extends State<RouteStopsEditor> {
     );
   }
 
+  @visibleForTesting
+  Future<void> onTapStop(MapStop tapped) => _onTapStop(tapped);
+
   Future<void> _onTapStop(MapStop tapped) async {
     final stop = widget.stops.firstWhere((s) => s.id == tapped.id);
-    final action = await showModalBottomSheet<_StopAction>(
-      context: context,
-      builder: (context) => SafeArea(
-        child: Column(
-          mainAxisSize: MainAxisSize.min,
-          children: [
-            ListTile(
-              title: Text(
-                stop.name,
-                style: Theme.of(context).textTheme.titleMedium,
-              ),
-              subtitle: Text('Parada ${stop.sequence}'),
-            ),
-            const Divider(height: 1),
-            ListTile(
-              leading: const Icon(Icons.open_with, color: AppColors.deepTeal),
-              title: const Text('Mover para outro local'),
-              onTap: () => Navigator.pop(context, _StopAction.move),
-            ),
-            ListTile(
-              leading: const Icon(
-                Icons.add_location_alt_outlined,
-                color: AppColors.deepTeal,
-              ),
-              title: const Text('Inserir parada depois desta'),
-              onTap: () => Navigator.pop(context, _StopAction.insertAfter),
-            ),
-            ListTile(
-              leading: const Icon(
-                Icons.edit_outlined,
-                color: AppColors.deepTeal,
-              ),
-              title: const Text('Renomear'),
-              onTap: () => Navigator.pop(context, _StopAction.rename),
-            ),
-            ListTile(
-              leading: const Icon(
-                Icons.delete_outline,
-                color: AppColors.danger,
-              ),
-              title: const Text('Remover'),
-              onTap: () => Navigator.pop(context, _StopAction.remove),
-            ),
-          ],
-        ),
-      ),
+    final action = await escolherAcaoDaParada(
+      context,
+      stop,
+      podeVincularInstituicao: widget.institutions.isNotEmpty,
+      instituicaoAtual: _nomeDaInstituicao(stop),
     );
     if (action == null || !mounted) return;
 
     switch (action) {
-      case _StopAction.move:
-      case _StopAction.insertAfter:
+      case StopAction.move:
+      case StopAction.insertAfter:
         setState(() {
           _pendingAction = action;
           _pendingStop = stop;
         });
-      case _StopAction.rename:
+      case StopAction.rename:
         final name = await promptText(
           context,
           title: 'Renomear parada',
@@ -240,12 +207,44 @@ class _RouteStopsEditorState extends State<RouteStopsEditor> {
           () => _service.updateStop(widget.routeId, stop.id, name: name),
           'Parada renomeada',
         );
-      case _StopAction.remove:
+      case StopAction.linkInstitution:
+        await _escolherInstituicao(stop);
+      case StopAction.remove:
         await widget.run(
           () => _service.deleteStop(widget.routeId, stop.id),
           'Parada removida',
         );
     }
+  }
+
+  String? _nomeDaInstituicao(StopModel stop) {
+    if (stop.institutionId == null) return null;
+    for (final i in widget.institutions) {
+      if (i.id == stop.institutionId) return i.name;
+    }
+    return 'Instituição';
+  }
+
+  Future<void> _escolherInstituicao(StopModel stop) async {
+    final escolha = await escolherOpcao<String>(
+      context,
+      'Esta parada serve qual instituição?',
+      [
+        ('Nenhuma — parada comum', 'a parada deixa de aceitar checkpoint', ''),
+        for (final i in widget.institutions) (i.name, '', i.id),
+      ],
+      keyOf: (id) =>
+          id.isEmpty ? const Key('stop_institution_none') : Key('inst_$id'),
+    );
+    if (escolha == null) return;
+    await widget.run(
+      () => _service.setStopInstitution(
+        widget.routeId,
+        stop.id,
+        institutionId: escolha.isEmpty ? null : escolha,
+      ),
+      escolha.isEmpty ? 'Vínculo removido' : 'Instituição vinculada',
+    );
   }
 
   Future<void> _promptAddStop(LatLng point) async {
@@ -268,5 +267,3 @@ class _RouteStopsEditorState extends State<RouteStopsEditor> {
     );
   }
 }
-
-enum _StopAction { move, insertAfter, rename, remove }

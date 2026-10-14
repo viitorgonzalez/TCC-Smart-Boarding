@@ -29,6 +29,14 @@ public class UserUseCaseImpl implements FindUserUseCase {
     }
 
     @Override
+    public org.springframework.data.domain.Page<User> findPage(
+            UUID routeId, org.springframework.data.domain.Pageable pageable) {
+        return routeId == null
+                ? userRepository.findPage(pageable)
+                : userRepository.findPageByRouteId(routeId, pageable);
+    }
+
+    @Override
     public long countAdmins() {
         return userRepository.countAdmins();
     }

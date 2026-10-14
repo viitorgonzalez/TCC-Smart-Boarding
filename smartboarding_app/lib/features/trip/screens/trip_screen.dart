@@ -10,13 +10,6 @@ import '../widgets/next_stop_card.dart';
 import '../widgets/trip_progress_card.dart';
 import '../widgets/trip_step_tile.dart';
 
-/// Conduzir o trajeto do dia.
-///
-/// Iniciar e finalizar pedem confirmação porque disparam aviso pra rota inteira
-/// e não têm volta. Marcar chegada não pede: era uma confirmação por parada, o
-/// que transformava o uso normal numa sequência de diálogos. O risco de toque
-/// acidental some pelo desenho — a ação é um botão grande e único na tela, não
-/// um link pequeno no meio de uma lista.
 class TripScreen extends StatelessWidget {
   const TripScreen({super.key});
 
@@ -112,8 +105,6 @@ class _TripBody extends StatelessWidget {
           const SizedBox(height: 20),
         ],
 
-        // Em andamento sem parada atual = todas marcadas. Dizer isso evita a
-        // duvida de "sumiu o botao, travou?".
         if (trip.inProgress && atual == null && trip.stops.isNotEmpty) ...[
           const AppCard(
             child: Row(

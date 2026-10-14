@@ -7,10 +7,16 @@ import java.util.List;
 import java.util.UUID;
 
 public interface ManageRouteInviteCodeUseCase {
-    /// [expiresAt] nulo usa a validade padrão da configuração.
-    RouteInviteCode generate(UUID routeId, LocalDateTime expiresAt, UUID adminId);
+    RouteInviteCode generate(UUID routeId, LocalDateTime expiresAt,
+                             UUID institutionId, UUID adminId);
 
     RouteInviteCode revoke(UUID codeId);
+
+    RouteInviteCode findById(UUID codeId);
+
+    List<RouteInviteCode> findAllById(List<UUID> codeIds);
+
+    int archive(List<UUID> codeIds);
 
     List<RouteInviteCode> listByRoute(UUID routeId);
 

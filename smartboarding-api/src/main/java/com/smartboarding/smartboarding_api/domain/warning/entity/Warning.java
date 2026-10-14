@@ -8,9 +8,6 @@ import lombok.*;
 import java.time.LocalDateTime;
 import java.util.UUID;
 
-/// Registro de que o aluno entrou na lista fora do horário e precisou do admin.
-/// Colocar o nome no prazo é responsabilidade dele — a advertência é a memória
-/// disso, não uma punição automática: quem decide emitir é o admin.
 @Entity
 @Table(name = "warnings")
 @Getter

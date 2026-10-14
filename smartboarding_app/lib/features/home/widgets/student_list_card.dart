@@ -10,17 +10,27 @@ import 'close_countdown.dart';
 import 'list_members_sheet.dart';
 import 'trip_type_picker.dart';
 import 'route_preview.dart';
+import 'student_list_card_parts.dart';
 
 class StudentListCard extends StatelessWidget {
   final ListWithEnrollment item;
   final void Function(String tripType) onEnter;
   final VoidCallback onLeave;
 
+  final List<String> missingProfile;
+
+  final VoidCallback? onFixProfile;
+
+  final VoidCallback? onFollowTrip;
+
   const StudentListCard({
     super.key,
     required this.item,
     required this.onEnter,
     required this.onLeave,
+    this.missingProfile = const [],
+    this.onFixProfile,
+    this.onFollowTrip,
   });
 
   Future<void> _pickAndEnter(BuildContext context, {String? current}) async {
@@ -90,9 +100,11 @@ class StudentListCard extends StatelessWidget {
               ),
               Expanded(
                 child: StatBlock(
-                  label: 'Fecha às',
+                  label: acceptingChanges ? 'Fecha às' : 'Fechou às',
                   value: hasCloseTime ? formatCloseTime(list.closeTime) : '—',
-                  valueColor: AppColors.deepTeal,
+                  valueColor: acceptingChanges
+                      ? AppColors.deepTeal
+                      : AppColors.textSecondary,
                 ),
               ),
             ],
@@ -106,40 +118,20 @@ class StudentListCard extends StatelessWidget {
               },
             ),
           ],
-          if (list.proposedVehicles.isNotEmpty ||
-              list.capacityShortfall > 0) ...[
-            const SizedBox(height: 14),
-            ProposedVehicle(
-              vehicles: list.proposedVehicles,
-              shortfall: list.capacityShortfall,
-            ),
-          ] else if (list.vehicles.isNotEmpty) ...[
-            const SizedBox(height: 14),
-            // Antes do fechamento a frota é só informação: o veículo definitivo
-            // depende do total final de confirmados (RN16).
-            Wrap(
-              spacing: 8,
-              runSpacing: 8,
-              children: list.vehicles
-                  .map(
-                    (v) => Chip(
-                      avatar: const Icon(
-                        Icons.directions_bus_outlined,
-                        size: 16,
-                        color: AppColors.deepTeal,
-                      ),
-                      label: Text('${v.label} · ${v.capacity} lugares'),
-                      visualDensity: VisualDensity.compact,
-                      backgroundColor: AppColors.background,
-                      side: const BorderSide(color: AppColors.stroke),
-                    ),
-                  )
-                  .toList(),
-            ),
-          ],
+          const SizedBox(height: 14),
+          ProposedVehicle(
+            vehicles: list.proposedVehicles,
+            shortfall: list.capacityShortfall,
+            definido: !list.acceptsChanges,
+          ),
           if (list.stops.any((s) => s.hasCoordinates)) ...[
             const SizedBox(height: 18),
             RoutePreview(list: list),
+          ],
+
+          if (list.myTripTime case final tempo?) ...[
+            const SizedBox(height: 14),
+            TempoDeViagem(tempo: tempo),
           ],
           if (item.isEnrolled) ...[
             const SizedBox(height: 16),
@@ -171,31 +163,45 @@ class StudentListCard extends StatelessWidget {
               ],
             ),
           ],
+          if (list.tripInProgress && onFollowTrip != null) ...[
+            const SizedBox(height: 18),
+            SizedBox(
+              height: 48,
+              child: FilledButton.tonalIcon(
+                key: const Key('student_follow_trip'),
+                onPressed: onFollowTrip,
+                icon: const Icon(Icons.directions_bus_filled_outlined),
+                label: const Text('Acompanhar trajeto'),
+              ),
+            ),
+          ],
+
           if (acceptingChanges) ...[
             if (hasCloseTime) ...[
               const SizedBox(height: 18),
               CloseCountdown(closeTime: list.closeTime),
             ],
             const SizedBox(height: 18),
-            item.isEnrolled
-                ? OutlinedButton.icon(
-                    style: OutlinedButton.styleFrom(
-                      foregroundColor: AppColors.danger,
-                    ),
-                    onPressed: onLeave,
-                    icon: const Icon(Icons.exit_to_app),
-                    label: const Text('Sair da lista'),
-                  )
-                : FilledButton.icon(
-                    onPressed: () => _pickAndEnter(context),
-                    icon: const Icon(Icons.login),
-                    label: const Text('Entrar na lista'),
-                  ),
+            if (item.isEnrolled)
+              OutlinedButton.icon(
+                style: OutlinedButton.styleFrom(
+                  foregroundColor: AppColors.danger,
+                ),
+                onPressed: onLeave,
+                icon: const Icon(Icons.exit_to_app),
+                label: const Text('Sair da lista'),
+              )
+            else if (missingProfile.isNotEmpty)
+              ProfileWarning(missing: missingProfile, onFix: onFixProfile)
+            else
+              FilledButton.icon(
+                onPressed: () => _pickAndEnter(context),
+                icon: const Icon(Icons.login),
+                label: const Text('Entrar na lista'),
+              ),
           ],
         ],
       ),
     );
   }
 }
-
-/// Resultado da RN16: o transporte definido pelo total de confirmados.

@@ -64,8 +64,6 @@ class MembershipControllerTest extends WebMvcTestSupport {
         verify(joinRouteUseCase, never()).join(any(), anyString());
     }
 
-    /// O id sai do token: aceitar userId do request deixaria um aluno pôr outro
-    /// numa rota, ou tirá-lo dela.
     @Test
     void entrarUsaOUsuarioDoToken() throws Exception {
         when(joinRouteUseCase.join(eq(STUDENT_ID), eq("RU7K2M"))).thenReturn(
@@ -144,9 +142,6 @@ class MembershipControllerTest extends WebMvcTestSupport {
         verify(joinRouteUseCase).leave(STUDENT_ID, ROTA);
     }
 
-    /// Duplo toque no botao: a checagem do use case passa nas duas requisicoes e
-    /// quem barra a segunda e a constraint UNIQUE(user_id, route_id). Sem tratar,
-    /// o aluno via "erro interno no servidor" num caso que e so "voce ja entrou".
     @Test
     void corridaNaEntradaVira409EnaoErroInterno() throws Exception {
         org.mockito.Mockito.doThrow(new org.springframework.dao.DataIntegrityViolationException(
@@ -161,8 +156,6 @@ class MembershipControllerTest extends WebMvcTestSupport {
                 .andExpect(jsonPath("$.code").value("ALREADY_EXISTS"));
     }
 
-    /// O nome da constraint nao pode vazar pro cliente: entrega nome de tabela e
-    /// de coluna pra quem so mandou um codigo.
     @Test
     void aMensagemDoBancoNaoVazaNaResposta() throws Exception {
         org.mockito.Mockito.doThrow(new org.springframework.dao.DataIntegrityViolationException(

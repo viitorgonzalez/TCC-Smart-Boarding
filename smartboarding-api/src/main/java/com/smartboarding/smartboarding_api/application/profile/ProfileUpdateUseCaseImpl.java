@@ -49,8 +49,6 @@ public class ProfileUpdateUseCaseImpl implements ManageProfileUpdateUseCase {
             throw new BadRequestException("EMPTY_REQUEST",
                     "Altere ao menos um campo antes de enviar.");
         }
-        // Um pendente por vez: com dois na fila o admin aprovaria um sem saber
-        // do outro, e o segundo sobrescreveria o primeiro sem revisao.
         if (requestRepository.findPendingByUserId(userId).isPresent()) {
             throw new ConflictException("PENDING_REQUEST_EXISTS",
                     "Você já tem uma solicitação em análise.");
@@ -82,22 +80,25 @@ public class ProfileUpdateUseCaseImpl implements ManageProfileUpdateUseCase {
     }
 
     @Override
+    @Transactional(readOnly = true)
+    public List<ProfileUpdateRequest> listAll(String status) {
+        var filtro = (status == null || status.isBlank())
+                ? null
+                : ProfileUpdateStatus.valueOf(status.toUpperCase());
+        return requestRepository.findAllByStatusOrAll(filtro);
+    }
+
+    @Override
     @Transactional
     public ProfileUpdateRequest approve(UUID requestId, UUID adminId) {
         ProfileUpdateRequest pedido = pendente(requestId);
         User user = userRepository.findById(pedido.getUserId())
                 .orElseThrow(() -> new NotFoundException("Usuário do pedido não existe mais"));
 
-        // Campo nulo = nao foi pedida mudanca nele. Aplicar tudo sobrescreveria
-        // com null o que o aluno nao quis mexer.
         if (pedido.getFullName() != null) user.setFullName(pedido.getFullName());
         if (pedido.getPhone() != null) user.setPhone(pedido.getPhone());
-        if (pedido.getAddress() != null) user.setAddress(pedido.getAddress());
+        if (pedido.getStructuredAddress() != null) user.setAddress(pedido.getStructuredAddress());
         if (pedido.getCourse() != null) user.setCourse(pedido.getCourse());
-        // Institution vai pelo vinculo, nao no campo direto: users.institution_id
-        // e derivado de user_institutions por um unico escritor (syncPrimary).
-        // Gravando aqui, o campo apontaria pra uma instituicao sem linha na
-        // tabela -- e o proximo add/remove no perfil desfaria a aprovacao.
         if (pedido.getInstitutionId() != null
                 && !userInstitutions.institutionsOf(user.getId()).contains(pedido.getInstitutionId())) {
             userInstitutions.add(user.getId(), pedido.getInstitutionId());
@@ -128,8 +129,6 @@ public class ProfileUpdateUseCaseImpl implements ManageProfileUpdateUseCase {
         return requestRepository.save(pedido);
     }
 
-    /// Decidir duas vezes o mesmo pedido aplicaria a mudanca de novo ou apagaria
-    /// o registro de quem decidiu antes.
     private ProfileUpdateRequest pendente(UUID requestId) {
         ProfileUpdateRequest pedido = requestRepository.findById(requestId)
                 .orElseThrow(() -> new NotFoundException("Solicitação não encontrada"));

@@ -82,6 +82,14 @@
 			<groupId>org.springframework.boot</groupId>
 			<artifactId>spring-boot-starter-security-oauth2-resource-server</artifactId>
 		</dependency>
+		<!-- Argon2PasswordEncoder delega pro Argon2 do BouncyCastle: sem isto
+		     ele so aparece no classpath em tempo de compilacao (dependencia
+		     optional do spring-security-crypto) e o boot quebra em runtime. -->
+		<dependency>
+			<groupId>org.bouncycastle</groupId>
+			<artifactId>bcprov-jdk18on</artifactId>
+			<version>1.78.1</version>
+		</dependency>
 		<dependency>
 			<groupId>org.springframework.boot</groupId>
 			<artifactId>spring-boot-starter-data-jpa-test</artifactId>
@@ -166,6 +174,7 @@
 					     propertyName=jacocoArgLine em vez do "argLine" default. -->
 					<environmentVariables>
 						<JWT_SECRET>integracao-teste-chave-fixa-de-32-caracteres-no-minimo</JWT_SECRET>
+						<PASSWORD_PEPPER>integracao-teste-pepper-fixo-de-32-caracteres-no-minimo</PASSWORD_PEPPER>
 					</environmentVariables>
 				</configuration>
 				<executions>
@@ -185,6 +194,12 @@
 					     comentário no maven-failsafe-plugin acima pra por que isso não
 					     usa a property default "argLine" do JaCoCo. -->
 					<argLine>${jacocoArgLine}</argLine>
+					<!-- @WebMvcTest sobe o SecurityConfig inteiro, e o bean passwordEncoder
+					     precisa do pepper pra existir: sem isto todo slice test de
+					     controller quebra no boot do contexto, não só os de autenticação. -->
+					<environmentVariables>
+						<PASSWORD_PEPPER>unit-teste-pepper-fixo-de-32-caracteres-no-minimo</PASSWORD_PEPPER>
+					</environmentVariables>
 				</configuration>
 			</plugin>
 			<plugin>

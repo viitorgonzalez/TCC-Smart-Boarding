@@ -4,8 +4,6 @@ import '../../../core/theme/app_theme.dart';
 import '../providers/membership_provider.dart';
 import '../screens/join_route_screen.dart';
 
-/// Seletor de rota. Só aparece com mais de uma: com uma só, um seletor de um
-/// item é ruído — ocupa espaço e não oferece escolha nenhuma.
 class RouteSelector extends StatelessWidget {
   const RouteSelector({super.key});
 

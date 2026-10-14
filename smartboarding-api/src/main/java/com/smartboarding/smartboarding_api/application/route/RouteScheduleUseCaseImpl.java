@@ -55,8 +55,6 @@ public class RouteScheduleUseCaseImpl implements UpdateRouteScheduleUseCase {
         route.setCloseTime(closeTime);
         Route saved = routeRepository.save(route);
 
-        // O horário é o combinado com quem pega o ônibus: mudar em silêncio faria
-        // o aluno chegar numa lista que já fechou.
         publishNotificationUseCase.publish(
                 "Horário da lista mudou",
                 "%s A lista passa a abrir às %s e fechar às %s.".formatted(

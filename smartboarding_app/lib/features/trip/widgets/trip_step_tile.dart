@@ -2,14 +2,13 @@ import 'package:flutter/material.dart';
 import '../../../core/theme/app_theme.dart';
 import '../../../core/utils/date_format.dart';
 
-/// Uma parada na lista do trajeto. É leitura: a ação mora no card de próxima
-/// parada, um alvo só na tela. O horário registrado fica visível porque é o que
-/// permite conferir o ritmo do trajeto depois.
 class TripStepTile extends StatelessWidget {
   final String label;
   final bool done;
   final bool current;
   final String? reachedAt;
+
+  final bool highlighted;
 
   const TripStepTile({
     super.key,
@@ -17,6 +16,7 @@ class TripStepTile extends StatelessWidget {
     required this.done,
     required this.current,
     this.reachedAt,
+    this.highlighted = false,
   });
 
   @override
@@ -27,8 +27,14 @@ class TripStepTile extends StatelessWidget {
         ? AppColors.deepTeal
         : AppColors.textSecondary;
 
-    return Padding(
-      padding: const EdgeInsets.symmetric(vertical: 10),
+    return Container(
+      padding: const EdgeInsets.symmetric(vertical: 10, horizontal: 8),
+      decoration: highlighted
+          ? BoxDecoration(
+              color: AppColors.deepTeal.withValues(alpha: 0.06),
+              borderRadius: BorderRadius.circular(8),
+            )
+          : null,
       child: Row(
         children: [
           Icon(

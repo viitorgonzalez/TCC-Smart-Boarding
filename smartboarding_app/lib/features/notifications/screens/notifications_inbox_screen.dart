@@ -7,9 +7,7 @@ import '../services/notification_service.dart';
 import '../widgets/notice_board.dart';
 import '../widgets/pinned_notice.dart';
 
-/// Push é entrega, não registro: quem estava offline não saberia do aviso.
 class NotificationsInboxScreen extends StatefulWidget {
-  /// Admin ganha seleção e exclusão; aluno só lê.
   final bool canManage;
 
   const NotificationsInboxScreen({super.key, this.canManage = false});
@@ -166,6 +164,3 @@ class _NotificationsInboxScreenState extends State<NotificationsInboxScreen> {
     );
   }
 }
-
-/// Um aviso preso no mural. O admin vê o botão de apagar no próprio cartão; o
-/// toque longo ainda entra na seleção múltipla, que é como se apaga em lote.

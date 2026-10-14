@@ -62,11 +62,16 @@ class ReportUseCaseImplTest {
     }
 
     private ListEntry entry(String name, TripType type) {
+        return entry(name, type, false);
+    }
+
+    private ListEntry entry(String name, TripType type, boolean addedByAdmin) {
         return ListEntry.builder()
                 .id(UUID.randomUUID())
                 .user(User.builder().id(UUID.randomUUID()).fullName(name)
                         .email(name.toLowerCase() + "@edu.unifor.br").build())
                 .tripType(type)
+                .addedByAdmin(addedByAdmin)
                 .build();
     }
 
@@ -97,6 +102,19 @@ class ReportUseCaseImplTest {
     }
 
     @Test
+    void snapshotMarcaQuemFoiAdicionadoPeloAdmin() {
+        inscritos(entry("Fernanda", TripType.ROUND_TRIP, false),
+                entry("Bruno", TripType.TO_CAMPUS, true));
+
+        Report report = useCase.execute(dailyList);
+
+        assertThat(report.getSnapshotData())
+                .contains("\"fullName\":\"Bruno\"")
+                .contains("\"addedByAdmin\":\"true\"")
+                .contains("\"addedByAdmin\":\"false\"");
+    }
+
+    @Test
     void listaVaziaGeraRelatorioZeradoENaoQuebra() {
         Report report = useCase.execute(dailyList);
 
@@ -105,8 +123,6 @@ class ReportUseCaseImplTest {
         assertThat(report.getCapacityShortfall()).isZero();
     }
 
-    /// RN8: relatório é imutável e um por lista. Uma lista reaberta e fechada de
-    /// novo não pode produzir um segundo relatório.
     @Test
     void listaJaComRelatorioDevolveOOriginalSemRegravar() {
         Report original = Report.builder().id(UUID.randomUUID()).totalEntries(7).build();
@@ -119,7 +135,6 @@ class ReportUseCaseImplTest {
         verify(listEntryRepository, never()).findAllByDailyListIdAndIsActiveTrue(any());
     }
 
-    /// RN16: o veículo proposto sai da contagem real no fechamento.
     @Test
     void veiculoPropostoCobreOsInscritosSemSobra() {
         frota(vehicle("Ônibus 01", 44), vehicle("Van 01", 15));

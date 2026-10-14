@@ -3,6 +3,7 @@ package com.smartboarding.smartboarding_api.infrastructure.web.user;
 import com.smartboarding.smartboarding_api.domain.institution.entity.Institution;
 import com.smartboarding.smartboarding_api.domain.institution.port.out.InstitutionRepositoryPort;
 import com.smartboarding.smartboarding_api.domain.list.port.out.ListEntryRepositoryPort;
+import com.smartboarding.smartboarding_api.domain.user.entity.Address;
 import com.smartboarding.smartboarding_api.domain.user.entity.Role;
 import com.smartboarding.smartboarding_api.domain.user.entity.User;
 import com.smartboarding.smartboarding_api.domain.user.port.in.FindUserUseCase;
@@ -14,6 +15,8 @@ import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.boot.webmvc.test.autoconfigure.WebMvcTest;
+import org.springframework.data.domain.PageImpl;
+import org.springframework.data.domain.Pageable;
 import org.springframework.http.MediaType;
 import org.springframework.test.context.bean.override.mockito.MockitoBean;
 import org.springframework.security.oauth2.jwt.Jwt;
@@ -23,7 +26,10 @@ import java.util.List;
 import java.util.Optional;
 import java.util.UUID;
 
+import static org.assertj.core.api.Assertions.assertThat;
+import static org.mockito.ArgumentMatchers.isNull;
 import static org.mockito.ArgumentMatchers.any;
+import static org.mockito.ArgumentMatchers.eq;
 import static org.mockito.ArgumentMatchers.anyBoolean;
 import static org.mockito.Mockito.never;
 import static org.mockito.Mockito.verify;
@@ -37,8 +43,6 @@ import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.
 @org.springframework.context.annotation.Import(UserControllerTest.FixedClock.class)
 class UserControllerTest extends WebMvcTestSupport {
 
-    /// O recorte de 6 meses do historico usa o relogio do sistema; fixo aqui
-    /// pra o teste nao depender da data em que roda.
     @org.springframework.boot.test.context.TestConfiguration
     static class FixedClock {
         @org.springframework.context.annotation.Bean
@@ -61,13 +65,18 @@ class UserControllerTest extends WebMvcTestSupport {
     @MockitoBean UserRepositoryPort userRepository;
     @MockitoBean ListEntryRepositoryPort listEntryRepository;
 
+    private static final Address ENDERECO = Address.builder()
+            .zipCode("35570-000").street("Av. Dr. Arnaldo de Senna")
+            .neighborhood("Água Vermelha").city("Formiga").state("MG")
+            .streetNumber("328").build();
+
     private User aluno;
 
     @BeforeEach
     void setUp() {
         aluno = User.builder().id(STUDENT_ID).email("fernanda@edu.unifor.br")
                 .fullName("Fernanda Lima").course("Engenharia").role(Role.STUDENT)
-                .phone("37999990000").address("Rua X, 123")
+                .phone("37999990000").address(ENDERECO)
                 .birthDate(java.time.LocalDate.of(2004, 5, 10))
                 .password("$2a$10$hashQueNaoPodeVazar")
                 .institutionId(INSTITUTION_ID).isActive(true).build();
@@ -79,13 +88,11 @@ class UserControllerTest extends WebMvcTestSupport {
         when(manageUserStatusUseCase.history(any())).thenReturn(List.of());
     }
 
-    /// /api/users/** é hasRole("ADMIN") — a lista de alunos com e-mail não pode
-    /// ficar acessível a um aluno logado.
     @Test
     void alunoNaoAcessaAListagemDeUsuarios() throws Exception {
         mvc.perform(get("/api/users").with(student())).andExpect(status().isForbidden());
 
-        verify(findUserUseCase, never()).findAll();
+        verify(findUserUseCase, never()).findPage(any(), any());
     }
 
     @Test
@@ -95,25 +102,37 @@ class UserControllerTest extends WebMvcTestSupport {
 
     @Test
     void semRouteIdListaTodos() throws Exception {
-        when(findUserUseCase.findAll()).thenReturn(List.of(aluno));
+        when(findUserUseCase.findPage(isNull(), any()))
+                .thenReturn(new PageImpl<>(List.of(aluno)));
 
         mvc.perform(get("/api/users").with(admin()))
                 .andExpect(status().isOk())
-                .andExpect(jsonPath("$.data[0].fullName").value("Fernanda Lima"))
-                .andExpect(jsonPath("$.data[0].institution").value("Unifor"));
-
-        verify(findUserUseCase, never()).findByRoute(any());
+                .andExpect(jsonPath("$.data.content[0].fullName").value("Fernanda Lima"))
+                .andExpect(jsonPath("$.data.content[0].institution").value("Unifor"));
     }
 
     @Test
     void comRouteIdFiltraPelaRota() throws Exception {
-        when(findUserUseCase.findByRoute(ROUTE_ID)).thenReturn(List.of(aluno));
+        when(findUserUseCase.findPage(eq(ROUTE_ID), any()))
+                .thenReturn(new PageImpl<>(List.of(aluno)));
 
         mvc.perform(get("/api/users").param("routeId", ROUTE_ID.toString()).with(admin()))
-                .andExpect(status().isOk());
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.data.content.length()").value(1));
 
-        verify(findUserUseCase).findByRoute(ROUTE_ID);
-        verify(findUserUseCase, never()).findAll();
+        verify(findUserUseCase).findPage(eq(ROUTE_ID), any());
+    }
+
+    @Test
+    void aPaginaTemTamanhoPadrao() throws Exception {
+        when(findUserUseCase.findPage(any(), any()))
+                .thenReturn(new PageImpl<>(List.of(aluno)));
+
+        mvc.perform(get("/api/users").with(admin())).andExpect(status().isOk());
+
+        var captor = org.mockito.ArgumentCaptor.forClass(Pageable.class);
+        verify(findUserUseCase).findPage(any(), captor.capture());
+        assertThat(captor.getValue().getPageSize()).isEqualTo(30);
     }
 
     @Test
@@ -124,8 +143,6 @@ class UserControllerTest extends WebMvcTestSupport {
                 .andExpect(status().isNotFound());
     }
 
-    /// O admin precisa do contato pra falar com o aluno e do nascimento pra
-    /// conferir a matrícula -- a ficha e completa de proposito.
     @Test
     void perfilCarregaAFichaCompletaDoAluno() throws Exception {
         when(findUserUseCase.findById(STUDENT_ID)).thenReturn(aluno);
@@ -135,14 +152,17 @@ class UserControllerTest extends WebMvcTestSupport {
                 .andExpect(jsonPath("$.data.fullName").value("Fernanda Lima"))
                 .andExpect(jsonPath("$.data.email").value("fernanda@edu.unifor.br"))
                 .andExpect(jsonPath("$.data.phone").value("37999990000"))
-                .andExpect(jsonPath("$.data.address").value("Rua X, 123"))
+                .andExpect(jsonPath("$.data.address.street").value("Av. Dr. Arnaldo de Senna"))
+                .andExpect(jsonPath("$.data.address.streetNumber").value("328"))
+                .andExpect(jsonPath("$.data.address.zipCode").value("35570-000"))
+                .andExpect(jsonPath("$.data.address.complete").value(true))
+                .andExpect(jsonPath("$.data.address.shortForm")
+                        .value("Av. Dr. Arnaldo de Senna, 328 — Água Vermelha"))
                 .andExpect(jsonPath("$.data.birthDate").value("2004-05-10"))
                 .andExpect(jsonPath("$.data.course").value("Engenharia"))
                 .andExpect(jsonPath("$.data.institution").value("Unifor"));
     }
 
-    /// A senha (hash incluso) nao tem uso de leitura nenhum. Ela nunca pode
-    /// aparecer na resposta, por mais completa que a ficha seja.
     @Test
     void perfilNuncaCarregaSenha() throws Exception {
         when(findUserUseCase.findById(STUDENT_ID)).thenReturn(aluno);
@@ -157,7 +177,6 @@ class UserControllerTest extends WebMvcTestSupport {
                 .doesNotContain("$2a$").doesNotContain("password");
     }
 
-    /// A ficha e do admin. Aluno logado nao pode ler o contato de colega.
     @Test
     void alunoNaoLeAFichaDeNinguem() throws Exception {
         mvc.perform(get("/api/users/{id}/profile", STUDENT_ID).with(student()))
@@ -167,7 +186,6 @@ class UserControllerTest extends WebMvcTestSupport {
                 .andExpect(status().isUnauthorized());
     }
 
-    /// Desativar aluno registra qual admin fez — o id sai do token, não do corpo.
     @Test
     void desativarRegistraOAdminDoToken() throws Exception {
         when(manageUserStatusUseCase.setActive(STUDENT_ID, false, ADMIN_ID)).thenReturn(aluno);
@@ -202,8 +220,6 @@ class UserControllerTest extends WebMvcTestSupport {
                 .andExpect(jsonPath("$.data.institution").value("Unifor"));
     }
 
-    /// O card mostra em que dias o aluno embarcou. Dois embarques no mesmo dia
-    /// (ida e volta) contam como um.
     @Test
     void presencaVemSemDataRepetida() throws Exception {
         var dia = java.time.LocalDate.of(2026, 9, 8);
@@ -225,7 +241,6 @@ class UserControllerTest extends WebMvcTestSupport {
                 .build();
     }
 
-    /// O log tem que dizer QUEM ativou ou desativou, não só que mudou.
     @Test
     void historicoTrazONomeDoAdminQueMudouOStatus() throws Exception {
         when(findUserUseCase.findById(STUDENT_ID)).thenReturn(aluno);
@@ -246,8 +261,6 @@ class UserControllerTest extends WebMvcTestSupport {
                 .andExpect(jsonPath("$.data.statusHistory[0].at").exists());
     }
 
-    /// Admin apagado depois da mudança não pode derrubar o card — o registro do
-    /// que aconteceu continua valendo mesmo sem o nome.
     @Test
     void adminApagadoDeixaOHistoricoSemNomeMasIntacto() throws Exception {
         when(findUserUseCase.findById(STUDENT_ID)).thenReturn(aluno);
@@ -284,7 +297,6 @@ class UserControllerTest extends WebMvcTestSupport {
                 com.smartboarding.smartboarding_api.domain.user.entity.Role.ADMIN, ADMIN_ID);
     }
 
-    /// Aluno mexendo em papel seria escalada de privilegio pela porta da frente.
     @Test
     void alunoNaoPodeMexerEmPapel() throws Exception {
         mvc.perform(patch("/api/users/{id}/role", STUDENT_ID).with(student())
@@ -309,9 +321,6 @@ class UserControllerTest extends WebMvcTestSupport {
                 .setRole(any(), any(), any());
     }
 
-    /// A folha do usuário chama isto pra saber se está olhando o último admin.
-    /// Antes ela baixava /api/users inteiro e contava no cliente — o contato de
-    /// toda a base no fio pra chegar num número.
     @Test
     void contagemDeAdminsDevolveSoONumero() throws Exception {
         when(findUserUseCase.countAdmins()).thenReturn(2L);
@@ -320,7 +329,7 @@ class UserControllerTest extends WebMvcTestSupport {
                 .andExpect(status().isOk())
                 .andExpect(jsonPath("$.data.count").value(2));
 
-        verify(findUserUseCase, never()).findAll();
+        verify(findUserUseCase, never()).findPage(any(), any());
     }
 
     @Test
@@ -330,15 +339,6 @@ class UserControllerTest extends WebMvcTestSupport {
 
         verify(findUserUseCase, never()).countAdmins();
     }
-
-    // ─── Revogação imediata: a autoridade vem do banco, não da claim ─────────
-    //
-    // A claim "scope" é carimbada no login e vale 1h. Enquanto ela mandava, o
-    // admin rebaixado continuava admin até o token expirar — e nesse intervalo
-    // chamava PATCH /api/users/{ele}/role e se promovia de volta. Os testes
-    // abaixo mandam Bearer de verdade de propósito: é o único caminho que passa
-    // pelo converter do SecurityConfig (os post-processors põem authority
-    // direto no contexto e nunca o exercitam).
 
     private static Jwt tokenComScopeAdmin(String email) {
         return tokenComScope(email, "ADMIN");
@@ -361,12 +361,6 @@ class UserControllerTest extends WebMvcTestSupport {
         verify(manageUserStatusUseCase, never()).setRole(any(), any(), any());
     }
 
-    /// 401, não 403: conta desativada não fica autenticada sem papel — ela para
-    /// de autenticar. A diferença não é cosmética. Autoridade vazia ainda
-    /// satisfaz `anyRequest().authenticated()`, e por isso o 403 aqui só
-    /// aparecia porque /api/users exige ADMIN; nos endpoints que pedem apenas
-    /// autenticação a mesma conta seguia passando. Recusando no converter, o
-    /// filtro do resource server encerra antes da autorização, pra qualquer rota.
     @Test
     void contaDesativadaPerdeOAcessoAntesDoTokenExpirar() throws Exception {
         when(jwtDecoder.decode(BEARER_REAL))
@@ -377,7 +371,7 @@ class UserControllerTest extends WebMvcTestSupport {
 
         mvc.perform(comBearerReal(get("/api/users"))).andExpect(status().isUnauthorized());
 
-        verify(findUserUseCase, never()).findAll();
+        verify(findUserUseCase, never()).findPage(any(), any());
     }
 
     @Test
@@ -390,12 +384,9 @@ class UserControllerTest extends WebMvcTestSupport {
 
         mvc.perform(comBearerReal(get("/api/users"))).andExpect(status().isUnauthorized());
 
-        verify(findUserUseCase, never()).findAll();
+        verify(findUserUseCase, never()).findPage(any(), any());
     }
 
-    /// Banco fora não pode virar 500 cru em toda requisição autenticada — nem
-    /// virar acesso liberado. 503 e não 401 de propósito: o app manda o usuário
-    /// refazer login no 401, e refazer login com o banco fora não resolve nada.
     @Test
     void falhaDeBancoFechaOAcessoSemVirar500() throws Exception {
         when(jwtDecoder.decode(BEARER_REAL))
@@ -406,12 +397,9 @@ class UserControllerTest extends WebMvcTestSupport {
         mvc.perform(comBearerReal(get("/api/users")))
                 .andExpect(status().isServiceUnavailable());
 
-        verify(findUserUseCase, never()).findAll();
+        verify(findUserUseCase, never()).findPage(any(), any());
     }
 
-    /// O contraponto dos três acima: o mesmo caminho de Bearer real, com o papel
-    /// do banco batendo, continua passando. Sem ele, um converter que negasse
-    /// tudo deixaria a suíte verde.
     @Test
     void adminDeVerdadeNoBancoSegueEntrandoPeloTokenReal() throws Exception {
         when(jwtDecoder.decode(BEARER_REAL))
@@ -419,7 +407,8 @@ class UserControllerTest extends WebMvcTestSupport {
         when(userDetailsService.loadUserByUsername("naiara@admin.com")).thenReturn(
                 User.builder().id(ADMIN_ID).email("naiara@admin.com").fullName("Naiara")
                         .role(Role.ADMIN).isActive(true).build());
-        when(findUserUseCase.findAll()).thenReturn(List.of(aluno));
+        when(findUserUseCase.findPage(any(), any()))
+                .thenReturn(new PageImpl<>(List.of(aluno)));
 
         mvc.perform(comBearerReal(get("/api/users"))).andExpect(status().isOk());
     }

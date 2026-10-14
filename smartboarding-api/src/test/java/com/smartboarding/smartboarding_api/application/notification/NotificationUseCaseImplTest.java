@@ -102,9 +102,6 @@ class NotificationUseCaseImplTest {
         verify(notificationRepository, never()).findAll();
     }
 
-    /// O aluno pode estar em mais de uma rota, e precisa ver o aviso de todas --
-    /// perder o aviso de uma delas e perder a informacao que o faz nao aparecer
-    /// no ponto.
     @Test
     void alunoEmDuasRotasVeOsAvisosDasDuas() {
         var studentId = UUID.randomUUID();
@@ -175,7 +172,6 @@ class NotificationUseCaseImplTest {
         verify(notificationRepository).deleteAllById(ids);
     }
 
-    /// Admin vê tudo; aluno vê só o que vale pra rota dele e ainda não expirou.
     @Test
     void adminVeTodosOsAvisos() {
         UUID adminId = UUID.randomUUID();

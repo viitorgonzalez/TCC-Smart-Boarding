@@ -6,6 +6,8 @@
 ## Objetivo
 
 Histórico de fechamentos de lista, com o snapshot dos inscritos e o veículo proposto.
+`MyAttendanceScreen` ("Minhas idas", aluno) é um registro diferente — log pessoal de
+comparecimento (`GET /lists/my-attendance`), não o relatório operacional do admin.
 
 ## Dados & contrato
 

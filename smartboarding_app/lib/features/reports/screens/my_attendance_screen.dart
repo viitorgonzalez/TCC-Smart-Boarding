@@ -7,7 +7,6 @@ import '../../../core/widgets/trip_type_chip.dart';
 import '../../lists/services/list_service.dart';
 import '../models/attendance_model.dart';
 
-/// Log de comparecimento do aluno — o relatório operacional é do admin.
 class MyAttendanceScreen extends StatefulWidget {
   const MyAttendanceScreen({super.key});
 
@@ -93,7 +92,6 @@ class _MyAttendanceScreenState extends State<MyAttendanceScreen> {
     );
   }
 
-  /// Preserva a ordem do backend: do mais recente pro mais antigo.
   List<Widget> _byMonth(List<AttendanceDay> days) {
     final widgets = <Widget>[];
     String? currentKey;
@@ -139,16 +137,12 @@ class _Summary extends StatelessWidget {
     return AppCard(
       child: Row(
         children: [
-          Container(
-            width: 52,
-            height: 52,
-            decoration: const BoxDecoration(
-              color: AppColors.positiveBg,
-              shape: BoxShape.circle,
-            ),
-            child: const Icon(Icons.check, color: AppColors.positiveFg),
+          const Icon(
+            Icons.check_circle_outline,
+            color: AppColors.positiveFg,
+            size: 28,
           ),
-          const SizedBox(width: 16),
+          const SizedBox(width: AppSpacing.lg),
           Expanded(
             child: Column(
               crossAxisAlignment: CrossAxisAlignment.start,
@@ -199,10 +193,8 @@ class _DayTile extends StatelessWidget {
               children: [
                 Text(
                   '${date.day}'.padLeft(2, '0'),
-                  style: const TextStyle(
-                    fontSize: 17,
+                  style: Theme.of(context).textTheme.titleMedium?.copyWith(
                     fontWeight: FontWeight.w800,
-                    color: AppColors.charcoal,
                   ),
                 ),
               ],
@@ -213,14 +205,7 @@ class _DayTile extends StatelessWidget {
             child: Column(
               crossAxisAlignment: CrossAxisAlignment.start,
               children: [
-                Text(
-                  weekday,
-                  style: const TextStyle(
-                    fontSize: 15,
-                    fontWeight: FontWeight.w700,
-                    color: AppColors.charcoal,
-                  ),
-                ),
+                Text(weekday, style: Theme.of(context).textTheme.titleSmall),
                 Text(
                   day.routeName,
                   maxLines: 1,

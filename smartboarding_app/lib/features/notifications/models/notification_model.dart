@@ -1,5 +1,3 @@
-/// Aviso enviado pelo admin. Persistido, então sobrevive ao push — quem estava
-/// offline ou trocou de aparelho continua vendo na caixa de entrada.
 class NotificationModel {
   final String id;
   final String title;

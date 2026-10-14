@@ -1,7 +1,7 @@
 import 'package:flutter/material.dart';
+import 'package:flutter/services.dart';
 import '../theme/app_theme.dart';
 
-/// Rótulo fica **acima** da caixa, não flutuante como o padrão do Material.
 class AppTextField extends StatelessWidget {
   final String label;
   final TextEditingController controller;
@@ -15,14 +15,19 @@ class AppTextField extends StatelessWidget {
   final Widget? suffix;
   final String? Function(String?)? validator;
 
-  /// Campo de codigo entra em caixa alta sozinho: o codigo e normalizado no
-  /// backend de qualquer jeito, mas ver o que se digita igual ao que esta no
-  /// quadro evita a duvida de "sera que precisa ser maiuscula?".
   final TextCapitalization textCapitalization;
 
-  /// Primeiro campo do formulario abre com o teclado pronto: sem isso o usuario
-  /// precisa de um toque a mais so pra comecar a digitar.
   final bool autofocus;
+
+  final List<String>? autofillHints;
+
+  final TextInputAction? textInputAction;
+
+  final List<TextInputFormatter>? inputFormatters;
+
+  final FocusNode? focusNode;
+
+  final VoidCallback? onSubmitted;
 
   const AppTextField({
     super.key,
@@ -39,6 +44,11 @@ class AppTextField extends StatelessWidget {
     this.validator,
     this.textCapitalization = TextCapitalization.none,
     this.autofocus = false,
+    this.autofillHints,
+    this.textInputAction,
+    this.onSubmitted,
+    this.inputFormatters,
+    this.focusNode,
   });
 
   @override
@@ -57,6 +67,8 @@ class AppTextField extends StatelessWidget {
         const SizedBox(height: 8),
         TextFormField(
           controller: controller,
+          focusNode: focusNode,
+          inputFormatters: inputFormatters,
           obscureText: obscureText,
           readOnly: readOnly,
           maxLines: maxLines,
@@ -65,12 +77,14 @@ class AppTextField extends StatelessWidget {
           validator: validator,
           textCapitalization: textCapitalization,
           autofocus: autofocus,
+          autofillHints: autofillHints,
+          textInputAction: textInputAction,
+          onFieldSubmitted: onSubmitted == null ? null : (_) => onSubmitted!(),
           decoration: InputDecoration(
+            counterText: maxLength == null ? null : '',
             hintText: hint,
             prefixIcon: icon == null ? null : Icon(icon),
             suffixIcon: suffix,
-            // O readOnly do desenho (e-mail do convite) fica acinzentado pra
-            // não parecer editável.
             fillColor: readOnly ? AppColors.background : AppColors.surface,
           ),
         ),

@@ -2,8 +2,6 @@ import 'dart:async';
 import 'package:flutter/material.dart';
 import '../../../core/utils/date_format.dart';
 
-/// Contagem regressiva até o fechamento da rota — o horário varia por rota
-/// (RN18), então vem da lista, não é fixo.
 class CloseCountdown extends StatefulWidget {
   final String? closeTime;
   const CloseCountdown({super.key, required this.closeTime});
@@ -34,9 +32,6 @@ class _CloseCountdownState extends State<CloseCountdown> {
     final cs = Theme.of(context).colorScheme;
     final label = formatCloseTime(widget.closeTime);
     final remaining = timeUntilListClose(widget.closeTime);
-    // Sem horário conhecido não dá pra afirmar que encerrou — quem chama só
-    // renderiza este widget quando o horário existe, mas o guard evita que uma
-    // resposta sem o campo vire "fechava às —".
     if (parseTimeOfDay(widget.closeTime) == null) {
       return const SizedBox.shrink();
     }

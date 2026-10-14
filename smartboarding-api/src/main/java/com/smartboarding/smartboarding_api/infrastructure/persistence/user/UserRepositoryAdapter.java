@@ -37,6 +37,16 @@ public class UserRepositoryAdapter implements UserRepositoryPort {
     @Override public long countByInstitutionId(UUID institutionId) { return jpa.countByInstitutionId(institutionId); }
     @Override public java.util.List<User> findByRouteId(UUID routeId) { return jpa.findByRouteId(routeId); }
 
+    @Override public org.springframework.data.domain.Page<User> findPage(
+            org.springframework.data.domain.Pageable pageable) {
+        return jpa.findAll(pageable);
+    }
+
+    @Override public org.springframework.data.domain.Page<User> findPageByRouteId(
+            UUID routeId, org.springframework.data.domain.Pageable pageable) {
+        return jpa.findPageByRouteId(routeId, pageable);
+    }
+
     @Override
     public java.util.Optional<com.smartboarding.smartboarding_api.domain.user.entity.User>
             findByGoogleId(String googleId) {

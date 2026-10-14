@@ -53,8 +53,6 @@ class ListUseCaseImplTest {
                 userRepository, sendToUserUseCase, routeMemberRepository, clockAt(now));
     }
 
-    /// Vincula o aluno a rota. Ate a V22 isso vinha da instituicao; agora e um
-    /// registro em route_members, criado quando ele usa o codigo da rota.
     private void membroDe(UUID userId, UUID... routeIds) {
         when(routeMemberRepository.findAllByUserId(userId)).thenReturn(
                 java.util.Arrays.stream(routeIds)
@@ -71,12 +69,9 @@ class ListUseCaseImplTest {
 
     private UUID stubList(DailyList list) {
         when(dailyListRepository.findById(list.getId())).thenReturn(Optional.of(list));
-        // Aluno da própria rota: isola as regras de horário do guard de rota.
         var studentId = UUID.randomUUID();
-        when(userRepository.findById(any())).thenReturn(Optional.of(User.builder()
-                .id(studentId)
-                .role(com.smartboarding.smartboarding_api.domain.user.entity.Role.STUDENT)
-                .build()));
+        when(userRepository.findById(any()))
+                .thenReturn(Optional.of(alunoCompleto().id(studentId).build()));
         when(routeMemberRepository.findAllByUserId(any())).thenReturn(java.util.List.of(
                 RouteMember.builder().userId(studentId).routeId(list.getRoute().getId()).build()));
         when(listEntryRepository.findByUserIdAndDailyListId(any(), any())).thenReturn(Optional.empty());
@@ -93,7 +88,6 @@ class ListUseCaseImplTest {
                 .id(studentId)
                 .role(com.smartboarding.smartboarding_api.domain.user.entity.Role.STUDENT)
                 .build()));
-        // O aluno e membro de OUTRA rota, nao da rota desta lista.
         when(routeMemberRepository.findAllByUserId(any())).thenReturn(java.util.List.of(
                 RouteMember.builder().userId(studentId).routeId(UUID.randomUUID()).build()));
         var useCase = useCaseAt(LocalTime.of(10, 0));
@@ -200,5 +194,148 @@ class ListUseCaseImplTest {
         assertThatThrownBy(() -> useCase.remove(UUID.randomUUID(), list.getId()))
                 .isInstanceOf(BadRequestException.class);
         verify(listEntryRepository, never()).save(any());
+    }
+
+    private DailyList listaComAluno(User aluno) {
+        var list = listWithCloseTime(LocalTime.of(23, 0), TODAY);
+        when(dailyListRepository.findById(list.getId())).thenReturn(Optional.of(list));
+        when(userRepository.findById(aluno.getId())).thenReturn(Optional.of(aluno));
+        membroDe(aluno.getId(), list.getRoute().getId());
+        when(listEntryRepository.findByUserIdAndDailyListId(any(), any()))
+                .thenReturn(Optional.empty());
+        when(listEntryRepository.save(any())).thenAnswer(inv -> inv.getArgument(0));
+        return list;
+    }
+
+    private static User.UserBuilder alunoCompleto() {
+        return User.builder()
+                .id(UUID.randomUUID())
+                .role(com.smartboarding.smartboarding_api.domain.user.entity.Role.STUDENT)
+                .fullName("Fernanda Lima")
+                .phone("37999990000")
+                .address(com.smartboarding.smartboarding_api.domain.user.entity.Address.builder()
+                        .zipCode("35570-000").street("Av. Dr. Arnaldo de Senna")
+                        .neighborhood("Água Vermelha").streetNumber("328").build())
+                .institutionId(UUID.randomUUID());
+    }
+
+    @Test
+    void perfilCompletoEntraNaLista() {
+        var aluno = alunoCompleto().build();
+        var list = listaComAluno(aluno);
+
+        var entry = useCaseAt(LocalTime.of(8, 0)).add(aluno.getId(), list.getId(), TripType.ROUND_TRIP);
+
+        assertThat(entry.isActive()).isTrue();
+    }
+
+    @Test
+    void perfilSemTelefoneNaoEntra() {
+        var aluno = alunoCompleto().phone(null).build();
+        var list = listaComAluno(aluno);
+
+        assertThatThrownBy(() ->
+                useCaseAt(LocalTime.of(8, 0)).add(aluno.getId(), list.getId(), TripType.ROUND_TRIP))
+                .isInstanceOf(BadRequestException.class)
+                .hasFieldOrPropertyWithValue("code", "PROFILE_INCOMPLETE_FOR_LIST");
+    }
+
+    @Test
+    void perfilSemEnderecoCompletoNaoEntra() {
+        var aluno = alunoCompleto()
+                .address(new com.smartboarding.smartboarding_api.domain.user.entity.Address())
+                .build();
+        var list = listaComAluno(aluno);
+
+        assertThatThrownBy(() ->
+                useCaseAt(LocalTime.of(8, 0)).add(aluno.getId(), list.getId(), TripType.ROUND_TRIP))
+                .isInstanceOf(BadRequestException.class);
+    }
+
+    @Test
+    void perfilSemInstituicaoNaoEntra() {
+        var aluno = alunoCompleto().institutionId(null).build();
+        var list = listaComAluno(aluno);
+
+        assertThatThrownBy(() ->
+                useCaseAt(LocalTime.of(8, 0)).add(aluno.getId(), list.getId(), TripType.ROUND_TRIP))
+                .isInstanceOf(BadRequestException.class);
+    }
+
+    @Test
+    void oErroDizQuaisCamposFaltam() {
+        var aluno = alunoCompleto().phone(null)
+                .address(new com.smartboarding.smartboarding_api.domain.user.entity.Address())
+                .build();
+        var list = listaComAluno(aluno);
+
+        assertThatThrownBy(() ->
+                useCaseAt(LocalTime.of(8, 0)).add(aluno.getId(), list.getId(), TripType.ROUND_TRIP))
+                .isInstanceOf(BadRequestException.class)
+                .extracting(e -> ((BadRequestException) e).getDetails().get("missing"))
+                .isEqualTo(java.util.List.of("phone", "address"));
+    }
+
+    @Test
+    void nascimentoECursoVaziosNaoImpedem() {
+        var aluno = alunoCompleto().birthDate(null).course(null).build();
+        var list = listaComAluno(aluno);
+
+        var entry = useCaseAt(LocalTime.of(8, 0)).add(aluno.getId(), list.getId(), TripType.ROUND_TRIP);
+
+        assertThat(entry).isNotNull();
+    }
+
+    @Test
+    void adminNaoPassaPelaTravaDePerfil() {
+        var admin = User.builder().id(UUID.randomUUID())
+                .role(com.smartboarding.smartboarding_api.domain.user.entity.Role.ADMIN)
+                .fullName("Naiara").build();
+        var list = listaComAluno(admin);
+
+        var entry = useCaseAt(LocalTime.of(8, 0)).add(admin.getId(), list.getId(), TripType.ROUND_TRIP);
+
+        assertThat(entry).isNotNull();
+    }
+
+    @Test
+    void quemJaEstaNaListaAindaTrocaADirecao() {
+        var aluno = alunoCompleto().phone(null).build();
+        var list = listaComAluno(aluno);
+        var existente = ListEntry.builder().user(aluno).dailyList(list)
+                .isActive(true).tripType(TripType.ROUND_TRIP).build();
+        when(listEntryRepository.findByUserIdAndDailyListId(aluno.getId(), list.getId()))
+                .thenReturn(Optional.of(existente));
+
+        var entry = useCaseAt(LocalTime.of(8, 0))
+                .add(aluno.getId(), list.getId(), TripType.TO_CAMPUS);
+
+        assertThat(entry.getTripType()).isEqualTo(TripType.TO_CAMPUS);
+    }
+
+    @Test
+    void reentrarPorContaPropriaLimpaAMarcaDeAdicionadoPeloAdmin() {
+        var aluno = alunoCompleto().build();
+        var list = listaComAluno(aluno);
+        var existente = ListEntry.builder().user(aluno).dailyList(list)
+                .isActive(false).tripType(TripType.ROUND_TRIP).addedByAdmin(true).build();
+        when(listEntryRepository.findByUserIdAndDailyListId(aluno.getId(), list.getId()))
+                .thenReturn(Optional.of(existente));
+
+        var entry = useCaseAt(LocalTime.of(8, 0))
+                .add(aluno.getId(), list.getId(), TripType.ROUND_TRIP);
+
+        assertThat(entry.isAddedByAdmin()).isFalse();
+    }
+
+    @Test
+    void entradaNovaPeloProprioAlunoNaoEMarcadaComoDoAdmin() {
+        var aluno = alunoCompleto().build();
+        var list = listaComAluno(aluno);
+
+        var entry = useCaseAt(LocalTime.of(8, 0))
+                .add(aluno.getId(), list.getId(), TripType.ROUND_TRIP);
+
+        assertThat(entry.isAddedByAdmin()).isFalse();
     }
 }

@@ -1,5 +1,3 @@
-/// Ficha do aluno para o card do admin. Espelha o DTO da API, que manda contato
-/// e nascimento — a senha nunca vem, nem existe campo pra ela aqui.
 class StudentProfile {
   final String id;
   final String fullName;
@@ -50,7 +48,6 @@ class StudentProfile {
 }
 
 class StatusChange {
-  /// `ACTIVATED` ou `DEACTIVATED`.
   final String action;
   final String? adminName;
   final String at;

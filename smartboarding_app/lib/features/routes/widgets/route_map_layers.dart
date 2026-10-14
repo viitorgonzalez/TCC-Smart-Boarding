@@ -5,15 +5,11 @@ import '../../../core/theme/app_theme.dart';
 import '../models/map_stop.dart';
 import 'stop_pin.dart';
 
-/// Camadas do mapa. Fora do widget porque desenhar tile, traçado e pinos é
-/// outro assunto que reagir a toque e enquadrar a câmera.
 TileLayer osmTiles() => TileLayer(
   urlTemplate: 'https://tile.openstreetmap.org/{z}/{x}/{y}.png',
   userAgentPackageName: 'com.smartboarding.smartboarding_app',
 );
 
-/// [roadPath] nulo cai na ligação reta entre as paradas — pontilhada, pra
-/// deixar claro que não é o caminho real por ruas.
 PolylineLayer routePolyline(List<MapStop> stops, List<LatLng>? roadPath) {
   return PolylineLayer(
     polylines: [
@@ -31,8 +27,6 @@ PolylineLayer routePolyline(List<MapStop> stops, List<LatLng>? roadPath) {
   );
 }
 
-/// O pino é ancorado pela ponta, não pelo centro — senão ele aponta pro lado
-/// errado da parada.
 MarkerLayer stopMarkers(
   List<MapStop> stops,
   void Function(MapStop)? onTapStop,

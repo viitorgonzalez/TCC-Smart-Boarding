@@ -7,8 +7,6 @@ import '../../../core/widgets/app_text_field.dart';
 import '../../../core/widgets/loading_filled_button.dart';
 import '../../../core/widgets/snackbar_utils.dart';
 
-/// Cadastro próprio do aluno. A conta nasce sem rota — ele entra numa depois,
-/// com o código que o admin distribui.
 class SignupScreen extends StatefulWidget {
   const SignupScreen({super.key});
 
@@ -44,7 +42,6 @@ class _SignupScreenState extends State<SignupScreen> {
         email: _emailCtrl.text.trim(),
         password: _passCtrl.text,
       );
-      // A API devolve a sessao pronta: o AuthGate reage e leva pra home sozinho.
       if (mounted) Navigator.of(context).popUntil((r) => r.isFirst);
     } catch (e) {
       if (mounted) showErrorSnackBar(context, AppException.fromError(e));
@@ -56,7 +53,7 @@ class _SignupScreenState extends State<SignupScreen> {
   @override
   Widget build(BuildContext context) {
     return Scaffold(
-      backgroundColor: AppColors.ashGrey,
+      backgroundColor: AppColors.background,
       appBar: AppBar(
         backgroundColor: Colors.transparent,
         elevation: 0,
@@ -84,6 +81,8 @@ class _SignupScreenState extends State<SignupScreen> {
                 const SizedBox(height: 28),
                 AppTextField(
                   key: const Key('signup_name_field'),
+                  autofillHints: const [AutofillHints.name],
+                  textInputAction: TextInputAction.next,
                   label: 'Nome completo',
                   controller: _nameCtrl,
                   icon: Icons.person_outline,
@@ -96,6 +95,8 @@ class _SignupScreenState extends State<SignupScreen> {
                 const SizedBox(height: 18),
                 AppTextField(
                   key: const Key('signup_email_field'),
+                  autofillHints: const [AutofillHints.email],
+                  textInputAction: TextInputAction.next,
                   label: 'E-mail',
                   controller: _emailCtrl,
                   icon: Icons.mail_outline,
@@ -103,8 +104,6 @@ class _SignupScreenState extends State<SignupScreen> {
                   validator: (v) {
                     final value = v?.trim() ?? '';
                     if (value.isEmpty) return 'Informe seu e-mail';
-                    // Validacao minima: o formato definitivo quem julga e o
-                    // backend, e duplicar a regra aqui so cria divergencia.
                     if (!value.contains('@') || !value.contains('.')) {
                       return 'E-mail inválido';
                     }
@@ -114,6 +113,8 @@ class _SignupScreenState extends State<SignupScreen> {
                 const SizedBox(height: 18),
                 AppTextField(
                   key: const Key('signup_password_field'),
+                  autofillHints: const [AutofillHints.newPassword],
+                  textInputAction: TextInputAction.next,
                   label: 'Senha',
                   controller: _passCtrl,
                   icon: Icons.lock_outline,
@@ -128,8 +129,6 @@ class _SignupScreenState extends State<SignupScreen> {
                     onPressed: () =>
                         setState(() => _obscureSenha = !_obscureSenha),
                   ),
-                  // RN10: o backend recusa abaixo de 6, entao avisar aqui evita
-                  // uma ida ao servidor so pra levar erro.
                   validator: (v) => (v == null || v.length < 6)
                       ? 'Mínimo de 6 caracteres'
                       : null,
@@ -137,6 +136,9 @@ class _SignupScreenState extends State<SignupScreen> {
                 const SizedBox(height: 18),
                 AppTextField(
                   key: const Key('signup_confirm_field'),
+                  autofillHints: const [AutofillHints.newPassword],
+                  textInputAction: TextInputAction.done,
+                  onSubmitted: _submit,
                   label: 'Confirmar senha',
                   controller: _confirmCtrl,
                   icon: Icons.lock_outline,

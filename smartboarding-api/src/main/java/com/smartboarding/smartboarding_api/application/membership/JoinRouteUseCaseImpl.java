@@ -5,8 +5,14 @@ import com.smartboarding.smartboarding_api.domain.membership.entity.RouteMember;
 import com.smartboarding.smartboarding_api.domain.membership.port.in.JoinRouteUseCase;
 import com.smartboarding.smartboarding_api.domain.membership.port.out.RouteInviteCodeRepositoryPort;
 import com.smartboarding.smartboarding_api.domain.membership.port.out.RouteMemberRepositoryPort;
+import com.smartboarding.smartboarding_api.domain.institution.entity.Institution;
+import com.smartboarding.smartboarding_api.domain.institution.port.out.InstitutionRepositoryPort;
+import com.smartboarding.smartboarding_api.domain.membership.entity.UserInstitution;
+import com.smartboarding.smartboarding_api.domain.route.entity.Route;
+import com.smartboarding.smartboarding_api.domain.route.port.out.RouteRepositoryPort;
 import com.smartboarding.smartboarding_api.domain.membership.port.out.UserInstitutionRepositoryPort;
 import com.smartboarding.smartboarding_api.shared.exception.BadRequestException;
+import com.smartboarding.smartboarding_api.shared.exception.NotFoundException;
 import com.smartboarding.smartboarding_api.shared.exception.ConflictException;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.stereotype.Service;
@@ -15,6 +21,8 @@ import org.springframework.transaction.annotation.Transactional;
 import java.time.Clock;
 import java.time.LocalDateTime;
 import java.util.List;
+import java.util.Set;
+import java.util.stream.Collectors;
 import java.util.UUID;
 
 @Slf4j
@@ -24,44 +32,67 @@ public class JoinRouteUseCaseImpl implements JoinRouteUseCase {
     private final RouteInviteCodeRepositoryPort codeRepository;
     private final RouteMemberRepositoryPort memberRepository;
     private final UserInstitutionRepositoryPort userInstitutionRepository;
+    private final InstitutionRepositoryPort institutionRepository;
+    private final RouteRepositoryPort routeRepository;
     private final Clock clock;
 
     public JoinRouteUseCaseImpl(RouteInviteCodeRepositoryPort codeRepository,
                                 RouteMemberRepositoryPort memberRepository,
                                 UserInstitutionRepositoryPort userInstitutionRepository,
+                                InstitutionRepositoryPort institutionRepository,
+                                RouteRepositoryPort routeRepository,
                                 Clock clock) {
         this.codeRepository = codeRepository;
         this.memberRepository = memberRepository;
         this.userInstitutionRepository = userInstitutionRepository;
+        this.institutionRepository = institutionRepository;
+        this.routeRepository = routeRepository;
         this.clock = clock;
+    }
+
+    private void conferirInstituicao(UUID routeId, List<UserInstitution> minhas) {
+        Route rota = routeRepository.findById(routeId)
+                .orElseThrow(() -> new NotFoundException("Rota não encontrada"));
+
+        if (minhas.isEmpty()) {
+            if (rota.isAdmitsNoInstitution()) return;
+            throw new BadRequestException("PROFILE_INCOMPLETE",
+                    "Defina sua instituição no perfil antes de entrar em uma rota.");
+        }
+
+        Set<UUID> atendidas = institutionRepository.findAll().stream()
+                .filter(i -> routeId.equals(i.getRouteId()))
+                .map(Institution::getId)
+                .collect(Collectors.toSet());
+
+        if (atendidas.isEmpty()) {
+            throw new BadRequestException("ROUTE_WITHOUT_INSTITUTION",
+                    "Essa rota ainda não atende nenhuma instituição. Fale com o administrador.");
+        }
+
+        boolean alguma = minhas.stream()
+                .anyMatch(i -> atendidas.contains(i.getInstitutionId()));
+        if (!alguma) {
+            throw new BadRequestException("INSTITUTION_NOT_SERVED",
+                    "Essa rota não atende a sua instituição. Confira o perfil ou "
+                            + "peça o código da rota certa.");
+        }
     }
 
     @Override
     @Transactional
     public RouteMember join(UUID userId, String code) {
-        // Normaliza porque o código é digitado à mão: espaço colado e minúscula
-        // são erro de digitação, não código errado.
         String normalized = code == null ? "" : code.trim().toUpperCase();
         if (normalized.isEmpty()) {
             throw new BadRequestException("INVALID_CODE", "Informe o código da rota.");
         }
 
-        // A instituicao e o que diz onde o aluno desce e em que contagem ele
-        // entra. Deixar entrar sem ela poria na lista alguem que o motorista nao
-        // sabe onde deixar.
-        if (userInstitutionRepository.findAllByUserId(userId).isEmpty()) {
-            throw new BadRequestException("PROFILE_INCOMPLETE",
-                    "Defina sua instituição no perfil antes de entrar em uma rota.");
-        }
-
+        var minhasInstituicoes = userInstitutionRepository.findAllByUserId(userId);
         RouteInviteCode invite = codeRepository.findByCode(normalized)
                 .orElseThrow(() -> new BadRequestException("INVALID_CODE",
                         "Código inválido."));
 
         LocalDateTime now = LocalDateTime.now(clock);
-        // Expirado e revogado viram mensagens diferentes de propósito: o aluno
-        // precisa saber se pede um código novo ou se errou a digitação. O código
-        // não é dado pessoal, então distinguir não entrega nada a ninguém.
         if (invite.isRevoked()) {
             throw new BadRequestException("CODE_REVOKED",
                     "Esse código foi cancelado. Peça um novo ao administrador.");
@@ -73,6 +104,19 @@ public class JoinRouteUseCaseImpl implements JoinRouteUseCase {
 
         if (memberRepository.existsByUserIdAndRouteId(userId, invite.getRouteId())) {
             throw new ConflictException("ALREADY_MEMBER", "Você já está nessa rota.");
+        }
+
+        conferirInstituicao(invite.getRouteId(), minhasInstituicoes);
+
+        UUID exigida = invite.getInstitutionId();
+        if (exigida != null
+                && minhasInstituicoes.stream().noneMatch(i -> exigida.equals(i.getInstitutionId()))) {
+            String nome = institutionRepository.findById(exigida)
+                    .map(Institution::getName)
+                    .orElse("outra instituição");
+            throw new BadRequestException("INSTITUTION_MISMATCH",
+                    "Esse código é só para alunos de " + nome
+                            + ". Adicione essa instituição no seu perfil ou peça outro código.");
         }
 
         RouteMember saved = memberRepository.save(RouteMember.builder()

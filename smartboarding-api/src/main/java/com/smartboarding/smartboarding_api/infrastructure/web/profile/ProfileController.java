@@ -1,10 +1,23 @@
 package com.smartboarding.smartboarding_api.infrastructure.web.profile;
 
 import com.smartboarding.smartboarding_api.domain.profile.entity.ProfileUpdateRequest;
+import com.smartboarding.smartboarding_api.domain.emailchange.port.in.ConfirmEmailChangeUseCase;
+import com.smartboarding.smartboarding_api.domain.emailchange.port.in.RequestEmailChangeUseCase;
+import com.smartboarding.smartboarding_api.domain.institution.entity.Institution;
+import com.smartboarding.smartboarding_api.domain.institution.port.out.InstitutionRepositoryPort;
 import com.smartboarding.smartboarding_api.domain.membership.port.in.ManageUserInstitutionsUseCase;
 import com.smartboarding.smartboarding_api.domain.profile.port.in.ManageProfileUpdateUseCase;
+import com.smartboarding.smartboarding_api.domain.user.port.in.ChangePasswordUseCase;
 import com.smartboarding.smartboarding_api.domain.user.port.in.SetLocalPasswordUseCase;
+import com.smartboarding.smartboarding_api.domain.user.port.in.UpdateAddressUseCase;
+import com.smartboarding.smartboarding_api.domain.user.port.in.UpdateOwnProfileUseCase;
+import com.smartboarding.smartboarding_api.infrastructure.web.user.dto.ChangePasswordRequest;
+import com.smartboarding.smartboarding_api.infrastructure.web.user.dto.AddressResponse;
+import com.smartboarding.smartboarding_api.infrastructure.web.user.dto.ConfirmEmailChangeRequest;
+import com.smartboarding.smartboarding_api.infrastructure.web.user.dto.RequestEmailChangeRequest;
 import com.smartboarding.smartboarding_api.infrastructure.web.user.dto.SetPasswordRequest;
+import com.smartboarding.smartboarding_api.infrastructure.web.user.dto.UpdateAddressRequest;
+import com.smartboarding.smartboarding_api.infrastructure.web.user.dto.UpdateOwnProfileRequest;
 import com.smartboarding.smartboarding_api.domain.user.entity.User;
 import com.smartboarding.smartboarding_api.domain.user.port.out.UserRepositoryPort;
 import com.smartboarding.smartboarding_api.infrastructure.web.profile.dto.MeResponse;
@@ -24,10 +37,6 @@ import java.util.Map;
 import java.util.UUID;
 import java.util.stream.Collectors;
 
-/// Perfil do próprio usuário e a fila de solicitações.
-///
-/// O id sempre sai do token: aceitar userId do request deixaria um aluno pedir
-/// alteração no perfil de outro.
 @RestController
 @RequestMapping("/api")
 public class ProfileController {
@@ -36,15 +45,33 @@ public class ProfileController {
     private final UserRepositoryPort userRepository;
     private final ManageUserInstitutionsUseCase userInstitutionsUseCase;
     private final SetLocalPasswordUseCase setLocalPasswordUseCase;
+    private final ChangePasswordUseCase changePasswordUseCase;
+    private final UpdateAddressUseCase updateAddressUseCase;
+    private final UpdateOwnProfileUseCase updateOwnProfileUseCase;
+    private final InstitutionRepositoryPort institutionRepository;
+    private final RequestEmailChangeUseCase requestEmailChangeUseCase;
+    private final ConfirmEmailChangeUseCase confirmEmailChangeUseCase;
 
     public ProfileController(ManageProfileUpdateUseCase useCase,
                              UserRepositoryPort userRepository,
                              ManageUserInstitutionsUseCase userInstitutionsUseCase,
-                             SetLocalPasswordUseCase setLocalPasswordUseCase) {
+                             SetLocalPasswordUseCase setLocalPasswordUseCase,
+                             ChangePasswordUseCase changePasswordUseCase,
+                             UpdateAddressUseCase updateAddressUseCase,
+                             UpdateOwnProfileUseCase updateOwnProfileUseCase,
+                             InstitutionRepositoryPort institutionRepository,
+                             RequestEmailChangeUseCase requestEmailChangeUseCase,
+                             ConfirmEmailChangeUseCase confirmEmailChangeUseCase) {
         this.useCase = useCase;
         this.userRepository = userRepository;
         this.userInstitutionsUseCase = userInstitutionsUseCase;
         this.setLocalPasswordUseCase = setLocalPasswordUseCase;
+        this.changePasswordUseCase = changePasswordUseCase;
+        this.updateAddressUseCase = updateAddressUseCase;
+        this.updateOwnProfileUseCase = updateOwnProfileUseCase;
+        this.institutionRepository = institutionRepository;
+        this.requestEmailChangeUseCase = requestEmailChangeUseCase;
+        this.confirmEmailChangeUseCase = confirmEmailChangeUseCase;
     }
 
     @PostMapping("/me/profile-requests")
@@ -52,31 +79,43 @@ public class ProfileController {
             @RequestBody @Valid ProfileUpdateRequestDto body, Authentication auth) {
         User me = me(auth);
         var saved = useCase.request(me.getId(), ProfileUpdateRequest.builder()
-                .fullName(body.fullName()).phone(body.phone()).address(body.address())
-                .course(body.course()).institutionId(body.institutionId())
-                .birthDate(body.birthDate()).build());
+                .fullName(body.fullName())
+                .institutionId(body.institutionId())
+                .birthDate(body.birthDate())
+                .phone(body.phone())
+                .course(body.course())
+                .structuredAddress(body.addressOrNull())
+                .build());
         return ResponseEntity.status(HttpStatus.CREATED)
-                .body(ApiResponse.data(ProfileUpdateResponse.from(saved, me.getFullName())));
+                .body(ApiResponse.data(ProfileUpdateResponse.from(saved, me)));
     }
 
-    /// Pendente do próprio aluno — a tela mostra "em análise" em vez de deixar
-    /// ele reenviar e tomar 409.
     @GetMapping("/me/profile-requests/pending")
     public ResponseEntity<ApiResponse<ProfileUpdateResponse>> myPending(Authentication auth) {
         User me = me(auth);
         return ResponseEntity.ok(ApiResponse.data(useCase.myPending(me.getId())
-                .map(r -> ProfileUpdateResponse.from(r, me.getFullName()))
+                .map(r -> ProfileUpdateResponse.from(r, me))
                 .orElse(null)));
     }
 
     @GetMapping("/profile-requests")
     public ResponseEntity<ApiResponse<List<ProfileUpdateResponse>>> pending() {
         var pedidos = useCase.listPending();
-        // Um mapa so com os alunos da fila -- um findById por linha viraria N+1.
-        Map<UUID, String> nomes = userRepository.findAll().stream()
-                .collect(Collectors.toMap(User::getId, User::getFullName));
+        Map<UUID, User> usuarios = userRepository.findAll().stream()
+                .collect(Collectors.toMap(User::getId, u -> u));
         return ResponseEntity.ok(ApiResponse.data(pedidos.stream()
-                .map(r -> ProfileUpdateResponse.from(r, nomes.get(r.getUserId())))
+                .map(r -> ProfileUpdateResponse.from(r, usuarios.get(r.getUserId())))
+                .toList()));
+    }
+
+    @GetMapping("/profile-requests/all")
+    public ResponseEntity<ApiResponse<List<ProfileUpdateResponse>>> all(
+            @RequestParam(required = false) String status) {
+        var pedidos = useCase.listAll(status);
+        Map<UUID, User> usuarios = userRepository.findAll().stream()
+                .collect(Collectors.toMap(User::getId, u -> u));
+        return ResponseEntity.ok(ApiResponse.data(pedidos.stream()
+                .map(r -> ProfileUpdateResponse.from(r, usuarios.get(r.getUserId())))
                 .toList()));
     }
 
@@ -94,8 +133,6 @@ public class ProfileController {
         return ResponseEntity.ok(ApiResponse.success());
     }
 
-    /// Instituições do próprio aluno. É pré-requisito pra entrar em rota, então
-    /// mora aqui e não na tela de admin.
     @GetMapping("/me/institutions")
     public ResponseEntity<ApiResponse<List<UUID>>> myInstitutions(Authentication auth) {
         return ResponseEntity.ok(ApiResponse.data(
@@ -116,27 +153,67 @@ public class ProfileController {
         return ResponseEntity.ok(ApiResponse.success());
     }
 
-    /// Último pedido, em qualquer estado -- é por aqui que a recusa e o motivo
-    /// chegam ao aluno.
     @GetMapping("/me/profile-requests/latest")
     public ResponseEntity<ApiResponse<ProfileUpdateResponse>> myLatest(Authentication auth) {
         User me = me(auth);
         return ResponseEntity.ok(ApiResponse.data(useCase.myLatest(me.getId())
-                .map(r -> ProfileUpdateResponse.from(r, me.getFullName())).orElse(null)));
+                .map(r -> ProfileUpdateResponse.from(r, me)).orElse(null)));
     }
 
     @GetMapping("/me")
     public ResponseEntity<ApiResponse<MeResponse>> meInfo(Authentication auth) {
-        return ResponseEntity.ok(ApiResponse.data(MeResponse.from(me(auth))));
+        return ResponseEntity.ok(ApiResponse.data(comInstituicao(me(auth))));
     }
 
-    /// Define a senha local de quem entrou pelo Google. A partir daí ele entra
-    /// pelos dois caminhos.
+    private MeResponse comInstituicao(User user) {
+        String nome = user.getInstitutionId() == null ? null
+                : institutionRepository.findById(user.getInstitutionId())
+                        .map(Institution::getName).orElse(null);
+        return MeResponse.from(user, nome);
+    }
+
     @PostMapping("/me/password")
     public ResponseEntity<ApiResponse<?>> setPassword(
             @RequestBody @Valid SetPasswordRequest body, Authentication auth) {
         setLocalPasswordUseCase.setPassword(me(auth).getId(), body.password());
         return ResponseEntity.ok(ApiResponse.success());
+    }
+
+    @PutMapping("/me/password")
+    public ResponseEntity<ApiResponse<?>> changePassword(
+            @RequestBody @Valid ChangePasswordRequest body, Authentication auth) {
+        changePasswordUseCase.changePassword(
+                me(auth).getId(), body.currentPassword(), body.newPassword());
+        return ResponseEntity.ok(ApiResponse.success());
+    }
+
+    @PostMapping("/me/email/request")
+    public ResponseEntity<ApiResponse<?>> requestEmailChange(
+            @RequestBody @Valid RequestEmailChangeRequest body, Authentication auth) {
+        requestEmailChangeUseCase.request(me(auth).getId(), body.newEmail());
+        return ResponseEntity.ok(ApiResponse.success());
+    }
+
+    @PostMapping("/me/email/confirm")
+    public ResponseEntity<ApiResponse<?>> confirmEmailChange(
+            @RequestBody @Valid ConfirmEmailChangeRequest body, Authentication auth) {
+        confirmEmailChangeUseCase.confirm(me(auth).getId(), body.code());
+        return ResponseEntity.ok(ApiResponse.success());
+    }
+
+    @PutMapping("/me/address")
+    public ResponseEntity<ApiResponse<AddressResponse>> updateAddress(
+            @RequestBody @Valid UpdateAddressRequest body, Authentication auth) {
+        var salvo = updateAddressUseCase.update(me(auth).getId(), body.toDomain());
+        return ResponseEntity.ok(ApiResponse.data(AddressResponse.from(salvo)));
+    }
+
+    @PutMapping("/me/profile")
+    public ResponseEntity<ApiResponse<MeResponse>> updateOwnProfile(
+            @RequestBody @Valid UpdateOwnProfileRequest body, Authentication auth) {
+        User me = me(auth);
+        updateOwnProfileUseCase.update(me.getId(), body.phone(), body.course());
+        return ResponseEntity.ok(ApiResponse.data(comInstituicao(me(auth))));
     }
 
     private User me(Authentication auth) {

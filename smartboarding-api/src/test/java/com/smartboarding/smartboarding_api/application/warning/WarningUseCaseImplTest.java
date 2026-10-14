@@ -53,7 +53,6 @@ class WarningUseCaseImplTest {
 
         Route route = Route.builder().id(UUID.randomUUID()).name("Rota X")
                 .closeTime(LocalTime.of(16, 0)).build();
-        // Lista já fechada de propósito: é o caso que o caminho do admin existe pra atender.
         DailyList closed = DailyList.builder().id(LIST_ID).route(route)
                 .date(LocalDate.of(2026, 8, 28)).status(ListStatus.CLOSED).build();
         User student = User.builder().id(STUDENT_ID).fullName("Aluno Teste").build();
@@ -74,6 +73,28 @@ class WarningUseCaseImplTest {
 
         assertThat(saved.isActive()).isTrue();
         verify(warningRepository, never()).save(any());
+    }
+
+    @Test
+    void inclusaoPeloAdminMarcaAEntradaComoAdicionadaPeloAdmin() {
+        ListEntry saved = useCase.enroll(LIST_ID, STUDENT_ID, TripType.ROUND_TRIP,
+                false, null, ADMIN_ID);
+
+        assertThat(saved.isAddedByAdmin()).isTrue();
+    }
+
+    @Test
+    void reativarEntradaExistentePeloAdminTambemMarca() {
+        ListEntry existente = ListEntry.builder()
+                .user(User.builder().id(STUDENT_ID).build())
+                .isActive(false).addedByAdmin(false).build();
+        when(listEntryRepository.findByUserIdAndDailyListId(STUDENT_ID, LIST_ID))
+                .thenReturn(Optional.of(existente));
+
+        ListEntry saved = useCase.enroll(LIST_ID, STUDENT_ID, TripType.ROUND_TRIP,
+                false, null, ADMIN_ID);
+
+        assertThat(saved.isAddedByAdmin()).isTrue();
     }
 
     @Test
@@ -114,5 +135,23 @@ class WarningUseCaseImplTest {
 
         assertThat(saved.isActive()).isTrue();
         verify(warningRepository).save(any());
+    }
+
+    @Test
+    void inclusaoPeloAdminNaoExigePerfilCompleto() {
+        UUID semPerfil = UUID.randomUUID();
+        when(userRepository.findById(semPerfil)).thenReturn(Optional.of(
+                User.builder().id(semPerfil).fullName("Sem Cadastro")
+                        .role(com.smartboarding.smartboarding_api.domain.user.entity.Role.STUDENT)
+                        .build()));
+        when(listEntryRepository.findByUserIdAndDailyListId(semPerfil, LIST_ID))
+                .thenReturn(Optional.empty());
+
+        ListEntry entry = useCase.enroll(LIST_ID, semPerfil, TripType.ROUND_TRIP,
+                false, null, ADMIN_ID);
+
+        assertThat(entry.isActive()).isTrue();
+        assertThat(entry.getUser().missingForList())
+                .containsExactly("phone", "address", "institution");
     }
 }

@@ -8,27 +8,24 @@ class DailyList {
   final String status;
   final int totalEntries;
 
-  /// Inscrição do usuário logado nesta lista (preenchido pela API em /lists).
   final bool enrolled;
   final String? tripType;
 
-  /// Horário de fechamento da rota ("16:00:00"). Varia por rota (RN18).
   final String? closeTime;
 
-  /// Divisão dos inscritos por instituição — uma rota atende várias (RN15).
   final List<InstitutionCount> entriesByInstitution;
 
-  /// Transporte que atende a rota. Capacidade é informação, não teto.
   final List<VehicleSummary> vehicles;
 
-  /// Veículo escolhido no fechamento pelo total de confirmados (RN16).
   final List<VehicleSummary> proposedVehicles;
 
-  /// Inscritos sem lugar na frota. 0 = a frota cobre todo mundo.
   final int capacityShortfall;
 
-  /// Paradas da rota, na ordem — vêm junto pra o card desenhar o trajeto.
   final List<StopPoint> stops;
+
+  final bool tripInProgress;
+
+  final MyTripTime? myTripTime;
 
   const DailyList({
     required this.id,
@@ -37,6 +34,8 @@ class DailyList {
     required this.date,
     required this.status,
     required this.totalEntries,
+    this.tripInProgress = false,
+    this.myTripTime,
     this.enrolled = false,
     this.tripType,
     this.closeTime,
@@ -71,16 +70,15 @@ class DailyList {
       stops: (json['stops'] as List? ?? const [])
           .map((e) => StopPoint.fromJson(e as Map<String, dynamic>))
           .toList(),
+      tripInProgress: json['tripInProgress'] as bool? ?? false,
+      myTripTime: json['myTripTime'] == null
+          ? null
+          : MyTripTime.fromJson(json['myTripTime'] as Map<String, dynamic>),
     );
   }
 
   bool get isOpen => status == 'OPEN';
 
-  /// Ainda dá pra entrar ou sair. A lista só vira CLOSED na próxima varredura
-  /// (até 5 min depois do horário), então olhar só o status deixaria o botão
-  /// vivo nessa janela e o toque morreria em 400 LIST_CLOSED.
-  ///
-  /// Horário desconhecido não é horário vencido: sem closeTime, vale o status.
   bool get acceptsChanges {
     if (!isOpen) return false;
     if (parseTimeOfDay(closeTime) == null) return true;
@@ -133,5 +131,24 @@ class StopPoint {
     sequence: json['sequence'] as int,
     latitude: (json['latitude'] as num?)?.toDouble(),
     longitude: (json['longitude'] as num?)?.toDouble(),
+  );
+}
+
+class MyTripTime {
+  final String stopName;
+  final int avgMinutes;
+
+  final bool fallback;
+
+  const MyTripTime({
+    required this.stopName,
+    required this.avgMinutes,
+    this.fallback = false,
+  });
+
+  factory MyTripTime.fromJson(Map<String, dynamic> json) => MyTripTime(
+    stopName: json['stopName'] as String,
+    avgMinutes: json['avgMinutes'] as int,
+    fallback: json['fallback'] as bool? ?? false,
   );
 }

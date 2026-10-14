@@ -54,8 +54,6 @@ public class AuthController {
         return ResponseEntity.ok(ApiResponse.data(LoginResponse.from(token)));
     }
 
-    /// Cadastro proprio do aluno. Publico: e o caminho de entrada de quem ainda
-    /// nao tem conta. A conta nasce sem rota -- o acesso vem depois, pelo codigo.
     @PostMapping("/signup")
     public ResponseEntity<ApiResponse<LoginResponse>> signup(@RequestBody @Valid SignupRequest request) {
         User created = signupUseCase.signup(User.builder()
@@ -63,18 +61,11 @@ public class AuthController {
                 .fullName(request.fullName())
                 .build(), request.password());
 
-        // Ja devolve a sessao: obrigar o aluno a digitar de novo o que acabou de
-        // digitar e atrito sem ganho nenhum.
         AuthToken token = loginUseCase.execute(created.getEmail(), request.password());
         return ResponseEntity.status(HttpStatus.CREATED).body(ApiResponse.data(
                 LoginResponse.from(token)));
     }
 
-    /// Entrar com Google. Publico: e um caminho de entrada, como o login.
-    ///
-    /// Devolve o MESMO tipo de sessao do login por senha -- pro resto do app o
-    /// caminho de entrada e irrelevante, e tratar diferente criaria dois tipos
-    /// de sessao pra manter em sincronia.
     @PostMapping("/google")
     public ResponseEntity<ApiResponse<LoginResponse>> google(
             @RequestBody @Valid GoogleSignInRequest request) {
@@ -84,7 +75,6 @@ public class AuthController {
                 LoginResponse.from(token)));
     }
 
-    /// Responde igual havendo conta ou não (RN22) -- por isso não devolve dado nenhum.
     @PostMapping("/forgot-password")
     public ResponseEntity<ApiResponse<?>> forgotPassword(@RequestBody @Valid ForgotPasswordRequest request) {
         requestPasswordResetUseCase.request(request.email());

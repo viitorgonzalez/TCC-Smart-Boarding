@@ -23,7 +23,13 @@ precisa aprovar ninguém pra isso acontecer.
 Só três campos. Instituição, curso, telefone e endereço ficam pro perfil: pedir tudo
 na primeira tela afasta quem só quer ver se o app serve pra ele.
 
-- Senha: mínimo 6 caracteres (RN10), confirmação obrigatória na tela.
+- Senha: mínimo 6 caracteres (RN10), confirmação obrigatória na tela. Validado também no
+  formulário (o backend recusa abaixo de 6 e não vale a ida ao servidor só pra levar erro) —
+  mas o formato final de e-mail e demais regras são julgados pelo backend; a validação no
+  formulário é só a mínima (ex.: tem `@` e `.`), pra não duplicar regra e divergir dela com o
+  tempo. Senha e confirmação têm botões de "mostrar" **independentes**: um toggle só revelando
+  os dois campos faria quem só queria conferir o que digitou acabar expondo a outra senha sem
+  querer.
 - E-mail duplicado → `409`. **Sem anti-enumeração aqui, de propósito**: o cadastro
   precisa dizer "esse e-mail já tem conta", senão a pessoa não sabe que deve entrar
   em vez de cadastrar. O login e o "esqueci a senha" continuam anti-enumeração.
@@ -34,6 +40,12 @@ na primeira tela afasta quem só quer ver se o app serve pra ele.
 devolve a mesma sessão. Quem entrou assim pode criar uma senha local depois
 (`POST /api/me/password`) e passa a ter os dois caminhos. Requer a build com
 `--dart-define=GOOGLE_WEB_CLIENT_ID`; sem ele o botão não aparece.
+
+- Cancelar a escolha de conta no seletor do Google não é erro: `AuthProvider.signInWithGoogle`
+  devolve `false` nesse caso, e a tela não deve mostrar mensagem de erro.
+- Logout também desconecta do Google (`signOut` do plugin), não só da sessão da API — sem
+  isso, o próximo "Entrar com Google" reentraria sozinho na conta anterior, sem abrir o
+  seletor de contas.
 
 ### 2. Perfil — pré-requisito
 

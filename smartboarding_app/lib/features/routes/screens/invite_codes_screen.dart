@@ -1,0 +1,279 @@
+import 'package:flutter/services.dart';
+import 'package:flutter/material.dart';
+
+import '../../../core/errors/app_exception.dart';
+import '../../../core/widgets/option_sheet.dart';
+import '../../../core/widgets/snackbar_utils.dart';
+import '../../institutions/models/institution_model.dart';
+import '../../institutions/services/institution_service.dart';
+import '../models/invite_code_model.dart';
+import '../models/route_model.dart';
+import '../services/route_service.dart';
+import '../widgets/invite_codes_app_bar.dart';
+import '../widgets/invite_codes_list.dart';
+import '../widgets/invite_codes_states.dart';
+import '../../../core/text/plural.dart';
+
+class InviteCodesScreen extends StatefulWidget {
+  final List<RouteModel> routes;
+
+  const InviteCodesScreen({super.key, required this.routes});
+
+  @override
+  State<InviteCodesScreen> createState() => _InviteCodesScreenState();
+}
+
+class _InviteCodesScreenState extends State<InviteCodesScreen> {
+  final _service = RouteService();
+  final _catalogo = InstitutionService();
+
+  List<InviteCode> _codes = const [];
+  bool _carregando = true;
+  bool _ocupado = false;
+
+  final Set<String> _marcados = {};
+  bool _selecionando = false;
+
+  String? _rotaFiltro;
+
+  List<InviteCode> get _visiveis => _rotaFiltro == null
+      ? _codes
+      : _codes.where((c) => c.routeId == _rotaFiltro).toList();
+
+  @override
+  void initState() {
+    super.initState();
+    _load();
+  }
+
+  Future<void> _load() async {
+    try {
+      final codes = await _service.getAllInviteCodes();
+      if (mounted) setState(() => _codes = codes);
+    } catch (e) {
+      if (mounted) showErrorSnackBar(context, AppException.fromError(e));
+    } finally {
+      if (mounted) setState(() => _carregando = false);
+    }
+  }
+
+  Future<void> _gerar() async {
+    final rota = widget.routes.length == 1
+        ? widget.routes.single
+        : await escolherOpcao<RouteModel>(context, 'Para qual rota?', [
+            for (final r in widget.routes) (r.name, '', r),
+          ]);
+    if (rota == null || !mounted) return;
+
+    final validade = await escolherOpcao<CodeValidity>(
+      context,
+      'Por quanto tempo o código vale?',
+      [for (final v in CodeValidity.values) (v.label, '', v)],
+    );
+    if (validade == null || !mounted) return;
+
+    List<InstitutionModel> instituicoes;
+    try {
+      instituicoes = await _catalogo.getInstitutions();
+    } catch (e) {
+      if (mounted) showErrorSnackBar(context, AppException.fromError(e));
+      return;
+    }
+    if (!mounted) return;
+
+    final instituicao =
+        await escolherOpcao<String>(context, 'Quem pode usar esse código?', [
+          (
+            'Qualquer instituição',
+            'Vale pra aluno de qualquer instituição cadastrada no app',
+            '',
+          ),
+          for (final i in instituicoes)
+            (i.name, 'Só alunos dessa instituição', i.id),
+        ]);
+    if (instituicao == null || !mounted) return;
+
+    setState(() => _ocupado = true);
+    try {
+      final novo = await _service.generateInviteCode(
+        rota.id,
+        expiresAt: validade.expiresFrom(DateTime.now()),
+        institutionId: instituicao.isEmpty ? null : instituicao,
+      );
+      await Clipboard.setData(ClipboardData(text: novo.code));
+      await _load();
+      if (mounted) {
+        showSuccessSnackBar(context, 'Código ${novo.code} criado e copiado');
+      }
+    } catch (e) {
+      if (mounted) showErrorSnackBar(context, AppException.fromError(e));
+    } finally {
+      if (mounted) setState(() => _ocupado = false);
+    }
+  }
+
+  void _alternarSelecao(String id) {
+    setState(() {
+      if (!_marcados.remove(id)) _marcados.add(id);
+      if (_marcados.isEmpty) _selecionando = false;
+    });
+  }
+
+  void _entrarNaSelecao(String id) {
+    setState(() {
+      _selecionando = true;
+      _marcados.add(id);
+    });
+  }
+
+  void _sairDaSelecao() {
+    setState(() {
+      _selecionando = false;
+      _marcados.clear();
+    });
+  }
+
+  void _marcarInutilizaveis() {
+    setState(() {
+      _selecionando = true;
+      _marcados
+        ..clear()
+        ..addAll(_visiveis.where((c) => !c.usable).map((c) => c.id));
+      if (_marcados.isEmpty) _selecionando = false;
+    });
+  }
+
+  Future<void> _apagarMarcados() async {
+    final quantos = _marcados.length;
+    final ok = await showDialog<bool>(
+      context: context,
+      builder: (ctx) => AlertDialog(
+        title: Text(
+          quantos == 1 ? 'Apagar este código?' : 'Apagar $quantos códigos?',
+        ),
+        content: const Text(
+          'Eles somem desta tela. Quem já entrou continua na rota, e o '
+          'relatório mantém por onde cada aluno chegou.',
+        ),
+        actions: [
+          TextButton(
+            onPressed: () => Navigator.pop(ctx, false),
+            child: const Text('Voltar'),
+          ),
+          FilledButton(
+            key: const Key('confirm_archive'),
+            onPressed: () => Navigator.pop(ctx, true),
+            child: const Text('Apagar'),
+          ),
+        ],
+      ),
+    );
+    if (!(ok ?? false) || !mounted) return;
+
+    setState(() => _ocupado = true);
+    try {
+      await _service.archiveInviteCodes(_marcados.toList());
+      _sairDaSelecao();
+      await _load();
+      if (mounted) {
+        showSuccessSnackBar(
+          context,
+          contagem(quantos, 'código apagado', 'códigos apagados'),
+        );
+      }
+    } catch (e) {
+      if (mounted) showErrorSnackBar(context, AppException.fromError(e));
+    } finally {
+      if (mounted) setState(() => _ocupado = false);
+    }
+  }
+
+  Future<void> _revogar(InviteCode code) async {
+    final ok = await showDialog<bool>(
+      context: context,
+      builder: (ctx) => AlertDialog(
+        title: const Text('Cancelar este código?'),
+        content: Text(
+          'Quem já entrou continua na rota. Quem ainda tiver o código '
+          '${code.code} não consegue mais usá-lo.',
+        ),
+        actions: [
+          TextButton(
+            onPressed: () => Navigator.pop(ctx, false),
+            child: const Text('Voltar'),
+          ),
+          FilledButton(
+            onPressed: () => Navigator.pop(ctx, true),
+            child: const Text('Cancelar código'),
+          ),
+        ],
+      ),
+    );
+    if (!(ok ?? false) || !mounted) return;
+
+    setState(() => _ocupado = true);
+    try {
+      await _service.revokeInviteCode(code.routeId!, code.id);
+      await _load();
+      if (mounted) showSuccessSnackBar(context, 'Código cancelado');
+    } catch (e) {
+      if (mounted) showErrorSnackBar(context, AppException.fromError(e));
+    } finally {
+      if (mounted) setState(() => _ocupado = false);
+    }
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    final visiveis = _visiveis;
+
+    final inutilizaveis = visiveis.where((c) => !c.usable).length;
+
+    return Scaffold(
+      appBar: InviteCodesAppBar(
+        selecionando: _selecionando,
+        marcados: _marcados.length,
+        inutilizaveis: inutilizaveis,
+        ocupado: _ocupado,
+        onSair: _sairDaSelecao,
+        onApagarMarcados: _apagarMarcados,
+        onMarcarInutilizaveis: _marcarInutilizaveis,
+      ),
+      floatingActionButton: _selecionando
+          ? null
+          : FloatingActionButton.extended(
+              key: const Key('generate_code_fab'),
+              onPressed: _ocupado || widget.routes.isEmpty ? null : _gerar,
+              icon: const Icon(Icons.add),
+              label: const Text('Gerar código'),
+            ),
+      body: Column(
+        children: [
+          if (!_carregando && _codes.isNotEmpty && widget.routes.length > 1)
+            FiltroDeRota(
+              routes: widget.routes,
+              selecionado: _rotaFiltro,
+              onChanged: (id) => setState(() => _rotaFiltro = id),
+            ),
+          Expanded(
+            child: _carregando
+                ? const Center(child: CircularProgressIndicator())
+                : _codes.isEmpty
+                ? const SemCodigoNenhum()
+                : visiveis.isEmpty
+                ? const SemCodigosNaRota()
+                : InviteCodesList(
+                    codes: visiveis,
+                    selecionando: _selecionando,
+                    marcados: _marcados,
+                    ocupado: _ocupado,
+                    onAlternar: _alternarSelecao,
+                    onEntrarNaSelecao: _entrarNaSelecao,
+                    onRevogar: _revogar,
+                  ),
+          ),
+        ],
+      ),
+    );
+  }
+}

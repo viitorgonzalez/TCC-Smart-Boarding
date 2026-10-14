@@ -52,13 +52,20 @@ public class WarningUseCaseImpl implements ManageWarningUseCase, EnrollByAdminUs
     }
 
     @Override
+    @Transactional(readOnly = true)
+    public org.springframework.data.domain.Page<Warning> listPage(
+            UUID userId, org.springframework.data.domain.Pageable pageable) {
+        return userId == null
+                ? warningRepository.findPage(pageable)
+                : warningRepository.findPageByUserId(userId, pageable);
+    }
+
+    @Override
     @Transactional
     public void delete(UUID id) {
         warningRepository.deleteById(id);
     }
 
-    // Sem assertAcceptingChanges de propósito: é justamente o caminho que
-    // ignora o horário. O preço de furar a regra é a advertência.
     @Override
     @Transactional
     public ListEntry enroll(UUID listId, UUID userId, TripType tripType,
@@ -75,6 +82,7 @@ public class WarningUseCaseImpl implements ManageWarningUseCase, EnrollByAdminUs
                 .build());
         entry.setActive(true);
         entry.setTripType(tripType);
+        entry.setAddedByAdmin(true);
         ListEntry saved = listEntryRepository.save(entry);
 
         if (issueWarning) {
@@ -93,8 +101,6 @@ public class WarningUseCaseImpl implements ManageWarningUseCase, EnrollByAdminUs
         return saved;
     }
 
-    // O aluno precisa saber que foi advertido — advertência que ele descobre
-    // depois não muda o comportamento que ela existe pra corrigir.
     private void notifyWarned(User user, String reason) {
         try {
             sendToUserUseCase.execute(user.getId(), "Você recebeu uma advertência", reason);

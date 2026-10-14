@@ -18,6 +18,7 @@ import com.smartboarding.smartboarding_api.domain.route.entity.Route;
 import com.smartboarding.smartboarding_api.domain.stop.port.in.ManageStopsUseCase;
 import com.smartboarding.smartboarding_api.domain.user.entity.Role;
 import com.smartboarding.smartboarding_api.domain.user.entity.User;
+import com.smartboarding.smartboarding_api.domain.vehicle.entity.Vehicle;
 import com.smartboarding.smartboarding_api.domain.user.port.out.UserRepositoryPort;
 import com.smartboarding.smartboarding_api.domain.vehicle.port.out.VehicleRepositoryPort;
 import com.smartboarding.smartboarding_api.infrastructure.web.WebMvcTestSupport;
@@ -49,6 +50,9 @@ import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.status;
 
 @WebMvcTest(ListController.class)
+// O assembler real, não um mock: estes testes verificam o que ele monta
+// (contagem por instituição, veículo proposto, tempo de viagem).
+@org.springframework.context.annotation.Import(ListResponseAssembler.class)
 class ListControllerTest extends WebMvcTestSupport {
 
     private static final UUID LIST_ID = UUID.fromString("aaaaaaaa-0000-0000-0000-000000000001");
@@ -69,13 +73,17 @@ class ListControllerTest extends WebMvcTestSupport {
     @MockitoBean ManageStopsUseCase manageStopsUseCase;
     @MockitoBean ManageDailyListUseCase manageDailyListUseCase;
     @MockitoBean EnrollByAdminUseCase enrollByAdminUseCase;
+    @MockitoBean com.smartboarding.smartboarding_api.domain.membership.port.out.RouteMemberRepositoryPort
+            routeMemberRepository;
 
     private User aluno;
 
     @BeforeEach
     void setUp() {
         aluno = User.builder().id(STUDENT_ID).email("fernanda@edu.unifor.br")
-                .fullName("Fernanda Lima").institutionId(INSTITUTION_ID).build();
+                .fullName("Fernanda Lima").institutionId(INSTITUTION_ID)
+                .role(com.smartboarding.smartboarding_api.domain.user.entity.Role.STUDENT)
+                .build();
         when(userRepository.findByEmail("fernanda@edu.unifor.br")).thenReturn(Optional.of(aluno));
         when(userRepository.findByEmail("naiara@admin.com")).thenReturn(Optional.of(
                 User.builder().id(ADMIN_ID).email("naiara@admin.com").fullName("Naiara").build()));
@@ -86,6 +94,24 @@ class ListControllerTest extends WebMvcTestSupport {
         when(listEntryRepository.findAllByDailyListIdAndIsActiveTrue(any())).thenReturn(List.of());
         when(listEntryRepository.findByUserIdAndDailyListId(any(), any())).thenReturn(Optional.empty());
         when(reportRepository.findByDailyListId(any())).thenReturn(Optional.empty());
+        when(userRepository.findById(STUDENT_ID)).thenReturn(Optional.of(aluno));
+        when(routeMemberRepository.existsByUserIdAndRouteId(STUDENT_ID, ROUTE_ID)).thenReturn(true);
+        when(userRepository.findById(ADMIN_ID)).thenReturn(Optional.of(
+                User.builder().id(ADMIN_ID).email("naiara@admin.com").fullName("Naiara")
+                        .institutionId(INSTITUTION_ID)
+                        .role(com.smartboarding.smartboarding_api.domain.user.entity.Role.ADMIN)
+                        .build()));
+    }
+
+    private void rotaComDuasInstituicoes() {
+        when(manageStopsUseCase.listByRoute(any())).thenReturn(List.of(
+                com.smartboarding.smartboarding_api.domain.stop.entity.Stop.builder()
+                        .id(UUID.randomUUID()).name("Rodoviária").sequence(1)
+                        .isMainPoint(true).avgMinutesFromStart(1).build(),
+                com.smartboarding.smartboarding_api.domain.stop.entity.Stop.builder()
+                        .id(UUID.randomUUID()).name("Unifor").sequence(2)
+                        .isMainPoint(true).institutionId(INSTITUTION_ID)
+                        .avgMinutesFromStart(42).build()));
     }
 
     private DailyList lista() {
@@ -107,8 +133,6 @@ class ListControllerTest extends WebMvcTestSupport {
         verify(findListUseCase, never()).findTodayLists(any());
     }
 
-    /// O id vem do token, não do request: aceitar userId do cliente deixaria um
-    /// aluno consultar e alterar a lista de outro.
     @Test
     void listaDeHojeUsaOUsuarioDoToken() throws Exception {
         when(findListUseCase.findTodayLists(STUDENT_ID)).thenReturn(List.of(lista()));
@@ -128,8 +152,6 @@ class ListControllerTest extends WebMvcTestSupport {
                 .andExpect(status().isUnauthorized());
     }
 
-    /// Consultar lista de qualquer data é do admin — o aluno tem /today e o
-    /// próprio histórico, não a agenda inteira da rota.
     @Test
     void byDateEDoAdminERepassaADataDoQueryParam() throws Exception {
         when(manageDailyListUseCase.findByDate(any())).thenReturn(List.of(lista()));
@@ -193,8 +215,6 @@ class ListControllerTest extends WebMvcTestSupport {
         verify(removeEntryUseCase).remove(STUDENT_ID, LIST_ID);
     }
 
-    /// Inclusão tardia é do admin: aluno chamando o endpoint de admin não pode
-    /// escolher em nome de terceiro nem escapar da advertência.
     @Test
     void alunoNaoPodeInscreverOutroPeloEndpointDeAdmin() throws Exception {
         mvc.perform(post("/api/lists/{id}/entries/admin", LIST_ID).with(student())
@@ -302,9 +322,6 @@ class ListControllerTest extends WebMvcTestSupport {
                 .andExpect(jsonPath("$.data[0].institutionName").value("Unifor"));
     }
 
-    /// A lista e compartilhada e o aluno ve quem embarca junto -- de proposito.
-    /// O e-mail, nao: o endpoint e authenticated(), entao manda-lo transformava a
-    /// lista num diretorio de contatos da turma, bastando chamar a API direto.
     @Test
     void alunoVeQuemEmbarcaMasNaoOEmailDeNinguem() throws Exception {
         when(findListUseCase.findEntriesByList(LIST_ID)).thenReturn(List.of(inscricao()));
@@ -325,8 +342,6 @@ class ListControllerTest extends WebMvcTestSupport {
                 .andExpect(jsonPath("$.data[0].email").value("fernanda@edu.unifor.br"));
     }
 
-    /// Nenhum e-mail de terceiro pode escapar no corpo inteiro, nao so no campo
-    /// que o teste acima olha.
     @Test
     void corpoDaListaNaoCarregaEmailNenhumParaAluno() throws Exception {
         when(findListUseCase.findEntriesByList(LIST_ID)).thenReturn(List.of(inscricao()));
@@ -345,8 +360,6 @@ class ListControllerTest extends WebMvcTestSupport {
                 .dailyList(lista()).tripType(TripType.ROUND_TRIP).isActive(true).build();
     }
 
-    /// A contagem por instituição é o que o admin usa pra saber quantos descem em
-    /// cada campus. Aluno sem instituição não pode sumir da conta.
     @Test
     void contagemAgrupaPorInstituicaoEAcusaOsSemVinculo() throws Exception {
         UUID outra = UUID.fromString("cccccccc-0000-0000-0000-000000000002");
@@ -362,7 +375,6 @@ class ListControllerTest extends WebMvcTestSupport {
 
         mvc.perform(get("/api/lists/{id}", LIST_ID).with(admin()))
                 .andExpect(status().isOk())
-                // TreeMap: ordem alfabetica estavel, nao a ordem de chegada.
                 .andExpect(jsonPath("$.data.entriesByInstitution[0].name").value("Sem instituição"))
                 .andExpect(jsonPath("$.data.entriesByInstitution[0].count").value(1))
                 .andExpect(jsonPath("$.data.entriesByInstitution[1].name").value("UECE"))
@@ -370,8 +382,6 @@ class ListControllerTest extends WebMvcTestSupport {
                 .andExpect(jsonPath("$.data.entriesByInstitution[2].count").value(2));
     }
 
-    /// RN16: a proposta de veículo sai do relatório do fechamento. Lista aberta
-    /// não propõe nada — o total de confirmados ainda muda.
     @Test
     void listaAbertaNaoTrazVeiculoProposto() throws Exception {
         when(findListUseCase.findById(LIST_ID)).thenReturn(lista());
@@ -405,8 +415,6 @@ class ListControllerTest extends WebMvcTestSupport {
                 .andExpect(jsonPath("$.data.capacityShortfall").value(3));
     }
 
-    /// JSON corrompido no relatório não pode derrubar a tela da lista: perde-se a
-    /// proposta, mas o déficit gravado continua valendo.
     @Test
     void relatorioComJsonQuebradoNaoDerrubaATela() throws Exception {
         var fechada = DailyList.builder().id(LIST_ID).date(LocalDate.of(2026, 9, 9))
@@ -452,18 +460,6 @@ class ListControllerTest extends WebMvcTestSupport {
                 .andExpect(jsonPath("$.code").value("LIST_ALREADY_EXISTS"));
     }
 
-    // ─── Desativar precisa fechar a lista, não só o painel do admin ──────────
-    //
-    // Entrar na lista cai em `anyRequest().authenticated()`, e autoridade vazia
-    // satisfaz isso. Enquanto conta desativada apenas perdia o papel, o aluno
-    // banido seguia entrando na lista do dia pela hora que faltava do token —
-    // exatamente o abuso que desativar existe pra conter. Estes testes mandam
-    // Bearer de verdade: é o único caminho que passa pelo converter (os
-    // post-processors põem authority direto no contexto e nunca o exercitam).
-
-    /// A inscrição fica stubada nos dois casos de propósito: com o aluno
-    /// desativado, o teste precisa reprovar em 201 — a prova de que ele entrava
-    /// na lista — e não num erro acidental de mock não configurado.
     private void alunoNoBanco(boolean ativo) {
         when(jwtDecoder.decode(BEARER_REAL))
                 .thenReturn(tokenComScope("fernanda@edu.unifor.br", "STUDENT"));
@@ -493,8 +489,6 @@ class ListControllerTest extends WebMvcTestSupport {
         verify(findListUseCase, never()).findTodayLists(any());
     }
 
-    /// O contraponto: sem ele, um converter que recusasse todo mundo deixaria os
-    /// dois testes acima verdes.
     @Test
     void alunoAtivoSegueEntrandoPeloTokenReal() throws Exception {
         alunoNoBanco(true);
@@ -503,5 +497,136 @@ class ListControllerTest extends WebMvcTestSupport {
                 .andExpect(status().isCreated());
 
         verify(addEntryUseCase).add(STUDENT_ID, LIST_ID, TripType.ROUND_TRIP);
+    }
+
+    private void frota(int... capacidades) {
+        var veiculos = new java.util.ArrayList<Vehicle>();
+        for (int i = 0; i < capacidades.length; i++) {
+            veiculos.add(Vehicle.builder().id(UUID.randomUUID()).routeId(ROUTE_ID)
+                    .label(capacidades[i] >= 40 ? "Ônibus" : "Van")
+                    .capacity(capacidades[i]).build());
+        }
+        when(vehicleRepository.findAllByRouteId(ROUTE_ID)).thenReturn(veiculos);
+    }
+
+    @Test
+    void listaAbertaJaTrazOVeiculoRecomendado() throws Exception {
+        frota(45, 15);
+        when(findListUseCase.findTodayLists(STUDENT_ID)).thenReturn(List.of(lista()));
+        when(listEntryRepository.countByDailyListIdAndIsActiveTrue(LIST_ID)).thenReturn(10L);
+
+        mvc.perform(get("/api/lists/today").with(student()))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.data[0].proposedVehicles.length()").value(1))
+                .andExpect(jsonPath("$.data[0].proposedVehicles[0].label").value("Van"))
+                .andExpect(jsonPath("$.data[0].capacityShortfall").value(0));
+    }
+
+    @Test
+    void aRecomendacaoAcompanhaOTotalDeConfirmados() throws Exception {
+        frota(45, 15);
+        when(findListUseCase.findTodayLists(STUDENT_ID)).thenReturn(List.of(lista()));
+        when(listEntryRepository.countByDailyListIdAndIsActiveTrue(LIST_ID)).thenReturn(40L);
+
+        mvc.perform(get("/api/lists/today").with(student()))
+                .andExpect(jsonPath("$.data[0].proposedVehicles.length()").value(1))
+                .andExpect(jsonPath("$.data[0].proposedVehicles[0].label").value("Ônibus"));
+    }
+
+    @Test
+    void frotaInsuficienteAparaceComoFaltaDeLugar() throws Exception {
+        frota(15);
+        when(findListUseCase.findTodayLists(STUDENT_ID)).thenReturn(List.of(lista()));
+        when(listEntryRepository.countByDailyListIdAndIsActiveTrue(LIST_ID)).thenReturn(20L);
+
+        mvc.perform(get("/api/lists/today").with(student()))
+                .andExpect(jsonPath("$.data[0].capacityShortfall").value(5));
+    }
+
+    @Test
+    void semConfirmadoNaoRecomendaVeiculo() throws Exception {
+        frota(45, 15);
+        when(findListUseCase.findTodayLists(STUDENT_ID)).thenReturn(List.of(lista()));
+        when(listEntryRepository.countByDailyListIdAndIsActiveTrue(LIST_ID)).thenReturn(0L);
+
+        mvc.perform(get("/api/lists/today").with(student()))
+                .andExpect(jsonPath("$.data[0].proposedVehicles.length()").value(0))
+                .andExpect(jsonPath("$.data[0].capacityShortfall").value(0));
+    }
+
+    @Test
+    void oCardTrazOTempoAteAInstituicaoDoAluno() throws Exception {
+        rotaComDuasInstituicoes();
+        when(findListUseCase.findTodayLists(STUDENT_ID)).thenReturn(List.of(lista()));
+
+        mvc.perform(get("/api/lists/today").with(student()))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.data[0].myTripTime.stopName").value("Unifor"))
+                .andExpect(jsonPath("$.data[0].myTripTime.avgMinutes").value(42))
+                .andExpect(jsonPath("$.data[0].myTripTime.fallback").value(false));
+    }
+
+    @Test
+    void semTempoCalculadoOCampoVemNulo() throws Exception {
+        when(manageStopsUseCase.listByRoute(any())).thenReturn(List.of(
+                com.smartboarding.smartboarding_api.domain.stop.entity.Stop.builder()
+                        .id(UUID.randomUUID()).name("Unifor").sequence(1)
+                        .isMainPoint(true).institutionId(INSTITUTION_ID).build()));
+        when(findListUseCase.findTodayLists(STUDENT_ID)).thenReturn(List.of(lista()));
+
+        mvc.perform(get("/api/lists/today").with(student()))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.data[0].myTripTime").doesNotExist());
+    }
+
+    @Test
+    void oAdminNaoTemTempoDeViagem() throws Exception {
+        rotaComDuasInstituicoes();
+        when(findListUseCase.findTodayLists(ADMIN_ID)).thenReturn(List.of(lista()));
+
+        mvc.perform(get("/api/lists/today").with(admin()))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.data[0].myTripTime").doesNotExist());
+    }
+
+    @Test
+    void alunoNaoLeAListaDeUmaRotaQueNaoEDele() throws Exception {
+        when(routeMemberRepository.existsByUserIdAndRouteId(STUDENT_ID, ROUTE_ID))
+                .thenReturn(false);
+        when(findListUseCase.findById(LIST_ID)).thenReturn(lista());
+
+        mvc.perform(get("/api/lists/{id}", LIST_ID).with(student()))
+                .andExpect(status().isForbidden());
+    }
+
+    @Test
+    void alunoDaRotaLeAListaNormalmente() throws Exception {
+        when(findListUseCase.findById(LIST_ID)).thenReturn(lista());
+
+        mvc.perform(get("/api/lists/{id}", LIST_ID).with(student()))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.data.routeName").value("Rota Universitária"));
+    }
+
+    @Test
+    void oAdminLeQualquerLista() throws Exception {
+        when(routeMemberRepository.existsByUserIdAndRouteId(ADMIN_ID, ROUTE_ID))
+                .thenReturn(false);
+        when(findListUseCase.findById(LIST_ID)).thenReturn(lista());
+
+        mvc.perform(get("/api/lists/{id}", LIST_ID).with(admin()))
+                .andExpect(status().isOk());
+    }
+
+    @Test
+    void naoBuscaOUsuarioUmaVezPorLista() throws Exception {
+        rotaComDuasInstituicoes();
+        when(findListUseCase.findTodayLists(STUDENT_ID))
+                .thenReturn(List.of(lista(), lista(), lista()));
+
+        mvc.perform(get("/api/lists/today").with(student()))
+                .andExpect(status().isOk());
+
+        verify(userRepository, org.mockito.Mockito.times(1)).findById(STUDENT_ID);
     }
 }

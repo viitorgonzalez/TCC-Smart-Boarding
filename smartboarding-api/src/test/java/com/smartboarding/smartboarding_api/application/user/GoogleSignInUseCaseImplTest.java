@@ -44,8 +44,6 @@ class GoogleSignInUseCaseImplTest {
         contaGoogle(true);
     }
 
-    /// Política de verdade, não mock: o que estes testes precisam provar é o
-    /// papel com que a conta nasce, e um mock só provaria que houve repasse.
     private GoogleSignInUseCaseImpl comBootstrap(String bootstrapAdminEmail) {
         return new GoogleSignInUseCaseImpl(verifier, userRepository,
                 new BootstrapAdminPolicy(userRepository, bootstrapAdminEmail));
@@ -64,8 +62,6 @@ class GoogleSignInUseCaseImplTest {
         assertThat(criado.getGoogleId()).isEqualTo(GOOGLE_ID);
         assertThat(criado.getRole()).isEqualTo(Role.STUDENT);
         assertThat(criado.isActive()).isTrue();
-        // Sem senha ate ele definir uma. Placeholder viraria senha real e
-        // adivinhavel.
         assertThat(criado.hasPassword()).isFalse();
         assertThat(criado.hasGoogle()).isTrue();
     }
@@ -80,9 +76,6 @@ class GoogleSignInUseCaseImplTest {
         verify(userRepository, never()).save(any());
     }
 
-    /// ESTA e a checagem que separa login social de sequestro de conta. Sem ela,
-    /// alguem cria um Google com o e-mail de outra pessoa e o vinculo por e-mail
-    /// entrega a conta dela.
     @Test
     void emailNaoVerificadoNoGoogleERecusado() {
         contaGoogle(false);
@@ -98,8 +91,6 @@ class GoogleSignInUseCaseImplTest {
         verify(userRepository, never()).save(any());
     }
 
-    /// Mesmo e-mail e conta por senha: vincula em vez de duplicar. Duas contas
-    /// deixariam a lista do aluno partida entre elas.
     @Test
     void mesmoEmailComContaPorSenhaVinculaEmVezDeDuplicar() {
         var existente = User.builder().id(UUID.randomUUID()).email(EMAIL)
@@ -110,7 +101,6 @@ class GoogleSignInUseCaseImplTest {
 
         assertThat(resultado.getId()).isEqualTo(existente.getId());
         assertThat(resultado.getGoogleId()).isEqualTo(GOOGLE_ID);
-        // Continua podendo entrar pelos DOIS caminhos.
         assertThat(resultado.hasPassword()).isTrue();
         assertThat(resultado.hasGoogle()).isTrue();
     }
@@ -125,16 +115,11 @@ class GoogleSignInUseCaseImplTest {
         verify(userRepository, never()).save(any());
     }
 
-    /// O papel e cravado: o Google nao tem como dizer que alguem e admin.
     @Test
     void contaCriadaPeloGoogleEsempreStudent() {
         assertThat(useCase.signIn("token").getRole()).isEqualTo(Role.STUDENT);
     }
 
-    /// "Entrar com Google" e caminho tao provavel quanto o cadastro pro operador
-    /// de um ambiente novo. Cravando STUDENT aqui, ele nasceria aluno, o cadastro
-    /// posterior com o mesmo e-mail bateria em EMAIL_ALREADY_EXISTS e nao haveria
-    /// admin nenhum pra promove-lo -- so editando o banco.
     @Test
     void primeiroLoginComOEmailDeBootstrapNasceAdmin() {
         when(userRepository.countAdmins()).thenReturn(0L);
@@ -142,7 +127,6 @@ class GoogleSignInUseCaseImplTest {
         assertThat(comBootstrap(EMAIL).signIn("token").getRole()).isEqualTo(Role.ADMIN);
     }
 
-    /// Mesma janela do cadastro: existindo admin, a variavel nao faz mais nada.
     @Test
     void comAdminExistenteOLoginPeloGoogleNaoConcedeNada() {
         when(userRepository.countAdmins()).thenReturn(1L);
@@ -158,9 +142,6 @@ class GoogleSignInUseCaseImplTest {
                 .isEqualTo(Role.STUDENT);
     }
 
-    /// Mesmo motivo do cadastro: a unicidade de e-mail no Postgres e
-    /// case-sensitive, entao casar sem caixa deixaria duas contas distintas
-    /// satisfazerem a mesma janela.
     @Test
     void grafiaComOutraCaixaNaoCasaNoCaminhoDoGoogle() {
         when(userRepository.countAdmins()).thenReturn(0L);
@@ -169,8 +150,6 @@ class GoogleSignInUseCaseImplTest {
                 .isEqualTo(Role.STUDENT);
     }
 
-    /// A conta ja existia: o bootstrap concede papel a conta NOVA, e vincular ao
-    /// Google nao e criar. Promover aqui daria admin a quem so entrou de novo.
     @Test
     void vincularContaExistenteNaoConcedeAdminPeloBootstrap() {
         when(userRepository.countAdmins()).thenReturn(0L);
@@ -181,15 +160,12 @@ class GoogleSignInUseCaseImplTest {
         assertThat(comBootstrap(EMAIL).signIn("token").getRole()).isEqualTo(Role.STUDENT);
     }
 
-    /// O Google so prova QUEM e a pessoa. Sem esta checagem, entrar pelo Google
-    /// seria porta dos fundos pro login por senha de uma conta desativada.
     @Test
     void contaDesativadaNaoEntraNemPeloGoogle() {
         org.mockito.Mockito.reset(userRepository);
         when(userRepository.findByGoogleId(GOOGLE_ID)).thenReturn(Optional.of(
                 User.builder().id(java.util.UUID.randomUUID()).email(EMAIL)
                         .googleId(GOOGLE_ID).isActive(false).build()));
-        // sem stub de save: o fluxo tem que morrer antes de gravar
 
         assertThatThrownBy(() -> useCase.signIn("token"))
                 .isInstanceOf(UnauthorizedException.class)

@@ -3,11 +3,17 @@ package com.smartboarding.smartboarding_api.infrastructure.web.list;
 import com.smartboarding.smartboarding_api.domain.institution.entity.Institution;
 import com.smartboarding.smartboarding_api.domain.institution.port.out.InstitutionRepositoryPort;
 import com.smartboarding.smartboarding_api.domain.list.entity.DailyList;
+import com.smartboarding.smartboarding_api.domain.vehicle.service.VehicleAllocator;
 import com.smartboarding.smartboarding_api.domain.list.entity.TripType;
 import com.smartboarding.smartboarding_api.domain.list.port.in.AddEntryUseCase;
 import com.smartboarding.smartboarding_api.domain.list.port.in.FindListUseCase;
 import com.smartboarding.smartboarding_api.domain.list.port.in.RemoveEntryUseCase;
 import com.smartboarding.smartboarding_api.domain.list.port.out.ListEntryRepositoryPort;
+import com.smartboarding.smartboarding_api.domain.stop.StudentStop;
+import com.smartboarding.smartboarding_api.domain.stop.entity.Stop;
+import com.smartboarding.smartboarding_api.domain.user.entity.Role;
+import com.smartboarding.smartboarding_api.shared.exception.ForbiddenException;
+import com.smartboarding.smartboarding_api.domain.user.entity.User;
 import com.smartboarding.smartboarding_api.domain.user.port.out.UserRepositoryPort;
 import com.smartboarding.smartboarding_api.domain.vehicle.port.out.VehicleRepositoryPort;
 import com.smartboarding.smartboarding_api.infrastructure.web.list.dto.EntryRequest;
@@ -48,6 +54,9 @@ public class ListController {
     private final com.smartboarding.smartboarding_api.domain.stop.port.in.ManageStopsUseCase manageStopsUseCase;
     private final com.smartboarding.smartboarding_api.domain.list.port.in.ManageDailyListUseCase manageDailyListUseCase;
     private final EnrollByAdminUseCase enrollByAdminUseCase;
+    private final com.smartboarding.smartboarding_api.domain.membership.port.out.RouteMemberRepositoryPort
+            routeMemberRepository;
+    private final ListResponseAssembler assembler;
 
     public ListController(FindListUseCase findListUseCase,
                           AddEntryUseCase addEntryUseCase,
@@ -60,7 +69,10 @@ public class ListController {
                           com.fasterxml.jackson.databind.ObjectMapper objectMapper,
                           com.smartboarding.smartboarding_api.domain.stop.port.in.ManageStopsUseCase manageStopsUseCase,
                           com.smartboarding.smartboarding_api.domain.list.port.in.ManageDailyListUseCase manageDailyListUseCase,
-                          EnrollByAdminUseCase enrollByAdminUseCase) {
+                          EnrollByAdminUseCase enrollByAdminUseCase,
+                          com.smartboarding.smartboarding_api.domain.membership.port.out.RouteMemberRepositoryPort
+                                  routeMemberRepository,
+                          ListResponseAssembler assembler) {
         this.findListUseCase = findListUseCase;
         this.addEntryUseCase = addEntryUseCase;
         this.removeEntryUseCase = removeEntryUseCase;
@@ -73,22 +85,17 @@ public class ListController {
         this.manageStopsUseCase = manageStopsUseCase;
         this.manageDailyListUseCase = manageDailyListUseCase;
         this.enrollByAdminUseCase = enrollByAdminUseCase;
+        this.routeMemberRepository = routeMemberRepository;
+        this.assembler = assembler;
     }
 
     @GetMapping("/today")
     public ResponseEntity<ApiResponse<List<ListResponse>>> getTodayLists(Authentication auth) {
         UUID userId = extractUserId(auth);
-        Map<UUID, String> names = institutionNames();
+        User quem = assembler.userOf(userId);
+        Map<UUID, String> names = assembler.institutionNames();
         List<ListResponse> lists = findListUseCase.findTodayLists(userId).stream()
-                .map(list -> ListResponse.from(
-                        list,
-                        listEntryRepository.countByDailyListIdAndIsActiveTrue(list.getId()),
-                        listEntryRepository.findByUserIdAndDailyListId(userId, list.getId()).orElse(null),
-                        entriesByInstitution(list.getId(), names),
-                        vehiclesOf(list.getRoute().getId()),
-                        proposedOf(list).vehicles(),
-                        proposedOf(list).shortfall(),
-                        stopsOf(list.getRoute().getId())))
+                .map(list -> assembler.assemble(list, userId, names, quem))
                 .toList();
         return ResponseEntity.ok(ApiResponse.data(lists));
     }
@@ -97,17 +104,10 @@ public class ListController {
     public ResponseEntity<ApiResponse<List<ListResponse>>> byDate(
             @RequestParam LocalDate date, Authentication auth) {
         UUID userId = extractUserId(auth);
-        Map<UUID, String> names = institutionNames();
+        User quem = assembler.userOf(userId);
+        Map<UUID, String> names = assembler.institutionNames();
         List<ListResponse> lists = manageDailyListUseCase.findByDate(date).stream()
-                .map(list -> ListResponse.from(
-                        list,
-                        listEntryRepository.countByDailyListIdAndIsActiveTrue(list.getId()),
-                        listEntryRepository.findByUserIdAndDailyListId(userId, list.getId()).orElse(null),
-                        entriesByInstitution(list.getId(), names),
-                        vehiclesOf(list.getRoute().getId()),
-                        proposedOf(list).vehicles(),
-                        proposedOf(list).shortfall(),
-                        stopsOf(list.getRoute().getId())))
+                .map(list -> assembler.assemble(list, userId, names, quem))
                 .toList();
         return ResponseEntity.ok(ApiResponse.data(lists));
     }
@@ -146,14 +146,18 @@ public class ListController {
     public ResponseEntity<ApiResponse<ListResponse>> findById(@PathVariable UUID id, Authentication auth) {
         UUID userId = extractUserId(auth);
         DailyList list = findListUseCase.findById(id);
-        long count = listEntryRepository.countByDailyListIdAndIsActiveTrue(id);
-        return ResponseEntity.ok(ApiResponse.data(ListResponse.from(
-                list, count, listEntryRepository.findByUserIdAndDailyListId(userId, id).orElse(null),
-                entriesByInstitution(id, institutionNames()),
-                vehiclesOf(list.getRoute().getId()),
-                proposedOf(list).vehicles(),
-                proposedOf(list).shortfall(),
-                stopsOf(list.getRoute().getId()))));
+        assertPodeLer(userId, list);
+        return ResponseEntity.ok(ApiResponse.data(
+                assembler.assemble(list, userId, assembler.institutionNames())));
+    }
+
+    private void assertPodeLer(UUID userId, DailyList list) {
+        User quem = assembler.userOf(userId);
+        if (quem == null || quem.getRole() == Role.ADMIN) return;
+        if (!routeMemberRepository.existsByUserIdAndRouteId(userId, list.getRoute().getId())) {
+            throw new ForbiddenException("NOT_IN_ROUTE",
+                    "Você não faz parte da rota dessa lista.");
+        }
     }
 
     @PostMapping("/{id}/entries")
@@ -165,11 +169,9 @@ public class ListController {
         TripType tripType = (body != null && body.tripType() != null) ? body.tripType() : TripType.ROUND_TRIP;
         var saved = addEntryUseCase.add(userId, id, tripType);
         return ResponseEntity.status(HttpStatus.CREATED).body(ApiResponse.data(
-                EntryResponse.from(saved, institutionNames().get(saved.getUser().getInstitutionId()), true)));
+                EntryResponse.from(saved, assembler.institutionNames().get(saved.getUser().getInstitutionId()), true)));
     }
 
-    /// Inclusão tardia: entra mesmo com a lista fechada, e o admin decide se
-    /// isso gera advertência pro aluno.
     @PostMapping("/{id}/entries/admin")
     public ResponseEntity<ApiResponse<EntryResponse>> addEntryAsAdmin(
             @PathVariable UUID id,
@@ -179,11 +181,9 @@ public class ListController {
         var saved = enrollByAdminUseCase.enroll(id, body.userId(), tripType,
                 body.issueWarning(), body.warningReason(), extractUserId(auth));
         return ResponseEntity.status(HttpStatus.CREATED).body(ApiResponse.data(
-                EntryResponse.from(saved, institutionNames().get(saved.getUser().getInstitutionId()), true)));
+                EntryResponse.from(saved, assembler.institutionNames().get(saved.getUser().getInstitutionId()), true)));
     }
 
-    /// Remoção pelo admin: tirar quem ele mesmo incluiu não pode depender do
-    /// horário da lista.
     @DeleteMapping("/{id}/entries/{userId}")
     public ResponseEntity<ApiResponse<?>> removeEntryAsAdmin(@PathVariable UUID id,
                                                              @PathVariable UUID userId) {
@@ -203,7 +203,7 @@ public class ListController {
                                                                        Authentication auth) {
         boolean isAdmin = auth.getAuthorities().stream()
                 .anyMatch(a -> "ROLE_ADMIN".equals(a.getAuthority()));
-        Map<UUID, String> names = institutionNames();
+        Map<UUID, String> names = assembler.institutionNames();
         List<EntryResponse> entries = findListUseCase.findEntriesByList(id).stream()
                 .map(entry -> EntryResponse.from(
                         entry, names.get(entry.getUser().getInstitutionId()), isAdmin))
@@ -211,61 +211,6 @@ public class ListController {
         return ResponseEntity.ok(ApiResponse.data(entries));
     }
 
-
-    /// Nome da instituição por id — um mapa só, pra não fazer um findById por inscrito.
-    private Map<UUID, String> institutionNames() {
-        return institutionRepository.findAll().stream()
-                .collect(Collectors.toMap(Institution::getId, Institution::getName));
-    }
-
-    private List<ListResponse.InstitutionCount> entriesByInstitution(UUID listId, Map<UUID, String> names) {
-        return listEntryRepository.findAllByDailyListIdAndIsActiveTrue(listId).stream()
-                .collect(Collectors.groupingBy(
-                        entry -> names.getOrDefault(entry.getUser().getInstitutionId(), "Sem instituição"),
-                        java.util.TreeMap::new,
-                        Collectors.counting()))
-                .entrySet().stream()
-                .map(e -> new ListResponse.InstitutionCount(e.getKey(), e.getValue()))
-                .toList();
-    }
-
-    /// Veículo proposto vem do relatório gravado no fechamento (RN16). Lista
-    /// aberta ainda não tem proposta — o total de confirmados muda até fechar.
-    private ProposedInfo proposedOf(DailyList list) {
-        if (list.getStatus() != com.smartboarding.smartboarding_api.domain.list.entity.ListStatus.CLOSED) {
-            return new ProposedInfo(List.of(), 0);
-        }
-        return reportRepository.findByDailyListId(list.getId())
-                .map(report -> {
-                    try {
-                        List<Map<String, String>> raw = objectMapper.readValue(
-                                report.getProposedVehicles() == null ? "[]" : report.getProposedVehicles(),
-                                new com.fasterxml.jackson.core.type.TypeReference<>() {});
-                        return new ProposedInfo(raw.stream()
-                                .map(v -> new ListResponse.VehicleSummary(
-                                        v.get("label"), Integer.parseInt(v.get("capacity"))))
-                                .toList(), report.getCapacityShortfall());
-                    } catch (Exception e) {
-                        return new ProposedInfo(List.of(), report.getCapacityShortfall());
-                    }
-                })
-                .orElseGet(() -> new ProposedInfo(List.of(), 0));
-    }
-
-    private record ProposedInfo(List<ListResponse.VehicleSummary> vehicles, int shortfall) {}
-
-    private List<ListResponse.StopPoint> stopsOf(UUID routeId) {
-        return manageStopsUseCase.listByRoute(routeId).stream()
-                .map(s -> new ListResponse.StopPoint(
-                        s.getName(), s.getLatitude(), s.getLongitude(), s.getSequence()))
-                .toList();
-    }
-
-    private List<ListResponse.VehicleSummary> vehiclesOf(UUID routeId) {
-        return vehicleRepository.findAllByRouteId(routeId).stream()
-                .map(v -> new ListResponse.VehicleSummary(v.getLabel(), v.getCapacity()))
-                .toList();
-    }
 
     private UUID extractUserId(Authentication auth) {
         String email = auth.getName();

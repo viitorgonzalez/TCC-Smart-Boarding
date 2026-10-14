@@ -5,7 +5,6 @@ import '../../../core/widgets/trip_type_chip.dart';
 import '../../lists/models/list_entry_model.dart';
 import '../../lists/services/list_service.dart';
 
-/// Mostra quem está inscrito na lista (nome + direção), pra qualquer aluno.
 void showListMembers(BuildContext context, String listId, String routeName) {
   showModalBottomSheet<void>(
     context: context,

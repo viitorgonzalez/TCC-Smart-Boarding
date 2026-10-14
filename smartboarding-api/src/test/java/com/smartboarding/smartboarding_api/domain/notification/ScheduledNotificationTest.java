@@ -11,7 +11,6 @@ import static org.assertj.core.api.Assertions.assertThat;
 
 class ScheduledNotificationTest {
 
-    // 2026-08-28 é uma sexta-feira; 29 é sábado.
     private static final LocalDateTime SEXTA_07H = LocalDateTime.of(2026, 8, 28, 7, 0);
     private static final LocalDateTime SEXTA_05H = LocalDateTime.of(2026, 8, 28, 5, 0);
     private static final LocalDateTime SABADO_07H = LocalDateTime.of(2026, 8, 29, 7, 0);

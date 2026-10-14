@@ -43,6 +43,7 @@ class TripUseCaseImplTest {
     @Mock StopRepositoryPort stopRepository;
     @Mock TripCheckpointRepositoryPort checkpointRepository;
     @Mock PublishNotificationUseCase publishNotificationUseCase;
+    @Mock com.smartboarding.smartboarding_api.domain.route.port.in.RouteTimingUseCase routeTiming;
 
     private TripUseCaseImpl useCase;
 
@@ -58,7 +59,8 @@ class TripUseCaseImplTest {
     @BeforeEach
     void setUp() {
         useCase = new TripUseCaseImpl(dailyListRepository, stopRepository, checkpointRepository,
-                publishNotificationUseCase, Clock.fixed(NOW.atZone(ZONE).toInstant(), ZONE));
+                publishNotificationUseCase, routeTiming,
+                Clock.fixed(NOW.atZone(ZONE).toInstant(), ZONE));
         when(dailyListRepository.findById(LIST_ID)).thenReturn(Optional.of(listWith(null, null)));
         when(dailyListRepository.save(any())).thenAnswer(i -> i.getArgument(0));
         when(stopRepository.findById(MAIN_STOP)).thenReturn(Optional.of(
@@ -169,12 +171,8 @@ class TripUseCaseImplTest {
                 .hasMessageContaining("não é da rota");
     }
 
-    // ─── Ida e volta ──────────────────────────────────────────────────────────
-
     private static final UUID SEGUNDO_PONTO = UUID.randomUUID();
 
-    /// Dois pontos principais: a ida termina no segundo, e a volta refaz os dois
-    /// na ordem inversa.
     private void rotaComDoisPontos() {
         var p1 = Stop.builder().id(MAIN_STOP).routeId(ROUTE_ID).name("Rodoviária")
                 .sequence(1).isMainPoint(true).build();
@@ -194,8 +192,6 @@ class TripUseCaseImplTest {
                         .toList());
     }
 
-    /// O admin ja disse onde esta; pedir uma confirmacao extra pra algo que o
-    /// sistema deduz so adicionaria um toque no meio do trajeto.
     @Test
     void marcarOUltimoPontoDaIdaViraAVoltaSozinho() {
         rotaComDoisPontos();
@@ -221,8 +217,6 @@ class TripUseCaseImplTest {
         assertThat(result.getOutboundFinishedAt()).isNull();
     }
 
-    /// A mesma parada e visitada nas duas pernas. Sem a perna na checagem, o
-    /// primeiro checkpoint da volta seria lido como repeticao da ida e ignorado.
     @Test
     void aMesmaParadaEMarcadaDeNovoNaVolta() {
         rotaComDoisPontos();
@@ -269,9 +263,6 @@ class TripUseCaseImplTest {
                 eq(ROUTE_ID), anyInt(), isNull());
     }
 
-    /// Saida pro caso de o onibus nao completar o percurso: encerrar a mao fecha
-    /// o dia inteiro, e marca a ida como concluida pra lista nao ficar num
-    /// estado impossivel (dia encerrado, ida em aberto).
     @Test
     void encerrarAMaoNoMeioDaIdaFechaAsDuasPernas() {
         when(dailyListRepository.findById(LIST_ID))
@@ -309,10 +300,6 @@ class TripUseCaseImplTest {
         assertThat(result.getOutboundFinishedAt()).isNull();
     }
 
-    /// O aviso e melhor esforco DE VERDADE agora: publish comum e @Transactional
-    /// REQUIRED, entao uma falha marcaria a transacao do trajeto como
-    /// rollback-only e o checkpoint se perderia junto -- engolir a excecao nao
-    /// desfaz isso. Por isso o trajeto usa a variante em transacao propria.
     @Test
     void falhaNoAvisoNaoDerrubaOCheckpoint() {
         org.mockito.Mockito.doThrow(new RuntimeException("banco fora"))
@@ -322,5 +309,22 @@ class TripUseCaseImplTest {
         org.assertj.core.api.Assertions
                 .assertThatCode(() -> useCase.start(LIST_ID))
                 .doesNotThrowAnyException();
+    }
+
+    @Test
+    void iniciarOTrajetoCalculaOTempoQueFaltava() {
+        useCase.start(LIST_ID);
+
+        verify(routeTiming).recalculateIfMissing(ROUTE_ID);
+    }
+
+    @Test
+    void osrmForaDoArNaoImpedeOTrajetoDeComecar() {
+        org.mockito.Mockito.doThrow(new RuntimeException("OSRM fora"))
+                .when(routeTiming).recalculateIfMissing(any());
+
+        DailyList saved = useCase.start(LIST_ID);
+
+        assertThat(saved.getTripStartedAt()).isNotNull();
     }
 }

@@ -77,13 +77,9 @@ void main() {
     final entrou = await provider.join('RU7K2M');
 
     expect(entrou.name, 'Rota Nova');
-    // Entrar numa rota e um ato deliberado: deixar o foco na antiga faria o
-    // aluno achar que o codigo nao funcionou.
     expect(provider.selected?.id, 'r9');
   });
 
-  // Sair da rota que estava em foco nao pode deixar o id orfao: a home ficaria
-  // pedindo dado de uma rota que o aluno nao tem mais.
   test('sair da rota em foco reposiciona a selecao', () async {
     http.on(
       'GET',
@@ -95,8 +91,6 @@ void main() {
     await provider.load();
     provider.select('r2');
 
-    // Sobrescreve o GET explicitamente: o adaptador da prioridade a rota ja
-    // registrada, entao `always` sozinho nao substituiria a resposta anterior.
     http.on(
       'DELETE',
       '/api/me/routes/r2',
@@ -135,8 +129,6 @@ void main() {
 
     await provider.load();
 
-    // hasNoRoute falso no erro e proposital: mostrar "entre com codigo" quando
-    // na verdade a rede caiu mandaria o aluno resolver o problema errado.
     expect(provider.hasNoRoute, isFalse);
     expect(provider.routes, isEmpty);
   });

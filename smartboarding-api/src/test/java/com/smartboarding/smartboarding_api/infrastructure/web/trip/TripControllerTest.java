@@ -44,14 +44,42 @@ class TripControllerTest extends WebMvcTestSupport {
     @MockitoBean FindListUseCase findListUseCase;
     @MockitoBean ManageStopsUseCase manageStopsUseCase;
     @MockitoBean TripCheckpointRepositoryPort checkpointRepository;
+    @MockitoBean com.smartboarding.smartboarding_api.domain.user.port.out.UserRepositoryPort
+            userRepository;
+    @MockitoBean com.smartboarding.smartboarding_api.domain.membership.port.out.RouteMemberRepositoryPort
+            routeMemberRepository;
+
+    private static final UUID INSTITUICAO = UUID.fromString("cccccccc-0000-0000-0000-000000000001");
+    private static final UUID STOP_UNIFOR = UUID.fromString("dddddddd-0000-0000-0000-000000000002");
 
     private DailyList lista;
+
+    private void rotaComInstituicao(Integer minutosRodoviaria, Integer minutosUnifor) {
+        when(manageStopsUseCase.listByRoute(ROUTE_ID)).thenReturn(List.of(
+                Stop.builder().id(STOP_ID).routeId(ROUTE_ID).name("Rodoviária")
+                        .sequence(1).isMainPoint(true)
+                        .avgMinutesFromStart(minutosRodoviaria).build(),
+                Stop.builder().id(STOP_UNIFOR).routeId(ROUTE_ID).name("UNIFOR-MG")
+                        .sequence(2).isMainPoint(true).institutionId(INSTITUICAO)
+                        .avgMinutesFromStart(minutosUnifor).build()));
+    }
 
     @BeforeEach
     void setUp() {
         lista = DailyList.builder().id(LIST_ID)
                 .route(Route.builder().id(ROUTE_ID).name("Rota Universitária").build()).build();
         when(findListUseCase.findById(LIST_ID)).thenReturn(lista);
+        when(userRepository.findByEmail("naiara@admin.com")).thenReturn(java.util.Optional.of(
+                com.smartboarding.smartboarding_api.domain.user.entity.User.builder()
+                        .id(ADMIN_ID).email("naiara@admin.com")
+                        .role(com.smartboarding.smartboarding_api.domain.user.entity.Role.ADMIN)
+                        .build()));
+        when(userRepository.findByEmail("fernanda@edu.unifor.br")).thenReturn(java.util.Optional.of(
+                com.smartboarding.smartboarding_api.domain.user.entity.User.builder()
+                        .id(STUDENT_ID).email("fernanda@edu.unifor.br")
+                        .role(com.smartboarding.smartboarding_api.domain.user.entity.Role.STUDENT)
+                        .institutionId(INSTITUICAO).build()));
+        when(routeMemberRepository.existsByUserIdAndRouteId(STUDENT_ID, ROUTE_ID)).thenReturn(true);
         when(checkpointRepository.findAllByDailyListId(any())).thenReturn(List.of());
         when(manageStopsUseCase.listByRoute(ROUTE_ID)).thenReturn(List.of(
                 Stop.builder().id(STOP_ID).routeId(ROUTE_ID).name("Rodoviária")
@@ -60,8 +88,6 @@ class TripControllerTest extends WebMvcTestSupport {
                         .sequence(2).isMainPoint(false).build()));
     }
 
-    /// /api/trip/** é hasRole("ADMIN"): quem conduz o ônibus é o admin, e um aluno
-    /// marcando checkpoint falsificaria a posição do trajeto.
     @Test
     void alunoNaoConduzOTrajeto() throws Exception {
         mvc.perform(post("/api/trip/{id}/start", LIST_ID).with(student()))
@@ -81,8 +107,6 @@ class TripControllerTest extends WebMvcTestSupport {
         mvc.perform(get("/api/trip/{id}", LIST_ID)).andExpect(status().isUnauthorized());
     }
 
-    /// Só ponto principal aparece no trajeto — parada intermediária polui a tela
-    /// de quem está dirigindo.
     @Test
     void statusListaSoOsPontosPrincipais() throws Exception {
         mvc.perform(get("/api/trip/{id}", LIST_ID).with(admin()))
@@ -168,8 +192,6 @@ class TripControllerTest extends WebMvcTestSupport {
                 .andExpect(jsonPath("$.code").value("TRIP_NOT_STARTED"));
     }
 
-    // ─── Ida e volta ──────────────────────────────────────────────────────────
-
     private static final UUID SEGUNDO = UUID.fromString("dddddddd-0000-0000-0000-000000000002");
 
     private void doisPontosPrincipais() {
@@ -191,9 +213,6 @@ class TripControllerTest extends WebMvcTestSupport {
                 .andExpect(jsonPath("$.data.stops[1].name").value("UNIFOR-MG"));
     }
 
-    /// Na volta o onibus refaz o mesmo caminho de tras pra frente -- a ordem tem
-    /// que inverter, senao a tela pede pra marcar a primeira parada da cidade
-    /// enquanto ele ainda esta no campus.
     @Test
     void naVoltaAsParadasSaemInvertidas() throws Exception {
         doisPontosPrincipais();
@@ -206,9 +225,6 @@ class TripControllerTest extends WebMvcTestSupport {
                 .andExpect(jsonPath("$.data.stops[1].name").value("Rodoviária"));
     }
 
-    /// A mesma parada tem checkpoint nas DUAS pernas. Sem filtrar por perna antes
-    /// de indexar, o toMap por stopId estoura com chave duplicada e o endpoint
-    /// inteiro morre em 500 assim que a volta comeca.
     @Test
     void aMesmaParadaNasDuasPernasNaoDerrubaOEndpoint() throws Exception {
         doisPontosPrincipais();
@@ -223,7 +239,6 @@ class TripControllerTest extends WebMvcTestSupport {
 
         mvc.perform(get("/api/trip/{id}", LIST_ID).with(admin()))
                 .andExpect(status().isOk())
-                // Mostra o horario da VOLTA, nao o da ida.
                 .andExpect(jsonPath("$.data.stops[1].reachedAt").value(
                         org.hamcrest.Matchers.containsString("18:30")));
     }
@@ -235,5 +250,118 @@ class TripControllerTest extends WebMvcTestSupport {
 
         mvc.perform(get("/api/trip/{id}", LIST_ID).with(admin()))
                 .andExpect(jsonPath("$.data.outboundFinishedAt").exists());
+    }
+
+    @Test
+    void alunoDeOutraRotaNaoLeOTrajeto() throws Exception {
+        when(routeMemberRepository.existsByUserIdAndRouteId(STUDENT_ID, ROUTE_ID))
+                .thenReturn(false);
+
+        mvc.perform(get("/api/trip/{listId}", LIST_ID).with(student()))
+                .andExpect(status().isForbidden());
+    }
+
+    @Test
+    void alunoDaRotaLeOTrajeto() throws Exception {
+        mvc.perform(get("/api/trip/{listId}", LIST_ID).with(student()))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.data.routeName").value("Rota Universitária"));
+    }
+
+    @Test
+    void alunoNaoIniciaNemMarcaTrajeto() throws Exception {
+        mvc.perform(post("/api/trip/{listId}/start", LIST_ID).with(student()))
+                .andExpect(status().isForbidden());
+        mvc.perform(post("/api/trip/{listId}/checkpoint/{stopId}", LIST_ID, STOP_ID)
+                        .with(student()))
+                .andExpect(status().isForbidden());
+
+        verify(conductTripUseCase, never()).start(any());
+    }
+
+    @Test
+    void alunoVeAParadaDaPropriaInstituicao() throws Exception {
+        rotaComInstituicao(1, 13);
+
+        mvc.perform(get("/api/trip/{listId}", LIST_ID).with(student()))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.data.myStop.stopName").value("UNIFOR-MG"))
+                .andExpect(jsonPath("$.data.myStop.fallback").value(false))
+                .andExpect(jsonPath("$.data.myStop.etaMinutes").value(13));
+    }
+
+    @Test
+    void oTempoDesconta_oQueJaFoiPercorrido() throws Exception {
+        rotaComInstituicao(3, 13);
+        when(checkpointRepository.findAllByDailyListId(LIST_ID)).thenReturn(List.of(
+                TripCheckpoint.builder().stopId(STOP_ID).leg(TripLeg.OUTBOUND)
+                        .reachedAt(LocalDateTime.now()).build()));
+
+        mvc.perform(get("/api/trip/{listId}", LIST_ID).with(student()))
+                .andExpect(jsonPath("$.data.myStop.etaMinutes").value(10));
+    }
+
+    @Test
+    void semParadaDaInstituicaoCaiNaUltimaEAvisa() throws Exception {
+        rotaComInstituicao(1, 13);
+        when(userRepository.findByEmail("fernanda@edu.unifor.br")).thenReturn(java.util.Optional.of(
+                com.smartboarding.smartboarding_api.domain.user.entity.User.builder()
+                        .id(STUDENT_ID).email("fernanda@edu.unifor.br")
+                        .role(com.smartboarding.smartboarding_api.domain.user.entity.Role.STUDENT)
+                        .institutionId(UUID.randomUUID()).build()));
+
+        mvc.perform(get("/api/trip/{listId}", LIST_ID).with(student()))
+                .andExpect(jsonPath("$.data.myStop.stopName").value("UNIFOR-MG"))
+                .andExpect(jsonPath("$.data.myStop.fallback").value(true));
+    }
+
+    @Test
+    void depoisDeAlcancadaNaoHaTempoNegativo() throws Exception {
+        rotaComInstituicao(1, 13);
+        when(checkpointRepository.findAllByDailyListId(LIST_ID)).thenReturn(List.of(
+                TripCheckpoint.builder().stopId(STOP_UNIFOR).leg(TripLeg.OUTBOUND)
+                        .reachedAt(LocalDateTime.now()).build()));
+
+        mvc.perform(get("/api/trip/{listId}", LIST_ID).with(student()))
+                .andExpect(jsonPath("$.data.myStop.alreadyReached").value(true))
+                .andExpect(jsonPath("$.data.myStop.etaMinutes").doesNotExist());
+    }
+
+    @Test
+    void checkpointPuladoNaoProduzTempoNegativo() throws Exception {
+        UUID stopFinal = UUID.fromString("dddddddd-0000-0000-0000-000000000003");
+        when(manageStopsUseCase.listByRoute(ROUTE_ID)).thenReturn(List.of(
+                Stop.builder().id(STOP_ID).routeId(ROUTE_ID).name("Rodoviária")
+                        .sequence(1).isMainPoint(true).avgMinutesFromStart(1).build(),
+                Stop.builder().id(STOP_UNIFOR).routeId(ROUTE_ID).name("UNIFOR-MG")
+                        .sequence(2).isMainPoint(true).institutionId(INSTITUICAO)
+                        .avgMinutesFromStart(13).build(),
+                Stop.builder().id(stopFinal).routeId(ROUTE_ID).name("IFMG")
+                        .sequence(3).isMainPoint(true).avgMinutesFromStart(20).build()));
+        when(checkpointRepository.findAllByDailyListId(LIST_ID)).thenReturn(List.of(
+                TripCheckpoint.builder().stopId(stopFinal).leg(TripLeg.OUTBOUND)
+                        .reachedAt(LocalDateTime.now()).build()));
+
+        mvc.perform(get("/api/trip/{listId}", LIST_ID).with(student()))
+                .andExpect(jsonPath("$.data.myStop.alreadyReached").value(false))
+                .andExpect(jsonPath("$.data.myStop.etaMinutes").doesNotExist());
+    }
+
+    @Test
+    void semTempoCalculadoOEtaFicaNulo() throws Exception {
+        rotaComInstituicao(null, null);
+
+        mvc.perform(get("/api/trip/{listId}", LIST_ID).with(student()))
+                .andExpect(jsonPath("$.data.myStop.stopName").value("UNIFOR-MG"))
+                .andExpect(jsonPath("$.data.myStop.etaMinutes").doesNotExist());
+    }
+
+    @Test
+    void oAdminNaoTemParadaPropria() throws Exception {
+        rotaComInstituicao(1, 13);
+
+        mvc.perform(get("/api/trip/{listId}", LIST_ID).with(admin()))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.data.myStop").doesNotExist());
     }
 }

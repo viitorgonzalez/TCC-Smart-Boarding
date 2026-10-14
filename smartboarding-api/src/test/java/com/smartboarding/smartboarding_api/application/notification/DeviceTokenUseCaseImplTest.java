@@ -56,8 +56,6 @@ class DeviceTokenUseCaseImplTest {
         assertThat(captor.getValue().getUser()).isSameAs(user);
     }
 
-    /// Reinstalar o app devolve o mesmo token: precisa revalidar o existente, não
-    /// criar um segundo registro pro mesmo par usuário+token.
     @Test
     void tokenJaRegistradoNaoDuplica() {
         DeviceToken existing = DeviceToken.builder().user(user).token(TOKEN).platform("ios").build();

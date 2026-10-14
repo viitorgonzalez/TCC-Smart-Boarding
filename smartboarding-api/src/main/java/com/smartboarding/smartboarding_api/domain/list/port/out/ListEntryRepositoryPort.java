@@ -13,7 +13,6 @@ public interface ListEntryRepositoryPort {
     List<ListEntry> findAllByDailyListIdAndIsActiveTrue(UUID dailyListId);
     long countByDailyListIdAndIsActiveTrue(UUID dailyListId);
 
-    /// Presenças do aluno a partir de uma data — base do histórico dele.
     List<ListEntry> findAttendanceSince(UUID userId, LocalDate since);
     void deleteAllByDailyListId(UUID dailyListId);
 }

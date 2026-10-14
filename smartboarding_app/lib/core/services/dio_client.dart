@@ -7,6 +7,8 @@ class DioClient {
   static Dio? _instance;
   static final _storage = StorageService();
 
+  static void Function()? onUnauthorized;
+
   static Dio get instance {
     _instance ??= _build();
     return _instance!;
@@ -23,18 +25,11 @@ class DioClient {
       ),
     );
 
-    dio.interceptors.addAll([
-      _AuthInterceptor(_storage),
-      _ErrorInterceptor(),
-      // Descomente para debug:
-      // LogInterceptor(requestBody: true, responseBody: true),
-    ]);
+    dio.interceptors.addAll([_AuthInterceptor(_storage), _ErrorInterceptor()]);
 
     return dio;
   }
 }
-
-// ─── Injeta JWT em todas as requisições ──────────────────────────────────────
 
 class _AuthInterceptor extends Interceptor {
   final StorageService _storage;
@@ -53,11 +48,13 @@ class _AuthInterceptor extends Interceptor {
   }
 }
 
-// ─── Converte DioException em AppException com mensagem amigável ─────────────
-
 class _ErrorInterceptor extends Interceptor {
   @override
   void onError(DioException err, ErrorInterceptorHandler handler) {
+    if (err.response?.statusCode == 401 && !_ehPortaDeEntrada(err)) {
+      DioClient.onUnauthorized?.call();
+    }
+
     final message = AppException.fromError(err);
     handler.reject(
       DioException(
@@ -69,4 +66,7 @@ class _ErrorInterceptor extends Interceptor {
       ),
     );
   }
+
+  bool _ehPortaDeEntrada(DioException err) =>
+      err.requestOptions.path.contains('/auth/');
 }

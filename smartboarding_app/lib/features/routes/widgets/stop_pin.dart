@@ -2,7 +2,6 @@ import 'package:flutter/material.dart';
 import '../../../core/theme/app_theme.dart';
 import '../models/map_stop.dart';
 
-/// Pino da parada: verde na origem, bandeira no destino, numerado no meio.
 class StopPin extends StatelessWidget {
   final MapStop stop;
   final bool isFirst;

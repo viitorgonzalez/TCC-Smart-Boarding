@@ -8,12 +8,12 @@ import java.util.UUID;
 public interface ManageStopsUseCase {
     List<Stop> listByRoute(UUID routeId);
 
-    /// Sequência nula acrescenta no fim; preenchida insere naquela posição e
-    /// empurra as seguintes.
     Stop add(Stop stop);
 
-    /// Move ou renomeia. Campos nulos ficam como estão.
     Stop update(UUID stopId, String name, Double latitude, Double longitude);
+
+    Stop update(UUID stopId, String name, Double latitude, Double longitude,
+                UUID institutionId, boolean mainPoint);
 
     void remove(UUID stopId);
 }

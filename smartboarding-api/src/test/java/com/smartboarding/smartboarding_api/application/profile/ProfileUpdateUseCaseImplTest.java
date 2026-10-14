@@ -3,6 +3,7 @@ package com.smartboarding.smartboarding_api.application.profile;
 import com.smartboarding.smartboarding_api.domain.profile.entity.ProfileUpdateRequest;
 import com.smartboarding.smartboarding_api.domain.profile.entity.ProfileUpdateStatus;
 import com.smartboarding.smartboarding_api.domain.profile.port.out.ProfileUpdateRequestRepositoryPort;
+import com.smartboarding.smartboarding_api.domain.user.entity.Address;
 import com.smartboarding.smartboarding_api.domain.user.entity.User;
 import com.smartboarding.smartboarding_api.domain.user.port.out.UserRepositoryPort;
 import com.smartboarding.smartboarding_api.shared.exception.BadRequestException;
@@ -52,7 +53,7 @@ class ProfileUpdateUseCaseImplTest {
                 Clock.fixed(AGORA.toInstant(ZoneOffset.UTC), ZoneOffset.UTC));
         aluno = User.builder().id(ALUNO).email("fernanda@edu.unifor.br")
                 .fullName("Fernanda Lima").phone("37999990000")
-                .course("Engenharia").address("Rua A, 1").build();
+                .course("Engenharia").addressLegacy("Rua A, 1").build();
         when(userRepository.findById(ALUNO)).thenReturn(Optional.of(aluno));
         when(userRepository.save(any())).thenAnswer(i -> i.getArgument(0));
         when(requestRepository.save(any())).thenAnswer(i -> i.getArgument(0));
@@ -69,19 +70,28 @@ class ProfileUpdateUseCaseImplTest {
     @Test
     void pedidoNasceePendenteEAmarradoAoUsuarioDoToken() {
         var p = useCase.request(ALUNO,
-                ProfileUpdateRequest.builder().phone("37988887777").build());
+                ProfileUpdateRequest.builder().fullName("Fernanda Lima Souza").build());
 
         assertThat(p.getStatus()).isEqualTo(ProfileUpdateStatus.PENDING);
         assertThat(p.getUserId()).isEqualTo(ALUNO);
     }
 
-    /// Nada muda no perfil enquanto o admin nao aprova -- e o ponto do fluxo.
     @Test
     void abrirPedidoNaoTocaNoPerfil() {
         useCase.request(ALUNO, ProfileUpdateRequest.builder().fullName("Outro Nome").build());
 
         assertThat(aluno.getFullName()).isEqualTo("Fernanda Lima");
         verify(userRepository, never()).save(any());
+    }
+
+    @Test
+    void pedidoSoComTelefoneOuCursoNaoEVazio() {
+        var p = useCase.request(ALUNO,
+                ProfileUpdateRequest.builder().phone("37988887777").course("Direito").build());
+
+        assertThat(p.getPhone()).isEqualTo("37988887777");
+        assertThat(p.getCourse()).isEqualTo("Direito");
+        verify(requestRepository).save(any());
     }
 
     @Test
@@ -93,15 +103,13 @@ class ProfileUpdateUseCaseImplTest {
         verify(requestRepository, never()).save(any());
     }
 
-    /// Com dois pendentes o admin aprovaria um sem saber do outro, e o segundo
-    /// sobrescreveria o primeiro sem revisao.
     @Test
     void segundoPedidoPendenteEBloqueado() {
         when(requestRepository.findPendingByUserId(ALUNO)).thenReturn(
                 Optional.of(ProfileUpdateRequest.builder().userId(ALUNO).build()));
 
         assertThatThrownBy(() -> useCase.request(ALUNO,
-                ProfileUpdateRequest.builder().phone("37988887777").build()))
+                ProfileUpdateRequest.builder().fullName("Fernanda Lima Souza").build()))
                 .isInstanceOf(ConflictException.class)
                 .hasMessageContaining("em análise");
     }
@@ -132,8 +140,6 @@ class ProfileUpdateUseCaseImplTest {
         assertThat(aprovado.getReviewedAt()).isEqualTo(AGORA);
     }
 
-    /// Campo nulo = nao foi pedida mudanca nele. Aplicar tudo sobrescreveria com
-    /// null o que o aluno nao quis mexer.
     @Test
     void campoNaoPedidoNaoEApagado() {
         var p = pedidoDe(UUID.randomUUID(), ProfileUpdateStatus.PENDING);
@@ -142,7 +148,22 @@ class ProfileUpdateUseCaseImplTest {
 
         assertThat(aluno.getPhone()).isEqualTo("37999990000");
         assertThat(aluno.getCourse()).isEqualTo("Engenharia");
-        assertThat(aluno.getAddress()).isEqualTo("Rua A, 1");
+        assertThat(aluno.getAddressLegacy()).isEqualTo("Rua A, 1");
+    }
+
+    @Test
+    void aprovarAplicaOEnderecoEstruturado() {
+        var p = pedidoDe(UUID.randomUUID(), ProfileUpdateStatus.PENDING);
+        p.setStructuredAddress(Address.builder()
+                .zipCode("35570-000").street("Rua Nova").streetNumber("42")
+                .neighborhood("Centro").build());
+
+        useCase.approve(p.getId(), ADMIN);
+
+        assertThat(aluno.getAddress().getStreet()).isEqualTo("Rua Nova");
+        assertThat(aluno.getAddress().getStreetNumber()).isEqualTo("42");
+        assertThat(aluno.getAddress().isComplete()).isTrue();
+        assertThat(aluno.getAddressLegacy()).isEqualTo("Rua A, 1");
     }
 
     @Test
@@ -159,8 +180,6 @@ class ProfileUpdateUseCaseImplTest {
         assertThat(aluno.getFullName()).isEqualTo("Fernanda Lima");
     }
 
-    /// Decidir duas vezes aplicaria a mudanca de novo ou apagaria o registro de
-    /// quem decidiu antes.
     @Test
     void pedidoJaAnalisadoNaoEDecididoDeNovo() {
         var aprovado = pedidoDe(UUID.randomUUID(), ProfileUpdateStatus.APPROVED);
@@ -189,10 +208,6 @@ class ProfileUpdateUseCaseImplTest {
                 .isInstanceOf(NotFoundException.class);
     }
 
-    /// users.institution_id e derivado de user_institutions por um unico
-    /// escritor. Gravando direto na aprovacao, o campo apontava pra uma
-    /// instituicao sem linha na tabela -- e o proximo add/remove no perfil
-    /// recalculava e desfazia a aprovacao do admin, sem aviso nenhum.
     @Test
     void aprovarInstituicaoCriaOVinculoEmVezDeGravarOCampo() {
         UUID novaInstituicao = UUID.randomUUID();
@@ -208,8 +223,6 @@ class ProfileUpdateUseCaseImplTest {
         assertThat(aluno.getInstitutionId()).isNull();
     }
 
-    /// Aprovar duas vezes, ou aprovar instituicao que o aluno ja declarou, nao
-    /// pode estourar: o add() recusa vinculo repetido com 409.
     @Test
     void aprovarInstituicaoJaVinculadaNaoQuebra() {
         UUID jaTem = UUID.randomUUID();
@@ -224,8 +237,6 @@ class ProfileUpdateUseCaseImplTest {
         org.mockito.Mockito.verify(userInstitutions, org.mockito.Mockito.never()).add(any(), any());
     }
 
-    /// O admin e obrigado a escrever o motivo da recusa justamente pro aluno
-    /// ler. Com myPending (so PENDING), ele nunca chegava la.
     @Test
     void oUltimoPedidoDevolveARecusaComOMotivo() {
         ProfileUpdateRequest recusado = ProfileUpdateRequest.builder()

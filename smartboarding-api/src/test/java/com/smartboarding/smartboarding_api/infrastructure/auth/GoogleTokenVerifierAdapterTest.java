@@ -19,9 +19,6 @@ class GoogleTokenVerifierAdapterTest {
 
     private MockRestServiceServer google;
 
-    /// Passa pelo RestClient de verdade, com os conversores de verdade: um teste
-    /// que mockasse a resposta ja parseada nao teria pego o conversor errado
-    /// escolhendo entre Jackson 2 e 3, que era o bug.
     private GoogleTokenVerifierAdapter comResposta(String clientId,
                                                    Runnable configuraResposta) {
         RestClient.Builder builder = RestClient.builder();
@@ -35,8 +32,6 @@ class GoogleTokenVerifierAdapterTest {
                 .andRespond(withSuccess(corpo, MediaType.APPLICATION_JSON));
     }
 
-    /// O tokeninfo devolve email_verified como STRING. Lendo como booleano, todo
-    /// login viraria "e-mail nao verificado".
     @Test
     void tokenValidoViraContaDoGoogle() {
         var adapter = comResposta(CLIENT_ID, () -> responde("""
@@ -70,8 +65,6 @@ class GoogleTokenVerifierAdapterTest {
         assertThat(adapter.verify("token-do-google").emailVerified()).isFalse();
     }
 
-    /// O "aud" e pra quem o token foi emitido. Sem conferir, um token valido de
-    /// OUTRO aplicativo entraria nesta conta.
     @Test
     void tokenDeOutroAplicativoERecusado() {
         var adapter = comResposta(CLIENT_ID, () -> responde("""
@@ -92,9 +85,6 @@ class GoogleTokenVerifierAdapterTest {
                 .isInstanceOf(UnauthorizedException.class);
     }
 
-    /// Sem client ID nao da pra saber se o token foi emitido PRA ESTE app.
-    /// Aceitar assim faria valer token de qualquer outro aplicativo -- por isso
-    /// a recusa vem antes de qualquer chamada de rede.
     @Test
     void semClientIdConfiguradoRecusaSemChamarARede() {
         var adapter = comResposta("", () -> {});
@@ -113,8 +103,6 @@ class GoogleTokenVerifierAdapterTest {
                 .isInstanceOf(UnauthorizedException.class);
     }
 
-    /// Com client ID configurado mas token invalido, o Google responde erro e o
-    /// adapter traduz pra mensagem do usuario em vez de vazar a falha de rede.
     @Test
     void tokenInvalidoViraMensagemDeUsuario() {
         var adapter = comResposta(CLIENT_ID, () ->
@@ -128,7 +116,6 @@ class GoogleTokenVerifierAdapterTest {
                 .hasMessageContaining("Google");
     }
 
-    /// Corpo que nao e JSON nao pode subir como erro 500 do servidor.
     @Test
     void respostaQueNaoEJsonViraRecusa() {
         var adapter = comResposta(CLIENT_ID, () ->

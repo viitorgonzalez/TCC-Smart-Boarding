@@ -21,10 +21,6 @@ void main() {
     await tester.pump(const Duration(milliseconds: 50));
   }
 
-  /// A suite roda sem --dart-define, entao esta build nao tem Google
-  /// configurado -- e o botao nao pode aparecer. Oferecer o caminho aqui faria
-  /// o usuario escolher a conta pra so entao descobrir que a build nao sabe
-  /// pedir o token certo.
   testWidgets('sem client id configurado o botao do Google some', (
     tester,
   ) async {
@@ -34,8 +30,6 @@ void main() {
     expect(find.byKey(const Key('login_google_button')), findsNothing);
   });
 
-  /// O que nao pode e a tela inteira depender do Google: entrar por e-mail e
-  /// senha continua no lugar.
   testWidgets('login por e-mail continua disponivel', (tester) async {
     await abrir(tester);
 

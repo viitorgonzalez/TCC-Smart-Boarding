@@ -8,9 +8,6 @@ import static org.assertj.core.api.Assertions.assertThat;
 
 class ListEntryTest {
 
-    /// Sem @Builder.Default o Lombok ignora o `= true` do campo e a inscricao
-    /// nasce inativa. Como toda leitura da lista filtra por isActive, o aluno
-    /// entraria na lista e simplesmente nao apareceria nela -- sem erro nenhum.
     @Test
     void inscricaoNasceAtivaMesmoSemPassarNoBuilder() {
         ListEntry entry = ListEntry.builder().build();

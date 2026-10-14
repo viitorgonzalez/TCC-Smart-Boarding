@@ -37,8 +37,6 @@ public class DailyList {
     @Column(name = "closed_at")
     private LocalDateTime closedAt;
 
-    /// O admin mexeu no status na mão hoje. A varredura respeita a decisão dele
-    /// até o dia virar — sem isso, reabrir depois do horário durava 5 minutos.
     @Builder.Default
     @Column(name = "manual_override", nullable = false)
     private boolean manualOverride = false;
@@ -46,8 +44,6 @@ public class DailyList {
     @Column(name = "trip_started_at")
     private LocalDateTime tripStartedAt;
 
-    /// Quando a ida terminou. Nulo = ainda na ida, ou nem comecou.
-    /// trip_finished_at marca o fim do dia inteiro -- agora o fim da VOLTA.
     @Column(name = "outbound_finished_at")
     private LocalDateTime outboundFinishedAt;
 

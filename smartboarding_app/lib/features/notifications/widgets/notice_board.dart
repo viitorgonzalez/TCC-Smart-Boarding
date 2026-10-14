@@ -2,12 +2,6 @@ import 'dart:math' as math;
 import 'package:flutter/material.dart';
 import '../../../core/theme/app_theme.dart';
 
-/// Quadro de avisos: a metáfora do mural, desenhada com os tokens do app.
-///
-/// O painel recuado em [AppColors.ashGrey] é a mesma superfície das telas de
-/// autenticação, e os bilhetes são cartões do design system — o que muda em
-/// relação a uma lista comum é a malha de pontos do mural e o alfinete, não a
-/// paleta.
 class NoticeBoard extends StatelessWidget {
   final List<Widget> notes;
   final Future<void> Function()? onRefresh;
@@ -39,8 +33,6 @@ class NoticeBoard extends StatelessWidget {
   }
 }
 
-/// Malha de furos do mural. Regular de propósito: é o que separa "quadro" de
-/// "fundo colorido" sem apelar pra textura.
 class _PegboardPainter extends CustomPainter {
   static const _spacing = 22.0;
   static const _radius = 1.6;
@@ -59,9 +51,6 @@ class _PegboardPainter extends CustomPainter {
   bool shouldRepaint(covariant CustomPainter oldDelegate) => false;
 }
 
-/// Bilhete preso no mural. A inclinação vem do [seed] (id do aviso) pra o mesmo
-/// bilhete cair sempre no mesmo ângulo entre rebuilds — sutil, só o bastante
-/// pra ler como papel preso e não como cartão desalinhado.
 class NoticeNote extends StatelessWidget {
   final String seed;
   final Widget child;
@@ -69,10 +58,8 @@ class NoticeNote extends StatelessWidget {
   final VoidCallback? onTap;
   final VoidCallback? onLongPress;
 
-  /// Cor do alfinete. Nulo usa a primária (ou o cinza de apoio, se [faded]).
   final Color? accent;
 
-  /// Marcado na seleção múltipla do admin.
   final bool selected;
 
   const NoticeNote({
@@ -103,7 +90,6 @@ class NoticeNote extends StatelessWidget {
           clipBehavior: Clip.none,
           children: [
             Container(
-              // Folga no topo pro alfinete não encostar no texto.
               margin: const EdgeInsets.only(top: 7),
               decoration: BoxDecoration(
                 color: faded ? AppColors.background : AppColors.surface,
@@ -141,8 +127,6 @@ class NoticeNote extends StatelessWidget {
   }
 }
 
-/// Alfinete: disco cheio com anel claro em volta, no mesmo vocabulário dos
-/// outros indicadores do app — sem brilho nem volume falso.
 class _Pin extends StatelessWidget {
   final Color color;
   const _Pin({required this.color});

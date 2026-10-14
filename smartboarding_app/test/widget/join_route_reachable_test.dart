@@ -10,8 +10,6 @@ import 'package:smartboarding_app/features/membership/screens/join_route_screen.
 
 import '../support/fake_http.dart';
 
-/// [rotas] e quantas rotas o aluno ja tem -- e o que decidia se a porta pro
-/// codigo aparecia ou nao.
 Future<void> abrirHome(WidgetTester tester, {required int rotas}) async {
   final http = await installFakeHttp(token: 'jwt-de-teste');
   http.on(
@@ -33,8 +31,6 @@ Future<void> abrirHome(WidgetTester tester, {required int rotas}) async {
   );
   http.always(body: {'data': []});
 
-  // runAsync: dentro de testWidgets o relogio e falso, e o Dio pendura o
-  // request nos timers de connect/receive -- o await nunca voltaria.
   final membership = MembershipProvider();
   await tester.runAsync(membership.load);
 
@@ -50,18 +46,12 @@ Future<void> abrirHome(WidgetTester tester, {required int rotas}) async {
       child: const MaterialApp(home: StudentHomeScreen()),
     ),
   );
-  // pump fixo em vez de pumpAndSettle: o status do dia mostra um
-  // CircularProgressIndicator, que anima pra sempre e nunca deixa a arvore
-  // assentar.
   await tester.pump(const Duration(milliseconds: 50));
 }
 
 void main() {
   TestWidgetsFlutterBinding.ensureInitialized();
 
-  /// O caso que estava quebrado: com UMA rota, o NoRouteCard nao aparece (ele e
-  /// so do estado vazio) e o chip "Outra rota" tambem nao (ele pede duas ou
-  /// mais). O aluno ficava sem nenhuma porta pro codigo.
   testWidgets('com uma rota ainda da pra entrar em outra', (tester) async {
     await abrirHome(tester, rotas: 1);
 

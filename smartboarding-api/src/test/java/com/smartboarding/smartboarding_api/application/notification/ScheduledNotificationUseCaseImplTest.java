@@ -46,7 +46,6 @@ class ScheduledNotificationUseCaseImplTest {
 
     @BeforeEach
     void setUp() {
-        // Quarta-feira, 08:00 — dia útil, pra WEEKDAYS e DAILY valerem.
         useCase = at(LocalDateTime.of(2026, 9, 9, 8, 0));
         when(repository.save(any())).thenAnswer(inv -> inv.getArgument(0));
     }
@@ -132,8 +131,6 @@ class ScheduledNotificationUseCaseImplTest {
         verify(publishNotificationUseCase, never()).publish(any(), any(), any(), any(), any());
     }
 
-    /// A varredura roda a cada 5 minutos; sem a checagem por dia o mesmo aviso
-    /// sairia doze vezes por hora.
     @Test
     void avisoJaEnviadoHojeNaoRepete() {
         var aviso = aviso(NotificationFrequency.DAILY, LocalTime.of(6, 0));
@@ -164,13 +161,13 @@ class ScheduledNotificationUseCaseImplTest {
     @Test
     void weeklyDisparaSoNoDiaConfigurado() {
         var aviso = aviso(NotificationFrequency.WEEKLY, LocalTime.of(6, 0));
-        aviso.setDayOfWeek(3); // quarta — bate com o clock do setUp
+        aviso.setDayOfWeek(3);
         ativos(aviso);
 
         assertThat(useCase.dispatchDue()).isEqualTo(1);
 
         var outroDia = aviso(NotificationFrequency.WEEKLY, LocalTime.of(6, 0));
-        outroDia.setDayOfWeek(1); // segunda
+        outroDia.setDayOfWeek(1);
         ativos(outroDia);
 
         assertThat(useCase.dispatchDue()).isZero();
@@ -185,8 +182,6 @@ class ScheduledNotificationUseCaseImplTest {
         assertThat(useCase.dispatchDue()).isZero();
     }
 
-    /// Publicação que falha não pode marcar lastSentAt: o próximo tique tem que
-    /// tentar de novo em vez de pular o dia.
     @Test
     void falhaNaPublicacaoNaoMarcaComoEnviado() {
         var aviso = aviso(NotificationFrequency.DAILY, LocalTime.of(6, 0));

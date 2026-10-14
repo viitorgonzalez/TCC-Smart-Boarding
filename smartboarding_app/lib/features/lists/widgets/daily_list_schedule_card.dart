@@ -3,8 +3,6 @@ import '../../../core/theme/app_theme.dart';
 import '../../../core/utils/date_format.dart';
 import '../../../core/widgets/app_card.dart';
 
-/// Janela da lista. O aviso de que alterar notifica a rota fica junto do
-/// horário de propósito: é a consequência da ação que está ali do lado.
 class DailyListScheduleCard extends StatelessWidget {
   final String? openTime;
   final String? closeTime;

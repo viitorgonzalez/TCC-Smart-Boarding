@@ -1,7 +1,6 @@
 import 'package:flutter/material.dart';
 import '../../../core/theme/app_theme.dart';
 
-/// Botões de zoom e reenquadramento do mapa.
 class MapButton extends StatelessWidget {
   final IconData icon;
   final String tooltip;
@@ -35,5 +34,3 @@ class MapButton extends StatelessWidget {
     );
   }
 }
-
-/// Origem e destino ganham cor própria: num trajeto é o que se lê primeiro.

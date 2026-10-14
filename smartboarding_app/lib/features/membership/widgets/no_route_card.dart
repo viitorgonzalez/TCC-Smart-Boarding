@@ -3,8 +3,6 @@ import '../../../core/theme/app_theme.dart';
 import '../../../core/widgets/app_card.dart';
 import '../screens/join_route_screen.dart';
 
-/// Estado de quem acabou de criar a conta: existe no sistema, mas ainda não
-/// pertence a rota nenhuma. Sem isso a home ficaria vazia e sem explicação.
 class NoRouteCard extends StatelessWidget {
   const NoRouteCard({super.key});
 
@@ -16,16 +14,12 @@ class NoRouteCard extends StatelessWidget {
         children: [
           Row(
             children: [
-              Container(
-                width: 52,
-                height: 52,
-                decoration: BoxDecoration(
-                  color: AppColors.deepTeal.withValues(alpha: 0.12),
-                  shape: BoxShape.circle,
-                ),
-                child: const Icon(Icons.alt_route, color: AppColors.deepTeal),
+              const Icon(
+                Icons.alt_route_outlined,
+                color: AppColors.deepTeal,
+                size: 28,
               ),
-              const SizedBox(width: 16),
+              const SizedBox(width: AppSpacing.lg),
               Expanded(
                 child: Column(
                   crossAxisAlignment: CrossAxisAlignment.start,

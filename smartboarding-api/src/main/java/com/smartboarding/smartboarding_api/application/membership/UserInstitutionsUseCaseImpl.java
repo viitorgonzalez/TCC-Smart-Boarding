@@ -41,7 +41,6 @@ public class UserInstitutionsUseCaseImpl implements ManageUserInstitutionsUseCas
     public void add(UUID userId, UUID institutionId) {
         institutionRepository.findById(institutionId)
                 .orElseThrow(() -> new NotFoundException("Instituição não encontrada"));
-        // Declarar a mesma duas vezes duplicaria o aluno na contagem da lista.
         if (repository.existsByUserIdAndInstitutionId(userId, institutionId)) {
             throw new ConflictException("ALREADY_LINKED", "Você já declarou essa instituição.");
         }
@@ -57,19 +56,10 @@ public class UserInstitutionsUseCaseImpl implements ManageUserInstitutionsUseCas
         syncPrimary(userId);
     }
 
-    /// users.institution_id continua existindo como a institucao PRINCIPAL --
-    /// e o que a lista usa pra contar onde o aluno desce, e sete telas exibem
-    /// por ali.
-    ///
-    /// Este metodo e o unico escritor do campo. Duas fontes so divergem quando
-    /// ha dois lugares escrevendo; com um so, o campo e sempre a primeira
-    /// instituicao declarada, e some quando ele remove todas.
     private void syncPrimary(UUID userId) {
         userRepository.findById(userId).ifPresent(user -> {
             var vinculos = repository.findAllByUserId(userId);
             UUID principal = vinculos.isEmpty() ? null : vinculos.getFirst().getInstitutionId();
-            // Trocar a principal por outra que ele ja tinha bagunçaria a contagem
-            // historica sem motivo: so mexe se a atual saiu da lista.
             boolean atualAindaVale = user.getInstitutionId() != null
                     && vinculos.stream().anyMatch(v -> v.getInstitutionId().equals(user.getInstitutionId()));
             if (!atualAindaVale) {

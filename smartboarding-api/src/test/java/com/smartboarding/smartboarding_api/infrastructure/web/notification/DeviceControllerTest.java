@@ -39,8 +39,6 @@ class DeviceControllerTest extends WebMvcTestSupport {
                 User.builder().id(STUDENT_ID).email("fernanda@edu.unifor.br").build()));
     }
 
-    /// O dono do token é quem está no JWT. Aceitar userId do corpo deixaria um
-    /// usuário registrar dispositivo em nome de outro e receber os push dele.
     @Test
     void tokenEAmarradoAoUsuarioDoJwt() throws Exception {
         mvc.perform(post("/api/devices/token").with(student())

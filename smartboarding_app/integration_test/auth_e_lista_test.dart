@@ -48,12 +48,9 @@ void main() {
         await tester.tap(find.byKey(const Key('login_submit_button')));
         await tester.pumpAndSettle(const Duration(seconds: 3));
 
-        // Saiu da tela de login.
         expect(find.byKey(const Key('login_email_field')), findsNothing);
         expect(find.text('Smart Boarding'), findsOneWidget);
 
-        // fernanda@student.com não está pré-inscrita na lista de hoje (seed) —
-        // o botão "Entrar na lista" deve aparecer de forma determinística.
         final entrarNaLista = find.widgetWithText(
           FilledButton,
           'Entrar na lista',
@@ -68,7 +65,6 @@ void main() {
         await tester.tap(entrarNaLista.first);
         await tester.pumpAndSettle();
 
-        // Bottom sheet de direção — abre pelo menos uma opção (ida/volta/ida e volta).
         expect(find.text('Escolha a direção'), findsOneWidget);
         await tester.tap(find.byType(ListTile).first);
         await tester.pumpAndSettle(const Duration(seconds: 2));

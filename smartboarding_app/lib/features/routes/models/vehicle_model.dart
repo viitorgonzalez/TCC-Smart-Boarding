@@ -1,5 +1,3 @@
-/// Veículo da rota. A capacidade alimenta o veículo proposto no fechamento
-/// (RN16) — não é teto de inscrição.
 class VehicleModel {
   final String id;
   final String label;

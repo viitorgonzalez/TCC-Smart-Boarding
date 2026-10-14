@@ -37,7 +37,6 @@ public class ScheduledNotification {
     @Column(name = "send_at", nullable = false)
     private LocalTime sendAt;
 
-    /// Só para WEEKLY.
     @Column(name = "day_of_week")
     private Integer dayOfWeek;
 
@@ -68,8 +67,6 @@ public class ScheduledNotification {
         updatedAt = LocalDateTime.now();
     }
 
-    /// Chegou a hora e ainda não saiu hoje. A checagem por dia é o que impede a
-    /// varredura de repetir o aviso a cada cinco minutos.
     public boolean isDue(LocalDateTime now) {
         if (!active || !matchesDay(now.getDayOfWeek())) {
             return false;

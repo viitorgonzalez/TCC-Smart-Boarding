@@ -14,10 +14,6 @@ import java.util.UUID;
 
 import static org.assertj.core.api.Assertions.assertThatCode;
 
-/// O `reset()` roda SEM transação de propósito, então este update tem que abrir a
-/// sua. Com @Modifying e nenhuma transação por perto o Hibernate recusa, e a
-/// senha do aluno já teria sido trocada duas linhas antes -- ele fica com 500 e
-/// um código que não serve mais.
 @Testcontainers
 @SpringBootTest
 class PasswordResetRepositoryAdapterIT {

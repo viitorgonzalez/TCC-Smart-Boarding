@@ -6,8 +6,6 @@ import '../../../core/widgets/loading_filled_button.dart';
 import '../../../core/widgets/snackbar_utils.dart';
 import '../services/auth_service.dart';
 
-/// Código e nova senha na mesma tela: o backend valida os dois juntos, então não
-/// há estado intermediário pra guardar.
 class ResetPasswordScreen extends StatefulWidget {
   final String email;
   const ResetPasswordScreen({super.key, required this.email});
@@ -56,7 +54,7 @@ class _ResetPasswordScreenState extends State<ResetPasswordScreen> {
   @override
   Widget build(BuildContext context) {
     return Scaffold(
-      backgroundColor: AppColors.ashGrey,
+      backgroundColor: AppColors.background,
       appBar: AppBar(backgroundColor: Colors.transparent, elevation: 0),
       body: SafeArea(
         child: SingleChildScrollView(

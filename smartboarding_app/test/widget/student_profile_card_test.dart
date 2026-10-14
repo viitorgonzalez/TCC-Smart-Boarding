@@ -38,9 +38,6 @@ void main() {
     home: Scaffold(body: child),
   );
 
-  // Decisao invertida em 09/09/2026 a pedido do autor: a ficha passou a carregar
-  // contato porque o admin precisa falar com o aluno. Senha continua fora -- ela
-  // nao tem uso de leitura nenhum.
   testWidgets('card mostra contato, mas nunca senha', (tester) async {
     await tester.pumpWidget(
       wrap(
@@ -140,8 +137,6 @@ void main() {
     expect(find.text('12/03/2004'), findsOneWidget);
   });
 
-  // Campo vazio some em vez de virar rotulo com travessao: linha em branco so
-  // ocupa espaco e nao informa nada.
   testWidgets('campo ausente nao vira linha vazia', (tester) async {
     final semContato = StudentProfile(
       id: 'aluno-2',
@@ -187,8 +182,6 @@ void main() {
     statusHistory: perfil.statusHistory,
   );
 
-  /// A trava aparece como ausencia de opcao, nao como erro depois do toque: o
-  /// admin nao descobre que nao podia so quando a API recusa.
   testWidgets('a propria conta nao oferece troca de papel', (tester) async {
     await tester.pumpWidget(
       wrap(
@@ -224,7 +217,6 @@ void main() {
     expect(find.text('Tornar administrador'), findsOneWidget);
   });
 
-  /// Promover conta desativada produz um admin que nao consegue entrar.
   testWidgets('conta desativada nao oferece promover', (tester) async {
     await tester.pumpWidget(
       wrap(
@@ -245,9 +237,6 @@ void main() {
     expect(tile.enabled, isFalse);
   });
 
-  /// Ultimo admin ativo: rebaixar travaria o sistema por fora -- ninguem mais
-  /// promove ninguem de volta. Mesmo tratamento da conta desativada: some a
-  /// opcao de tocar, nao o erro depois do toque.
   testWidgets('ultimo admin nao pode ser rebaixado', (tester) async {
     await tester.pumpWidget(
       wrap(
@@ -290,10 +279,6 @@ void main() {
     expect(tile.enabled, isTrue);
   });
 
-  /// A quarta trava, a que faltava na interface. O backend recusa com
-  /// CANNOT_DEACTIVATE_ADMIN, e o switch plenamente habilitado convidava ao erro
-  /// pós-toque que a spec diz ter eliminado -- ainda por cima sem dizer que a
-  /// saída é rebaixar antes.
   testWidgets('admin ativo nao pode ser desativado pela ficha', (tester) async {
     await tester.pumpWidget(
       wrap(
@@ -318,8 +303,6 @@ void main() {
     );
   });
 
-  /// Só o sentido "desativar" é barrado: reativar um admin inativo é o que o
-  /// backend também aceita, e travar aqui bloquearia uma ação legítima.
   testWidgets('admin inativo ainda pode ser reativado', (tester) async {
     await tester.pumpWidget(
       wrap(
@@ -364,16 +347,6 @@ void main() {
     );
   });
 
-  // ─── StudentProfileSheet: a trava do ultimo admin de ponta a ponta ──────
-  //
-  // Os testes acima provam só a relação flag→enabled em StudentProfileBody,
-  // que é apresentação. Quem calcula ehUltimoAdmin a partir da contagem real
-  // (e implementa o fail-open) é StudentProfileSheetState -- então é ela que
-  // precisa estar sob teste aqui, com a camada HTTP falsa.
-
-  /// Monta a ficha de verdade (não o Body) com GET /api/users/{id}/profile e
-  /// GET /api/users/admins/count stubados. [admins] é a contagem devolvida;
-  /// [status] deixa simular a rota falhando (ex.: 500) pro cenário de fail-open.
   Future<FakeHttpAdapter> abrirFicha(
     WidgetTester tester, {
     required int admins,
@@ -415,9 +388,6 @@ void main() {
         ),
       ),
     );
-    // Espera pela condicao (a ficha terminar as duas buscas do initState), nao
-    // por uma duracao chutada: StudentProfileSheetState.carregado so existe
-    // pra isso.
     final state = tester.state<StudentProfileSheetState>(
       find.byType(StudentProfileSheet),
     );
@@ -450,8 +420,6 @@ void main() {
     expect(tile.enabled, isTrue);
   });
 
-  /// Fail-open: se a contagem nem chega, a tela não pode travar por engano --
-  /// quem recusa de verdade é o backend, no toque.
   testWidgets('a contagem de admins falha: rebaixar continua habilitado', (
     tester,
   ) async {
@@ -463,9 +431,6 @@ void main() {
     expect(tile.enabled, isTrue);
   });
 
-  /// A folha abre de três telas e busca de novo a cada promoção. Baixar
-  /// `/api/users` pra contar levaria e-mail, telefone, endereço e nascimento da
-  /// base inteira no fio — payload sem teto pra chegar num número.
   testWidgets('a ficha nunca baixa a tabela de usuários pra contar admins', (
     tester,
   ) async {
@@ -478,8 +443,6 @@ void main() {
     );
   });
 
-  /// A folha só atualiza o estado dela. Sem avisar quem a abriu, a lista de trás
-  /// seguiria com o papel antigo até um pull-to-refresh.
   testWidgets('mudar o papel avisa quem abriu a folha', (tester) async {
     var avisou = false;
     final http = await abrirFicha(
@@ -513,8 +476,6 @@ void main() {
     expect(avisou, isTrue);
   });
 
-  /// O aviso é sobre mudança que aconteceu: PATCH recusado não pode mandar a
-  /// lista recarregar como se algo tivesse mudado.
   testWidgets('papel recusado pelo backend não avisa mudança', (tester) async {
     var avisou = false;
     final http = await abrirFicha(
@@ -544,8 +505,6 @@ void main() {
     expect(avisou, isFalse);
   });
 
-  /// Fechar no meio do PATCH faria a folha sumir antes de o `onChanged`
-  /// disparar, e o chamador receberia "nada mudou" sobre uma conta que mudou.
   testWidgets('a folha nao fecha enquanto grava', (tester) async {
     await tester.pumpWidget(
       wrap(

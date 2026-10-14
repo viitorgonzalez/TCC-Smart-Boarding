@@ -19,8 +19,6 @@ DioException _dio({
 
 void main() {
   group('mensagem vinda da API', () {
-    // A API manda o motivo real no corpo. Preferir a mensagem genérica do status
-    // esconderia justamente a informação útil.
     test('usa "error" do corpo quando existe', () {
       final e = _dio(
         status: 409,
@@ -124,8 +122,6 @@ void main() {
     expect(const AppException('x').toString(), 'x');
   });
 
-  // Erro que não é nem AppException nem DioException não pode vazar stack trace
-  // pro usuário.
   test('erro qualquer vira mensagem genérica', () {
     expect(
       AppException.fromError(StateError('bug interno')),
@@ -135,5 +131,46 @@ void main() {
       AppException.fromError('string solta'),
       'Erro inesperado. Tente novamente.',
     );
+  });
+
+  test('401 entrando fala de credencial, nao de sessao', () {
+    final e = DioException(
+      requestOptions: RequestOptions(path: '/auth/login'),
+      response: Response(
+        requestOptions: RequestOptions(path: '/auth/login'),
+        statusCode: 401,
+      ),
+      type: DioExceptionType.badResponse,
+    );
+
+    expect(AppException.fromError(e), 'E-mail ou senha incorretos.');
+  });
+
+  test('401 em rota autenticada continua falando de sessao', () {
+    final e = DioException(
+      requestOptions: RequestOptions(path: '/api/me'),
+      response: Response(
+        requestOptions: RequestOptions(path: '/api/me'),
+        statusCode: 401,
+      ),
+      type: DioExceptionType.badResponse,
+    );
+
+    expect(AppException.fromError(e), contains('Sessão expirada'));
+  });
+
+  test('mensagem do servidor tem prioridade', () {
+    final req = RequestOptions(path: '/auth/login');
+    final e = DioException(
+      requestOptions: req,
+      response: Response(
+        requestOptions: req,
+        statusCode: 401,
+        data: {'error': 'Credenciais inválidas'},
+      ),
+      type: DioExceptionType.badResponse,
+    );
+
+    expect(AppException.fromError(e), 'Credenciais inválidas');
   });
 }

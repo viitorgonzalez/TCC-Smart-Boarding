@@ -17,7 +17,8 @@ import org.springframework.security.core.GrantedAuthority;
 import org.springframework.security.core.userdetails.UserDetails;
 import org.springframework.security.core.userdetails.UserDetailsService;
 import org.springframework.security.core.userdetails.UsernameNotFoundException;
-import org.springframework.security.crypto.bcrypt.BCryptPasswordEncoder;
+import com.smartboarding.smartboarding_api.infrastructure.auth.PepperedPasswordEncoder;
+import org.springframework.beans.factory.annotation.Value;
 import org.springframework.security.crypto.password.PasswordEncoder;
 import org.springframework.security.oauth2.core.OAuth2AuthenticationException;
 import org.springframework.security.oauth2.core.OAuth2ErrorCodes;
@@ -44,34 +45,24 @@ public class SecurityConfig {
                 .sessionManagement(session -> session.sessionCreationPolicy(SessionCreationPolicy.STATELESS))
                 .authorizeHttpRequests(auth -> auth
                         .requestMatchers(HttpMethod.POST, "/api/auth/login").permitAll()
-                        // RN22: quem esqueceu a senha nao esta autenticado -- por
-                        // definicao, estes dois precisam ser publicos.
-                        // Cadastro proprio: quem chega aqui ainda nao tem conta.
                         .requestMatchers(HttpMethod.POST, "/api/auth/signup").permitAll()
-                        // Entrar com Google e caminho de entrada, como o login.
                         .requestMatchers(HttpMethod.POST, "/api/auth/google").permitAll()
                         .requestMatchers(HttpMethod.POST, "/api/auth/forgot-password").permitAll()
                         .requestMatchers(HttpMethod.POST, "/api/auth/reset-password").permitAll()
-                        .requestMatchers(HttpMethod.GET, "/api/routes").permitAll()
-                        .requestMatchers(HttpMethod.GET, "/api/routes/{id}").permitAll()
+                        .requestMatchers(HttpMethod.GET, "/api/routes").hasRole("ADMIN")
+                        .requestMatchers(HttpMethod.GET, "/api/routes/{id}").authenticated()
                         .requestMatchers(HttpMethod.GET, "/api/institutions").permitAll()
                         .requestMatchers(HttpMethod.GET, "/api/users/**").hasRole("ADMIN")
                         .requestMatchers(HttpMethod.POST, "/api/routes").hasRole("ADMIN")
-                        // Sub-recursos de rota: sem regra explícita, POST em
-                        // /api/routes/{id}/stops cairia no anyRequest().authenticated()
-                        // e qualquer aluno poderia criar parada.
                         .requestMatchers(HttpMethod.POST, "/api/routes/*/stops").hasRole("ADMIN")
                         .requestMatchers(HttpMethod.PATCH, "/api/routes/*/stops/**").hasRole("ADMIN")
-                        // Gerar, listar e revogar codigo e do admin. Sem estas
-                        // linhas o caminho cairia no anyRequest().authenticated()
-                        // e um aluno emitiria codigo pra propria rota.
                         .requestMatchers("/api/routes/*/invite-codes/**").hasRole("ADMIN")
                         .requestMatchers("/api/routes/*/invite-codes").hasRole("ADMIN")
-                        // Usar o codigo e do aluno logado, sobre as rotas DELE.
-                        // O proprio perfil e do usuario logado; a fila de
-                        // solicitacoes e do admin.
+                        .requestMatchers("/api/invite-codes").hasRole("ADMIN")
+                        .requestMatchers(HttpMethod.DELETE, "/api/invite-codes").hasRole("ADMIN")
                         .requestMatchers(HttpMethod.GET, "/api/me").authenticated()
                         .requestMatchers(HttpMethod.POST, "/api/me/password").authenticated()
+                        .requestMatchers(HttpMethod.PUT, "/api/me/password").authenticated()
                         .requestMatchers("/api/me/institutions/**").authenticated()
                         .requestMatchers("/api/me/institutions").authenticated()
                         .requestMatchers("/api/me/profile-requests/**").authenticated()
@@ -90,18 +81,12 @@ public class SecurityConfig {
                         .requestMatchers(HttpMethod.POST, "/api/institutions").hasRole("ADMIN")
                         .requestMatchers(HttpMethod.PATCH, "/api/institutions/**").hasRole("ADMIN")
                         .requestMatchers(HttpMethod.DELETE, "/api/institutions/**").hasRole("ADMIN")
-                        // Ver quem está na lista: qualquer usuário autenticado (aluno inclusive)
                         .requestMatchers(HttpMethod.GET, "/api/lists/{id}/entries").authenticated()
-                        // Gestão de listas é do admin. Padrões exatos: entrar e
-                        // sair da lista são /api/lists/{id}/entries e não podem
-                        // cair nestas regras.
-                        // Inclusão/remoção tardia é do admin: fura o horário de propósito.
                         .requestMatchers(HttpMethod.POST, "/api/lists/{id}/entries/admin").hasRole("ADMIN")
                         .requestMatchers(HttpMethod.DELETE, "/api/lists/{id}/entries/{userId}").hasRole("ADMIN")
-                        // O aluno vê só as próprias advertências (/me); o resto é do admin.
                         .requestMatchers(HttpMethod.GET, "/api/warnings/me").authenticated()
                         .requestMatchers("/api/warnings/**").hasRole("ADMIN")
-                        // RN23: conduzir trajeto e acao de admin, nao de aluno.
+                        .requestMatchers(HttpMethod.GET, "/api/trip/{listId}").authenticated()
                         .requestMatchers("/api/trip/**").hasRole("ADMIN")
                         .requestMatchers(HttpMethod.GET, "/api/users/{id}/profile").hasRole("ADMIN")
                         .requestMatchers(HttpMethod.PATCH, "/api/users/{id}/status").hasRole("ADMIN")
@@ -112,8 +97,6 @@ public class SecurityConfig {
                         .requestMatchers(HttpMethod.DELETE, "/api/lists/{id}").hasRole("ADMIN")
                         .requestMatchers(HttpMethod.GET, "/api/reports/**").hasRole("ADMIN")
                         .requestMatchers(HttpMethod.POST, "/api/notifications/**").hasRole("ADMIN")
-                        // Caixa de entrada do aluno: o filtro por rota/validade
-                        // é feito no use case, por isso basta estar autenticado.
                         .requestMatchers(HttpMethod.GET, "/api/notifications").authenticated()
                         .requestMatchers(HttpMethod.DELETE, "/api/notifications").hasRole("ADMIN")
                         .requestMatchers("/api/notifications/scheduled/**").hasRole("ADMIN")
@@ -125,11 +108,6 @@ public class SecurityConfig {
         return http.build();
     }
 
-    /// O papel vem do banco a cada requisicao, nao da claim "scope" do token. A
-    /// claim e carimbada no login e vale 1h: tirada a autoridade da claim, um
-    /// admin rebaixado seguiria admin ate o token expirar -- e nesse intervalo
-    /// ele chamaria PATCH /api/users/{ele}/role e se promoveria de volta. O
-    /// token continua carregando "scope", mas so como informacao.
     @Bean
     public JwtAuthenticationConverter jwtAuthenticationConverter(UserDetailsService userDetailsService) {
         JwtAuthenticationConverter converter = new JwtAuthenticationConverter();
@@ -138,15 +116,6 @@ public class SecurityConfig {
         return converter;
     }
 
-    /// Conta apagada ou desativada para de autenticar, nao so de ter papel.
-    /// Ficar sem autoridade nenhuma nao basta: autoridade vazia ainda satisfaz
-    /// o anyRequest().authenticated(), entao o aluno desativado seguia entrando
-    /// na lista do dia e pegando rota nova ate o token expirar -- justamente o
-    /// abuso que desativar deveria conter. Falhando aqui, o filtro do resource
-    /// server encerra em 401 antes de qualquer regra de autorizacao rodar.
-    ///
-    /// As mensagens sao ASCII de proposito: elas viajam no cabecalho
-    /// WWW-Authenticate, e BearerTokenError recusa caractere fora do RFC 6750.
     private static Collection<GrantedAuthority> currentAuthorities(
             UserDetailsService userDetailsService, String email) {
         UserDetails user;
@@ -155,11 +124,6 @@ public class SecurityConfig {
         } catch (UsernameNotFoundException e) {
             throw new InvalidBearerTokenException("Account no longer exists.");
         } catch (RuntimeException e) {
-            // Banco fora atinge toda requisicao autenticada, e aqui e fora do
-            // alcance do @ControllerAdvice: sem este catch cada uma delas vira
-            // 500 cru. Fecha de proposito -- indisponibilidade nunca pode virar
-            // permissao. Uma linha por requisicao, sem stack, senao a queda do
-            // banco enterra o log que explica a queda.
             log.error("Nao foi possivel carregar o usuario do token: {}", e.toString());
             throw new OAuth2AuthenticationException(new BearerTokenError(
                     OAuth2ErrorCodes.SERVER_ERROR, HttpStatus.SERVICE_UNAVAILABLE,
@@ -177,7 +141,8 @@ public class SecurityConfig {
     }
 
     @Bean
-    public PasswordEncoder passwordEncoder() {
-        return new BCryptPasswordEncoder();
+    public PasswordEncoder passwordEncoder(
+            @Value("${app.security.password-pepper}") String pepper) {
+        return new PepperedPasswordEncoder(pepper);
     }
 }

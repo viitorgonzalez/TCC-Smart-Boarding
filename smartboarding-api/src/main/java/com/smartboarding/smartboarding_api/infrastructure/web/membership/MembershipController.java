@@ -16,8 +16,6 @@ import org.springframework.web.bind.annotation.*;
 import java.util.List;
 import java.util.UUID;
 
-/// As rotas do próprio usuário. O id sai do token: aceitar userId do request
-/// deixaria um aluno entrar ou sair de rota em nome de outro.
 @RestController
 @RequestMapping("/api/me/routes")
 public class MembershipController {

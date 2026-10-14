@@ -10,9 +10,6 @@ import org.springframework.beans.factory.annotation.Value;
 import org.springframework.stereotype.Component;
 import org.springframework.web.client.RestClient;
 
-/// Valida o ID token contra o próprio Google, pelo endpoint tokeninfo: custa uma
-/// chamada de rede por login, mas é bem mais difícil de implementar errado do
-/// que conferir assinatura, emissor e prazo na mão.
 @Slf4j
 @Component
 public class GoogleTokenVerifierAdapter implements GoogleTokenVerifierPort {
@@ -29,8 +26,6 @@ public class GoogleTokenVerifierAdapter implements GoogleTokenVerifierPort {
         this(RestClient.builder(), clientId);
     }
 
-    /// Builder injetável pro teste pendurar um MockRestServiceServer e exercitar
-    /// os conversores de verdade, sem sair pra rede.
     GoogleTokenVerifierAdapter(RestClient.Builder builder, String clientId) {
         this.http = builder.build();
         this.clientId = clientId;
@@ -39,17 +34,12 @@ public class GoogleTokenVerifierAdapter implements GoogleTokenVerifierPort {
     @Override
     public GoogleAccount verify(String idToken) {
         if (clientId == null || clientId.isBlank()) {
-            // Sem client ID não dá pra saber se o token foi emitido PRA ESTE app.
-            // Aceitar assim deixaria valer token de qualquer outro aplicativo.
             throw new UnauthorizedException(
                     "Login com Google não está configurado neste servidor.");
         }
 
         JsonNode payload;
         try {
-            // Parse explicito: com Jackson 2 e 3 no mesmo classpath, pedir
-            // JsonNode direto ao RestClient cai no conversor errado e todo login
-            // real morria DEPOIS de o Google ter respondido 200.
             String corpo = http.get()
                     .uri(TOKENINFO + "?id_token={t}", idToken)
                     .retrieve()
@@ -63,8 +53,6 @@ public class GoogleTokenVerifierAdapter implements GoogleTokenVerifierPort {
             throw new UnauthorizedException("Não foi possível validar seu login do Google.");
         }
 
-        // O "aud" é pra quem o token foi emitido. Sem conferir, um token válido
-        // de OUTRO app seria aceito aqui e daria acesso a esta conta.
         String aud = payload.path("aud").asText("");
         if (!clientId.equals(aud)) {
             log.warn("Token do Google emitido para outro aplicativo");
@@ -77,7 +65,6 @@ public class GoogleTokenVerifierAdapter implements GoogleTokenVerifierPort {
             throw new UnauthorizedException("Login do Google inválido.");
         }
 
-        // O tokeninfo devolve "true"/"false" como STRING, não booleano.
         boolean verificado =
                 "true".equalsIgnoreCase(payload.path("email_verified").asText("false"));
 

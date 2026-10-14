@@ -12,7 +12,6 @@ public record ScheduledNotificationRequest(
         @NotBlank String body,
         @NotNull NotificationFrequency frequency,
         @NotNull LocalTime sendAt,
-        /// Só para WEEKLY: 1=segunda … 7=domingo.
         @Min(1) @Max(7) Integer dayOfWeek,
         @Positive Integer durationHours
 ) {}

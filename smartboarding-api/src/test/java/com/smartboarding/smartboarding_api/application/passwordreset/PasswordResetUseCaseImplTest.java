@@ -162,9 +162,6 @@ class PasswordResetUseCaseImplTest {
 
     @Test
     void limiteDeTentativasEhAtingido() {
-        // O contador só chega aqui porque o incremento não vive numa transação que
-        // sofre rollback na exceção. Se alguém marcar reset() como @Transactional,
-        // este teste continua passando com mock -- mas o comportamento real quebra.
         PasswordResetRequest pedido = pedidoAberto("hash-do-codigo", 5, NOW.plusMinutes(10));
         when(resetRepository.findLatestOpenByUserId(USER_ID)).thenReturn(Optional.of(pedido));
 

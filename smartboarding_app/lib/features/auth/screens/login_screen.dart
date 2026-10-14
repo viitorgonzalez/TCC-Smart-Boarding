@@ -34,8 +34,6 @@ class _LoginScreenState extends State<LoginScreen> {
   Future<void> _entrarComGoogle() async {
     setState(() => _loading = true);
     try {
-      // false = o usuario fechou a escolha de conta. Nao e erro: mostrar
-      // mensagem vermelha por desistencia irrita sem informar nada.
       await context.read<AuthProvider>().signInWithGoogle();
     } catch (e) {
       if (mounted) showErrorSnackBar(context, AppException.fromError(e));
@@ -53,7 +51,7 @@ class _LoginScreenState extends State<LoginScreen> {
         _passCtrl.text,
       );
     } catch (e) {
-      if (mounted) showErrorSnackBar(context, 'Falha no login: $e');
+      if (mounted) showErrorSnackBar(context, AppException.fromError(e));
     } finally {
       if (mounted) setState(() => _loading = false);
     }
@@ -61,10 +59,8 @@ class _LoginScreenState extends State<LoginScreen> {
 
   @override
   Widget build(BuildContext context) {
-    // As telas de autenticação são as únicas sobre Ash Grey no desenho; o resto
-    // do app é #F4F6F4 (ver design-system.md).
     return Scaffold(
-      backgroundColor: AppColors.ashGrey,
+      backgroundColor: AppColors.background,
       body: SafeArea(
         child: SingleChildScrollView(
           padding: const EdgeInsets.fromLTRB(24, 48, 24, 24),
@@ -73,13 +69,9 @@ class _LoginScreenState extends State<LoginScreen> {
             child: Column(
               crossAxisAlignment: CrossAxisAlignment.stretch,
               children: [
-                // A logo ja carrega o wordmark: repetir "Smart Boarding" em
-                // texto logo abaixo duplicaria o nome na mesma dobra.
                 Center(
                   child: Image.asset(
                     'assets/images/logo.png',
-                    // Limitado pela largura da tela, nao por um numero fixo:
-                    // em aparelho estreito um valor cravado estoura a margem.
                     width: MediaQuery.sizeOf(context).width * 0.72,
                     semanticLabel: 'Smart Boarding',
                   ),
@@ -95,6 +87,8 @@ class _LoginScreenState extends State<LoginScreen> {
                 const SizedBox(height: 32),
                 AppTextField(
                   key: const Key('login_email_field'),
+                  autofillHints: const [AutofillHints.username],
+                  textInputAction: TextInputAction.next,
                   autofocus: true,
                   label: 'Email',
                   controller: _emailCtrl,
@@ -107,6 +101,9 @@ class _LoginScreenState extends State<LoginScreen> {
                 const SizedBox(height: 20),
                 AppTextField(
                   key: const Key('login_password_field'),
+                  autofillHints: const [AutofillHints.password],
+                  textInputAction: TextInputAction.done,
+                  onSubmitted: _submit,
                   label: 'Senha',
                   controller: _passCtrl,
                   icon: Icons.lock_outline,

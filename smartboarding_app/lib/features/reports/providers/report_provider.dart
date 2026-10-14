@@ -34,7 +34,6 @@ class ReportProvider extends ChangeNotifier {
     notifyListeners();
   }
 
-  /// Carrega a próxima página (scroll infinito).
   Future<void> loadMore() async {
     if (!_hasMore || _isFetchingMore) return;
     if (_state case AsyncData(:final value)) {
@@ -45,9 +44,7 @@ class ReportProvider extends ChangeNotifier {
         _state = AsyncData([...value, ...result.items]);
         _hasMore = result.hasMore;
         _page++;
-      } catch (_) {
-        // mantém dados existentes em caso de erro de paginação
-      }
+      } catch (_) {}
       _isFetchingMore = false;
       notifyListeners();
     }

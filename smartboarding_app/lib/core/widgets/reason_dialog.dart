@@ -1,8 +1,6 @@
 import 'package:flutter/material.dart';
 import '../theme/app_theme.dart';
 
-/// Confirmação com motivo obrigatório. Toda mudança que quebra o combinado com
-/// quem depende do transporte passa por aqui — o texto vira o aviso enviado.
 Future<String?> showReasonDialog(
   BuildContext context, {
   required String title,

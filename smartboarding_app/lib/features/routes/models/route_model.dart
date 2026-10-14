@@ -4,7 +4,8 @@ class RouteModel {
   final String? description;
   final bool isActive;
 
-  /// Horários em que a lista do dia abre e fecha (RN18).
+  final bool admitsNoInstitution;
+
   final String? openTime;
   final String? closeTime;
   final String createdAt;
@@ -14,6 +15,7 @@ class RouteModel {
     required this.name,
     this.description,
     required this.isActive,
+    this.admitsNoInstitution = false,
     this.openTime,
     this.closeTime,
     required this.createdAt,
@@ -25,6 +27,7 @@ class RouteModel {
       name: json['name'] as String,
       description: json['description'] as String?,
       isActive: json['isActive'] as bool,
+      admitsNoInstitution: json['admitsNoInstitution'] as bool? ?? false,
       openTime: json['openTime'] as String?,
       closeTime: json['closeTime'] as String?,
       createdAt: json['createdAt'] as String,

@@ -1,8 +1,13 @@
 package com.smartboarding.smartboarding_api.infrastructure.web.membership;
 
+import com.smartboarding.smartboarding_api.domain.route.port.out.RouteRepositoryPort;
+
+import com.smartboarding.smartboarding_api.infrastructure.web.common.AdminGuard;
+
 import com.smartboarding.smartboarding_api.domain.membership.entity.RouteInviteCode;
 import com.smartboarding.smartboarding_api.domain.membership.port.in.ManageRouteInviteCodeUseCase;
 import com.smartboarding.smartboarding_api.domain.user.entity.User;
+import com.smartboarding.smartboarding_api.domain.institution.port.out.InstitutionRepositoryPort;
 import com.smartboarding.smartboarding_api.domain.user.port.out.UserRepositoryPort;
 import com.smartboarding.smartboarding_api.infrastructure.web.WebMvcTestSupport;
 import org.junit.jupiter.api.BeforeEach;
@@ -19,12 +24,15 @@ import org.springframework.test.web.servlet.MockMvc;
 import java.time.Clock;
 import java.time.LocalDateTime;
 import java.time.ZoneOffset;
+import com.smartboarding.smartboarding_api.shared.exception.ForbiddenException;
 import java.util.List;
 import java.util.Optional;
+import java.util.Set;
 import java.util.UUID;
 
 import static org.mockito.ArgumentMatchers.any;
 import static org.mockito.ArgumentMatchers.eq;
+import static org.mockito.Mockito.doThrow;
 import static org.mockito.Mockito.never;
 import static org.mockito.Mockito.verify;
 import static org.mockito.Mockito.when;
@@ -50,12 +58,18 @@ class RouteInviteCodeControllerTest extends WebMvcTestSupport {
 
     @MockitoBean ManageRouteInviteCodeUseCase useCase;
     @MockitoBean UserRepositoryPort userRepository;
+    @MockitoBean InstitutionRepositoryPort institutionRepository;
+    @MockitoBean AdminGuard guard;
+    @MockitoBean RouteRepositoryPort routeRepository;
 
     @BeforeEach
     void setUp() {
         when(userRepository.findByEmail("naiara@admin.com")).thenReturn(Optional.of(
                 User.builder().id(ADMIN_ID).email("naiara@admin.com").build()));
         when(useCase.countUses(any())).thenReturn(0L);
+        when(guard.id(any())).thenReturn(ADMIN_ID);
+        when(guard.institutions(any())).thenReturn(Set.of());
+        when(useCase.findById(any())).thenReturn(codigo());
     }
 
     private RouteInviteCode codigo() {
@@ -63,8 +77,6 @@ class RouteInviteCodeControllerTest extends WebMvcTestSupport {
                 .code("RU7K2M").expiresAt(AGORA.plusDays(90)).build();
     }
 
-    /// O código é o que dá acesso à rota. Aluno emitindo código pra própria rota
-    /// destruiria o controle do admin sobre quem entra.
     @Test
     void alunoNaoGeraNemRevogaCodigo() throws Exception {
         mvc.perform(post("/api/routes/{id}/invite-codes", ROTA).with(student())
@@ -75,7 +87,7 @@ class RouteInviteCodeControllerTest extends WebMvcTestSupport {
         mvc.perform(delete("/api/routes/{id}/invite-codes/{c}", ROTA, UUID.randomUUID()).with(student()))
                 .andExpect(status().isForbidden());
 
-        verify(useCase, never()).generate(any(), any(), any());
+        verify(useCase, never()).generate(any(), any(), any(), any());
         verify(useCase, never()).revoke(any());
     }
 
@@ -87,19 +99,19 @@ class RouteInviteCodeControllerTest extends WebMvcTestSupport {
 
     @Test
     void adminGeraCodigoSemCorpoUsandoValidadePadrao() throws Exception {
-        when(useCase.generate(eq(ROTA), eq(null), eq(ADMIN_ID))).thenReturn(codigo());
+        when(useCase.generate(eq(ROTA), eq(null), eq(null), eq(ADMIN_ID))).thenReturn(codigo());
 
         mvc.perform(post("/api/routes/{id}/invite-codes", ROTA).with(admin()))
                 .andExpect(status().isCreated())
                 .andExpect(jsonPath("$.data.code").value("RU7K2M"))
                 .andExpect(jsonPath("$.data.usable").value(true));
 
-        verify(useCase).generate(ROTA, null, ADMIN_ID);
+        verify(useCase).generate(ROTA, null, null, ADMIN_ID);
     }
 
     @Test
     void adminGeraComExpiracaoPropria() throws Exception {
-        when(useCase.generate(any(), any(), any())).thenReturn(codigo());
+        when(useCase.generate(any(), any(), any(), any())).thenReturn(codigo());
 
         mvc.perform(post("/api/routes/{id}/invite-codes", ROTA).with(admin())
                         .contentType(MediaType.APPLICATION_JSON)
@@ -107,11 +119,9 @@ class RouteInviteCodeControllerTest extends WebMvcTestSupport {
                                 {"expiresAt":"2026-12-31T23:59:00"}"""))
                 .andExpect(status().isCreated());
 
-        verify(useCase).generate(ROTA, LocalDateTime.of(2026, 12, 31, 23, 59), ADMIN_ID);
+        verify(useCase).generate(ROTA, LocalDateTime.of(2026, 12, 31, 23, 59), null, ADMIN_ID);
     }
 
-    /// A contagem de usos é o que diz ao admin se o código circulou ou se
-    /// ninguém recebeu.
     @Test
     void listagemTrazQuantosEntraramPorCadaCodigo() throws Exception {
         var c = codigo();
@@ -145,5 +155,71 @@ class RouteInviteCodeControllerTest extends WebMvcTestSupport {
                 .andExpect(status().isOk());
 
         verify(useCase).revoke(codeId);
+    }
+
+    private static final UUID UNIFOR = UUID.randomUUID();
+    private static final UUID IFMG = UUID.randomUUID();
+
+    private RouteInviteCode codigoDa(UUID instituicao) {
+        return RouteInviteCode.builder().id(UUID.randomUUID()).routeId(ROTA)
+                .code("UNI123").expiresAt(AGORA.plusDays(90))
+                .institutionId(instituicao).build();
+    }
+
+    @Test
+    void codigoDeOutraInstituicaoNaoAparece() throws Exception {
+        when(guard.institutions(any())).thenReturn(Set.of(IFMG));
+        when(useCase.listByRoute(ROTA)).thenReturn(List.of(
+                codigoDa(UNIFOR), codigoDa(IFMG)));
+
+        mvc.perform(get("/api/routes/{r}/invite-codes", ROTA).with(admin()))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.data.length()").value(1))
+                .andExpect(jsonPath("$.data[0].institutionId").value(IFMG.toString()));
+    }
+
+    @Test
+    void codigoAbertoApareceParaTodoAdminDaRota() throws Exception {
+        when(guard.institutions(any())).thenReturn(Set.of(IFMG));
+        when(useCase.listByRoute(ROTA)).thenReturn(List.of(codigoDa(null)));
+
+        mvc.perform(get("/api/routes/{r}/invite-codes", ROTA).with(admin()))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.data.length()").value(1));
+    }
+
+    @Test
+    void naoGeraCodigoDeInstituicaoAlheia() throws Exception {
+        doThrow(new ForbiddenException("NOT_YOUR_INSTITUTION", "Você não administra essa instituição."))
+                .when(guard).ownsInstitution(any(), eq(UNIFOR));
+
+        mvc.perform(post("/api/routes/{r}/invite-codes", ROTA).with(admin())
+                        .contentType(MediaType.APPLICATION_JSON)
+                        .content("{\"institutionId\":\"" + UNIFOR + "\"}"))
+                .andExpect(status().isForbidden());
+
+        verify(useCase, never()).generate(any(), any(), any(), any());
+    }
+
+    @Test
+    void naoRevogaCodigoDeInstituicaoAlheia() throws Exception {
+        UUID codeId = UUID.randomUUID();
+        when(useCase.findById(codeId)).thenReturn(codigoDa(UNIFOR));
+        doThrow(new ForbiddenException("NOT_YOUR_INSTITUTION", "Você não administra essa instituição."))
+                .when(guard).ownsInstitution(any(), eq(UNIFOR));
+
+        mvc.perform(delete("/api/routes/{r}/invite-codes/{c}", ROTA, codeId).with(admin()))
+                .andExpect(status().isForbidden());
+
+        verify(useCase, never()).revoke(any());
+    }
+
+    @Test
+    void naoMexeEmCodigoDeRotaQueNaoAdministra() throws Exception {
+        doThrow(new ForbiddenException("NOT_YOUR_ROUTE", "Essa rota não é sua."))
+                .when(guard).ownsRoute(any(), eq(ROTA));
+
+        mvc.perform(get("/api/routes/{r}/invite-codes", ROTA).with(admin()))
+                .andExpect(status().isForbidden());
     }
 }

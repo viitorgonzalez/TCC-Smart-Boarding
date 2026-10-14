@@ -88,8 +88,6 @@ void main() {
       expect(marcou, 1);
     });
 
-    // Sem travar o botao, o duplo toque vira dois checkpoints e o segundo morre
-    // em erro na cara de quem esta dirigindo.
     testWidgets('botao trava enquanto registra', (tester) async {
       var marcou = 0;
       await tester.pumpWidget(
@@ -129,8 +127,6 @@ void main() {
       return resultado;
     }
 
-    /// O onibus pode pular parada legitimamente, entao o dialogo avisa em vez de
-    /// travar -- mas mostra o que ficou pra tras, porque pode ter sido esquecimento.
     testWidgets('lista as paradas nao marcadas e deixa seguir', (tester) async {
       await abrir(
         tester,
@@ -147,7 +143,6 @@ void main() {
       expect(find.text('2 paradas não foram marcadas:'), findsOneWidget);
       expect(find.text('Centro'), findsOneWidget);
       expect(find.text('Posto do Zé'), findsOneWidget);
-      // Finalizar continua disponivel: avisa, nao bloqueia.
       expect(find.byKey(const Key('trip_finish_confirm')), findsOneWidget);
     });
 
@@ -194,8 +189,6 @@ void main() {
       expect(find.textContaining('Ida em andamento'), findsOneWidget);
     });
 
-    // A perna muda o que o admin ve na lista (as paradas invertem); dizer qual e
-    // evita a duvida de "por que a ordem mudou?".
     testWidgets('volta em andamento diz que e a volta', (tester) async {
       await tester.pumpWidget(
         envolve(
@@ -230,7 +223,6 @@ void main() {
       expect(find.textContaining('em andamento'), findsNothing);
     });
 
-    // Resposta antiga sem o campo nao pode derrubar a tela.
     testWidgets('sem o campo leg assume ida', (tester) async {
       final semLeg = TripStatus.fromJson({
         'listId': 'l1',
@@ -242,6 +234,59 @@ void main() {
       expect(semLeg.onReturn, isFalse);
       await tester.pumpWidget(envolve(TripProgressCard(trip: semLeg)));
       expect(find.textContaining('Ida em andamento'), findsOneWidget);
+    });
+  });
+
+  group('qual parada o botao marca', () {
+    test('a parada atual e a primeira ainda nao alcancada', () {
+      final trip = viagem(
+        startedAt: '2026-09-25T07:00:00',
+        stops: [
+          parada('Rodoviária', 1, reachedAt: '2026-09-25T07:05:00'),
+          parada('Centro', 2),
+          parada('UNIFOR-MG', 3),
+        ],
+      );
+
+      expect(trip.current!.name, 'Centro');
+      expect(trip.current!.stopId, 'p2');
+    });
+
+    test('sem pendente nao ha parada atual', () {
+      final trip = viagem(
+        startedAt: '2026-09-25T07:00:00',
+        stops: [
+          parada('Rodoviária', 1, reachedAt: '2026-09-25T07:05:00'),
+          parada('Centro', 2, reachedAt: '2026-09-25T07:20:00'),
+        ],
+      );
+
+      expect(trip.current, isNull);
+    });
+
+    test('nao iniciado nao tem parada atual', () {
+      final trip = viagem(stops: [parada('Rodoviária', 1)]);
+
+      expect(trip.current, isNull);
+    });
+
+    testWidgets('a ultima parada ainda e marcada, nao encerrada', (
+      tester,
+    ) async {
+      final trip = viagem(
+        startedAt: '2026-09-25T07:00:00',
+        stops: [
+          parada('Rodoviária', 1, reachedAt: '2026-09-25T07:05:00'),
+          parada('UNIFOR-MG', 2),
+        ],
+      );
+
+      await tester.pumpWidget(
+        envolve(NextStopCard(stop: trip.current!, onMark: () {})),
+      );
+
+      expect(find.text('Cheguei aqui'), findsOneWidget);
+      expect(find.text('UNIFOR-MG'), findsOneWidget);
     });
   });
 }

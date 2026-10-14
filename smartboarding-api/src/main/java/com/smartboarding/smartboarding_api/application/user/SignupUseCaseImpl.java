@@ -28,23 +28,14 @@ public class SignupUseCaseImpl implements SignupUseCase {
     @Override
     @Transactional
     public User signup(User user, String rawPassword) {
-        // O papel e cravado aqui, nao vem do request: aceitar o que o cliente
-        // mandar deixaria qualquer um criar conta de admin por este endpoint,
-        // que e publico. A unica excecao e o bootstrap da RN28.
         user.setRole(bootstrapAdminPolicy.roleForNewAccount(user.getEmail()));
 
-        // Login e recuperação de senha respondem igual havendo conta ou não, pra
-        // não revelar quais e-mails existem. Aqui é o oposto de propósito: quem
-        // ja tem conta PRECISA saber, senao acha que criou uma nova e nao
-        // consegue entrar. A alternativa -- fingir sucesso -- troca um vazamento
-        // pequeno por um usuario travado sem entender o motivo.
         if (userRepository.existsByEmail(user.getEmail())) {
             throw new ConflictException("EMAIL_ALREADY_EXISTS",
                     "Esse e-mail já tem conta. Entre ou recupere a senha.");
         }
 
         user.setPassword(passwordEncoder.encode(rawPassword));
-        // Nasce ativa e SEM rota: o acesso a rota vem depois, pelo codigo.
         user.setActive(true);
 
         User saved = userRepository.save(user);

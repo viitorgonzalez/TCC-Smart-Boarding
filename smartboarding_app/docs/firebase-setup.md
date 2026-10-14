@@ -30,7 +30,7 @@ Este guia liga o push quando você estiver pronto.
    WidgetsFlutterBinding.ensureInitialized();
    await Firebase.initializeApp(options: DefaultFirebaseOptions.currentPlatform);
    ```
-7. Após login, registrar o token (ver TODO em `auth_provider.dart`):
+7. Após login, registrar o token (em `AuthProvider.login`, `lib/core/providers/auth_provider.dart`):
    ```dart
    final messaging = FirebaseMessaging.instance;
    await messaging.requestPermission();
@@ -40,7 +40,7 @@ Este guia liga o push quando você estiver pronto.
    }
    ```
 8. No logout, remover o token: `await NotificationService().removeToken();`
-   (ver TODO em `auth_provider.dart`).
+   (em `AuthProvider.logout`, `lib/core/providers/auth_provider.dart`).
 9. Foreground: `FirebaseMessaging.onMessage.listen(...)` exibindo via
    `flutter_local_notifications`. Background: `FirebaseMessaging.onBackgroundMessage(...)`.
 10. Validar com um envio de teste pelo Firebase Console antes de integrar

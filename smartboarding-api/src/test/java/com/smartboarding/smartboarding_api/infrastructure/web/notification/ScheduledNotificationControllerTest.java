@@ -1,10 +1,13 @@
 package com.smartboarding.smartboarding_api.infrastructure.web.notification;
 
+import com.smartboarding.smartboarding_api.infrastructure.web.common.AdminGuard;
+
 import com.smartboarding.smartboarding_api.domain.notification.entity.NotificationFrequency;
 import com.smartboarding.smartboarding_api.domain.notification.entity.ScheduledNotification;
 import com.smartboarding.smartboarding_api.domain.notification.port.in.ManageScheduledNotificationUseCase;
 import com.smartboarding.smartboarding_api.infrastructure.web.WebMvcTestSupport;
 import com.smartboarding.smartboarding_api.shared.exception.NotFoundException;
+import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.boot.webmvc.test.autoconfigure.WebMvcTest;
@@ -35,7 +38,14 @@ class ScheduledNotificationControllerTest extends WebMvcTestSupport {
 
     @Autowired MockMvc mvc;
 
+    @BeforeEach
+    void setUp() {
+        when(useCase.findById(any())).thenReturn(
+                ScheduledNotification.builder().routeId(ROUTE_ID).build());
+    }
+
     @MockitoBean ManageScheduledNotificationUseCase useCase;
+    @MockitoBean AdminGuard guard;
 
     private ScheduledNotification aviso() {
         return ScheduledNotification.builder().id(UUID.randomUUID()).routeId(ROUTE_ID)
@@ -74,8 +84,6 @@ class ScheduledNotificationControllerTest extends WebMvcTestSupport {
                 .andExpect(status().isBadRequest());
     }
 
-    /// Aviso nasce ativo: configurar e ter que ligar em seguida seria um passo a
-    /// mais sem ganho nenhum.
     @Test
     void avisoNasceAtivo() throws Exception {
         when(useCase.save(any())).thenAnswer(inv -> inv.getArgument(0));
@@ -107,8 +115,6 @@ class ScheduledNotificationControllerTest extends WebMvcTestSupport {
         verify(useCase, never()).save(any());
     }
 
-    /// dayOfWeek é 1..7; fora disso o WEEKLY nunca casaria com dia nenhum e o
-    /// aviso ficaria mudo pra sempre.
     @Test
     void diaDaSemanaForaDoIntervaloERecusado() throws Exception {
         mvc.perform(post("/api/notifications/scheduled").with(admin())

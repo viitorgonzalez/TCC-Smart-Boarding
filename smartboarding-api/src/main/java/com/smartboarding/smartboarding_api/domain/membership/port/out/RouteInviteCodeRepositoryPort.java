@@ -15,5 +15,9 @@ public interface RouteInviteCodeRepositoryPort {
 
     List<RouteInviteCode> findAllByRouteId(UUID routeId);
 
+    List<RouteInviteCode> findAllByRouteIdAndArchivedAtIsNull(UUID routeId);
+
+    List<RouteInviteCode> findAllById(List<UUID> ids);
+
     boolean existsByCode(String code);
 }

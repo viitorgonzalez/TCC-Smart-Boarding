@@ -4,8 +4,6 @@ import '../../../core/utils/date_format.dart';
 import '../../../core/widgets/app_card.dart';
 import '../models/trip_status_model.dart';
 
-/// Cabeçalho do trajeto: onde está e quanto falta, sem precisar contar as
-/// paradas na lista abaixo.
 class TripProgressCard extends StatelessWidget {
   final TripStatus trip;
 
@@ -19,8 +17,6 @@ class TripProgressCard extends StatelessWidget {
 
     final (rotulo, cor) = switch (trip) {
       _ when trip.finished => ('Concluído', AppColors.positiveFg),
-      // A perna muda o que o admin espera ver na lista abaixo; dizer qual e
-      // evita a duvida de "por que as paradas inverteram?".
       _ when trip.inProgress && trip.onReturn => (
         'Volta em andamento',
         AppColors.deepTeal,

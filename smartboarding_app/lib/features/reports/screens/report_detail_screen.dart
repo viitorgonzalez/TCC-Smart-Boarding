@@ -24,8 +24,6 @@ class ReportDetailScreen extends StatelessWidget {
   }
 }
 
-// ─── Provider local ───────────────────────────────────────────────────────────
-
 class _DetailProvider extends ChangeNotifier {
   final ReportService _service;
   final String reportId;
@@ -46,8 +44,6 @@ class _DetailProvider extends ChangeNotifier {
     notifyListeners();
   }
 }
-
-// ─── UI ───────────────────────────────────────────────────────────────────────
 
 class _DetailView extends StatelessWidget {
   const _DetailView();
@@ -85,7 +81,6 @@ class _ReportBody extends StatelessWidget {
       } catch (_) {}
     }
 
-    // Contagem por direção (só conta os que têm tripType conhecido).
     final counts = <String, int>{for (final t in tripTypes) t.value: 0};
     for (final e in enrolled) {
       final tt = (e as Map)['tripType']?.toString();
@@ -96,7 +91,6 @@ class _ReportBody extends StatelessWidget {
     return ListView(
       padding: const EdgeInsets.all(16),
       children: [
-        // Cabeçalho
         Card(
           child: Padding(
             padding: const EdgeInsets.all(16),
@@ -161,9 +155,25 @@ class _ReportBody extends StatelessWidget {
         else
           ...enrolled.asMap().entries.map((e) {
             final data = e.value as Map<String, dynamic>;
+            final addedByAdmin = data['addedByAdmin']?.toString() == 'true';
             return ListTile(
               leading: InitialsAvatar(text: '${e.key + 1}'),
-              title: Text(data['fullName']?.toString() ?? ''),
+              title: Row(
+                mainAxisSize: MainAxisSize.min,
+                children: [
+                  Flexible(child: Text(data['fullName']?.toString() ?? '')),
+                  if (addedByAdmin) ...[
+                    const SizedBox(width: 6),
+                    const Tooltip(
+                      message: 'Incluído pelo admin',
+                      child: Icon(
+                        Icons.admin_panel_settings_outlined,
+                        size: 16,
+                      ),
+                    ),
+                  ],
+                ],
+              ),
               subtitle: Text(data['email']?.toString() ?? ''),
               trailing: data['tripType'] != null
                   ? TripTypeChip(tripType: data['tripType']?.toString())

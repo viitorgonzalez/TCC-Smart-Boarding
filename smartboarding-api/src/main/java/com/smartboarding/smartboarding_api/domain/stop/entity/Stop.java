@@ -31,10 +31,19 @@ public class Stop {
     @Column(name = "sequence", nullable = false)
     private int sequence;
 
-    /// RN23: só ponto principal (rodoviária e instituições) aceita checkpoint.
+    @Column(name = "institution_id")
+    private UUID institutionId;
+
     @Builder.Default
     @Column(name = "is_main_point", nullable = false)
     private boolean isMainPoint = false;
+
+    public void refreshMainPoint(boolean marcadoPeloAdmin) {
+        this.isMainPoint = institutionId != null || marcadoPeloAdmin;
+    }
+
+    @Column(name = "avg_minutes_from_start")
+    private Integer avgMinutesFromStart;
 
     @Column(name = "created_at", updatable = false)
     private LocalDateTime createdAt;

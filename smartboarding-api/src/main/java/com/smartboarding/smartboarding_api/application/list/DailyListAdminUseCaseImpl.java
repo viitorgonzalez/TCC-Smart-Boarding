@@ -60,8 +60,6 @@ public class DailyListAdminUseCaseImpl implements ManageDailyListUseCase {
     public DailyList create(UUID routeId, LocalDate date) {
         Route route = routeRepository.findById(routeId)
                 .orElseThrow(() -> new NotFoundException("Rota não encontrada"));
-        // Uma lista por rota e dia: duas listas concorrentes dividiriam os
-        // inscritos e nenhuma refletiria quem realmente embarca.
         if (dailyListRepository.existsByRouteIdAndDate(routeId, date)) {
             throw new ConflictException("LIST_ALREADY_EXISTS",
                     "Já existe lista dessa rota para essa data.");
@@ -85,14 +83,10 @@ public class DailyListAdminUseCaseImpl implements ManageDailyListUseCase {
         DailyList list = dailyListRepository.findById(listId)
                 .orElseThrow(() -> new NotFoundException("Lista não encontrada"));
         list.setStatus(status);
-        // Reabrir limpa o fechamento: manter closedAt de um fechamento desfeito
-        // faria o histórico afirmar algo que deixou de valer.
         list.setClosedAt(status == ListStatus.CLOSED ? LocalDateTime.now(clock) : null);
         list.setManualOverride(true);
         DailyList saved = dailyListRepository.save(list);
 
-        // Aviso obrigatório: quem contava com o horário publicado precisa saber
-        // que ele mudou, e por quê.
         String title = status == ListStatus.CLOSED
                 ? "Lista fechada antes do horário"
                 : "Lista reaberta";
@@ -107,8 +101,6 @@ public class DailyListAdminUseCaseImpl implements ManageDailyListUseCase {
         DailyList list = dailyListRepository.findById(listId)
                 .orElseThrow(() -> new NotFoundException("Lista não encontrada"));
 
-        // Relatório é imutável (RN8) e é a prova de quem embarcou naquele dia.
-        // Apagar a lista por baixo dele destruiria esse registro.
         if (reportRepository.findByDailyListId(listId).isPresent()) {
             throw new ConflictException("LIST_HAS_REPORT",
                     "Lista já tem relatório gerado e não pode ser apagada.");

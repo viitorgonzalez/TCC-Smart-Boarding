@@ -9,7 +9,6 @@ import java.util.UUID;
 public record AdminEnrollRequest(
         @NotNull UUID userId,
         TripType tripType,
-        /// Escolha do admin: nem toda inclusão tardia é falta do aluno.
         boolean issueWarning,
         @Size(max = 500) String warningReason
 ) {}

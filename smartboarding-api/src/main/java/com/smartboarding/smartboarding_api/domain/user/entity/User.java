@@ -8,6 +8,7 @@ import org.springframework.security.core.userdetails.UserDetails;
 
 import java.time.LocalDate;
 import java.time.LocalDateTime;
+import java.util.ArrayList;
 import java.util.Collection;
 import java.util.List;
 import java.util.Optional;
@@ -29,13 +30,9 @@ public class User implements UserDetails {
     @Column(nullable = false, unique = true, length = 100)
     private String email;
 
-    /// Nulo em conta criada pelo Google que ainda nao definiu senha local.
-    /// Guardar placeholder seria pior: viraria uma senha real e adivinhavel.
     @Column
     private String password;
 
-    /// Preenchido quando a conta esta vinculada a um login do Google. A conta
-    /// pode ter os dois caminhos ao mesmo tempo.
     @Column(name = "google_id", length = 64)
     private String googleId;
 
@@ -52,15 +49,18 @@ public class User implements UserDetails {
     @Column(length = 100)
     private String course;
 
-    // Referência, não texto: é dela que sai a rota do aluno (RN15).
     @Column(name = "institution_id")
     private UUID institutionId;
 
     @Column(length = 20)
     private String phone;
 
-    @Column(columnDefinition = "TEXT")
-    private String address;
+    @Embedded
+    @Builder.Default
+    private Address address = new Address();
+
+    @Column(name = "address_legacy", columnDefinition = "TEXT")
+    private String addressLegacy;
 
     @Column(name = "expiry_date")
     private LocalDate expiryDate;
@@ -71,9 +71,6 @@ public class User implements UserDetails {
     @Column(name = "updated_at")
     private LocalDateTime updatedAt;
 
-    // Default no builder porque o login agora recusa conta inativa: sem isto,
-    // quem esquecesse de setar criaria uma conta que nunca entra, e o erro
-    // apareceria como "conta desativada" num cadastro recem-feito.
     @Column(name = "is_active")
     @Builder.Default
     private boolean isActive = true;
@@ -122,5 +119,31 @@ public class User implements UserDetails {
 
     public boolean hasGoogle() {
         return googleId != null && !googleId.isBlank();
+    }
+
+    public Address getAddress() {
+        if (address == null) address = new Address();
+        return address;
+    }
+
+    public boolean hasCompleteAddress() {
+        return getAddress().isComplete();
+    }
+
+    public List<String> missingForList() {
+        List<String> faltando = new ArrayList<>();
+        if (embranco(fullName)) faltando.add("fullName");
+        if (embranco(phone)) faltando.add("phone");
+        if (!hasCompleteAddress()) faltando.add("address");
+        if (institutionId == null) faltando.add("institution");
+        return faltando;
+    }
+
+    public boolean isProfileCompleteForList() {
+        return missingForList().isEmpty();
+    }
+
+    private static boolean embranco(String valor) {
+        return valor == null || valor.isBlank();
     }
 }

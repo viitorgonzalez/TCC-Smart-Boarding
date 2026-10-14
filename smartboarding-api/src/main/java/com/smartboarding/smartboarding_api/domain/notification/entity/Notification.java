@@ -25,15 +25,12 @@ public class Notification {
     @Column(nullable = false, columnDefinition = "TEXT")
     private String body;
 
-    /// Rota destinatária. A coluna aceita nulo só por causa de avisos gerais
-    /// antigos — nada no sistema publica sem rota desde então.
     @Column(name = "route_id")
     private UUID routeId;
 
     @Column(name = "created_by")
     private UUID createdBy;
 
-    /// Nulo = sem prazo de validade.
     @Column(name = "expires_at")
     private LocalDateTime expiresAt;
 

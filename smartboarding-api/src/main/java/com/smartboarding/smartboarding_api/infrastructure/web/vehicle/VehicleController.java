@@ -1,5 +1,8 @@
 package com.smartboarding.smartboarding_api.infrastructure.web.vehicle;
 
+import com.smartboarding.smartboarding_api.infrastructure.web.common.AdminGuard;
+import org.springframework.security.core.Authentication;
+
 import com.smartboarding.smartboarding_api.domain.vehicle.entity.Vehicle;
 import com.smartboarding.smartboarding_api.domain.vehicle.port.in.ManageVehiclesUseCase;
 import com.smartboarding.smartboarding_api.infrastructure.web.vehicle.dto.CreateVehicleRequest;
@@ -18,13 +21,18 @@ import java.util.UUID;
 public class VehicleController {
 
     private final ManageVehiclesUseCase manageVehiclesUseCase;
+    private final AdminGuard guard;
 
-    public VehicleController(ManageVehiclesUseCase manageVehiclesUseCase) {
+    public VehicleController(ManageVehiclesUseCase manageVehiclesUseCase,
+                            AdminGuard guard) {
         this.manageVehiclesUseCase = manageVehiclesUseCase;
+        this.guard = guard;
     }
 
     @GetMapping
-    public ResponseEntity<ApiResponse<List<VehicleResponse>>> list(@PathVariable UUID routeId) {
+    public ResponseEntity<ApiResponse<List<VehicleResponse>>> list(@PathVariable UUID routeId,
+                                                                   Authentication auth) {
+        guard.ownsRoute(auth, routeId);
         List<VehicleResponse> vehicles = manageVehiclesUseCase.listByRoute(routeId).stream()
                 .map(VehicleResponse::from).toList();
         return ResponseEntity.ok(ApiResponse.data(vehicles));
@@ -32,7 +40,9 @@ public class VehicleController {
 
     @PostMapping
     public ResponseEntity<ApiResponse<VehicleResponse>> create(@PathVariable UUID routeId,
-                                                               @RequestBody @Valid CreateVehicleRequest request) {
+                                                               @RequestBody @Valid CreateVehicleRequest request,
+                                                               Authentication auth) {
+        guard.ownsRoute(auth, routeId);
         Vehicle vehicle = Vehicle.builder()
                 .routeId(routeId).label(request.label()).capacity(request.capacity())
                 .build();
@@ -41,7 +51,10 @@ public class VehicleController {
     }
 
     @DeleteMapping("/{vehicleId}")
-    public ResponseEntity<ApiResponse<?>> delete(@PathVariable UUID routeId, @PathVariable UUID vehicleId) {
+    public ResponseEntity<ApiResponse<?>> delete(@PathVariable UUID routeId,
+                                                 @PathVariable UUID vehicleId,
+                                                 Authentication auth) {
+        guard.ownsRoute(auth, routeId);
         manageVehiclesUseCase.remove(vehicleId);
         return ResponseEntity.ok(ApiResponse.success());
     }

@@ -31,10 +31,6 @@ public class SetLocalPasswordUseCaseImpl implements SetLocalPasswordUseCase {
         User user = userRepository.findById(userId)
                 .orElseThrow(() -> new NotFoundException("Usuário não encontrado"));
 
-        // Definir, nao trocar. Se ja ha senha, permitir sobrescrever aqui daria
-        // troca de senha sem provar posse da antiga -- quem pegasse o celular
-        // desbloqueado trocaria a senha e tomaria a conta. Trocar e pelo fluxo
-        // de recuperacao, que exige acesso ao e-mail.
         if (user.hasPassword()) {
             throw new ConflictException("PASSWORD_ALREADY_SET",
                     "Você já tem senha. Use 'Esqueci minha senha' para trocar.");

@@ -60,8 +60,6 @@ void main() {
     expect(find.text('Motivo: Esqueceu de entrar'), findsOneWidget);
   });
 
-  // Cancelar tem que devolver false: um retorno nulo tratado como sucesso
-  // incluiria o aluno sem o admin ter confirmado.
   testWidgets('cancelar devolve false', (tester) async {
     await _abrir(tester, const EnrollDecision(issueWarning: true));
     await tester.tap(find.text('Cancelar'));

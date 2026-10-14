@@ -10,9 +10,6 @@ import '../support/fake_http.dart';
 void main() {
   TestWidgetsFlutterBinding.ensureInitialized();
 
-  /// Quem entra pelo Google nunca digita o e-mail. Se a sessao nao trouxer, o
-  /// app fica sem saber de quem carregar a lista do dia -- e a home girava pra
-  /// sempre, sem erro nenhum na tela.
   test('sessao do Google guarda o e-mail que veio da API', () async {
     final http = await installFakeHttp();
     http.on(
@@ -54,7 +51,6 @@ void main() {
     expect(sessao.email, 'vitor@gmail.com');
   });
 
-  /// API antiga, que ainda nao manda o campo: o digitado segura o fluxo.
   test('sem e-mail na resposta, o digitado vale', () async {
     final http = await installFakeHttp();
     http.on(
@@ -70,8 +66,6 @@ void main() {
     expect(sessao.email, 'vitor@gmail.com');
   });
 
-  /// O pior sintoma possivel e o silencioso: carregar pra sempre nao diz nada
-  /// ao aluno e nao aparece em log nenhum.
   test(
     'sessao sem e-mail vira erro na tela, nao carregamento eterno',
     () async {

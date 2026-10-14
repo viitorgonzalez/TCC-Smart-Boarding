@@ -6,7 +6,6 @@ import '../models/stop_model.dart';
 import '../services/route_service.dart';
 import '../widgets/route_map.dart';
 
-/// "Ver trajeto completo": as paradas da rota na ordem de passagem.
 class RouteStopsScreen extends StatefulWidget {
   final String routeId;
   final String routeName;
@@ -55,8 +54,6 @@ class _RouteStopsScreenState extends State<RouteStopsScreen> {
             return ListView(
               padding: const EdgeInsets.all(20),
               children: [
-                // O aluno também vê o traçado no mapa, não só a sequência —
-                // saber por onde o ônibus passa é a informação principal aqui.
                 RouteMap(
                   stops: [
                     for (final s in stops)
@@ -85,7 +82,6 @@ class _RouteStopsScreenState extends State<RouteStopsScreen> {
   }
 }
 
-/// Linha do tempo vertical: a ordem das paradas é a informação principal.
 class _StopTile extends StatelessWidget {
   final StopModel stop;
   final bool isFirst;

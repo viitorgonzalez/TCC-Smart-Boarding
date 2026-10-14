@@ -8,9 +8,11 @@ import java.util.UUID;
 
 public record RouteResponse(UUID id, String name, String description, boolean isActive,
                             LocalTime openTime, LocalTime closeTime,
+                            boolean admitsNoInstitution,
                             LocalDateTime createdAt) {
     public static RouteResponse from(Route route) {
         return new RouteResponse(route.getId(), route.getName(), route.getDescription(),
-                route.isActive(), route.getOpenTime(), route.getCloseTime(), route.getCreatedAt());
+                route.isActive(), route.getOpenTime(), route.getCloseTime(),
+                route.isAdmitsNoInstitution(), route.getCreatedAt());
     }
 }

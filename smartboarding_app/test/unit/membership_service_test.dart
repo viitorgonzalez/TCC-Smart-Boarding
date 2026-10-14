@@ -42,8 +42,6 @@ void main() {
       expect(http.requests.single.data, {'code': 'RU7K2M'});
     });
 
-    // O id do usuario sai do token no backend: mandar userId daqui abriria
-    // caminho pra operar em nome de outro.
     test('sair usa DELETE na rota e nao manda userId', () async {
       http.on(
         'DELETE',
@@ -82,12 +80,9 @@ void main() {
       );
 
       expect(token.role, 'STUDENT');
-      // Sem persistir aqui, o aluno cairia logado mas perderia a sessao ao
-      // fechar o app -- e o cadastro nao pode ser refeito.
       expect(await StorageService().getToken(), 'jwt-novo');
     });
 
-    // Campo opcional vazio viraria string vazia no banco em vez de null.
     test('cadastro manda so nome, e-mail e senha', () async {
       http.on(
         'POST',
@@ -104,9 +99,6 @@ void main() {
       );
 
       final data = http.requests.single.data as Map;
-      // Instituicao, curso e contato ficaram no perfil, que e pre-requisito pra
-      // entrar em rota. Mandar daqui recriaria o formulario longo que a mudanca
-      // eliminou.
       expect(data.keys, containsAll(['fullName', 'email', 'password']));
       expect(data.containsKey('course'), isFalse);
       expect(data.containsKey('phone'), isFalse);

@@ -32,7 +32,7 @@ class EmptyState extends StatelessWidget {
               Text(
                 subtitle!,
                 textAlign: TextAlign.center,
-                style: TextStyle(color: Colors.grey.shade400, fontSize: 12),
+                style: Theme.of(context).textTheme.bodySmall,
               ),
             ],
           ],

@@ -20,16 +20,13 @@ public record ListResponse(
         boolean enrolled,
         TripType tripType,
         LocalTime closeTime,
-        // Uma rota atende várias instituições (RN15); o admin usa a divisão pra
-        // dimensionar o transporte.
         List<InstitutionCount> entriesByInstitution,
-        // Capacidade é informação do transporte, não teto de inscrição.
         List<VehicleSummary> vehicles,
-        // Preenchido só após o fechamento, lido do relatório (RN16).
         List<VehicleSummary> proposedVehicles,
         int capacityShortfall,
-        // Junto da lista pra o card desenhar o trajeto sem uma segunda chamada.
-        List<StopPoint> stops) {
+        List<StopPoint> stops,
+        boolean tripInProgress,
+        MyTripTime myTripTime) {
 
     public record InstitutionCount(String name, long count) {}
 
@@ -37,15 +34,15 @@ public record ListResponse(
 
     public record StopPoint(String name, Double latitude, Double longitude, int sequence) {}
 
-    /**
-     * @param myEntry inscrição do usuário logado nesta lista (pode ser null ou inativa).
-     */
+    public record MyTripTime(String stopName, int avgMinutes, boolean fallback) {}
+
     public static ListResponse from(DailyList list, long totalEntries, ListEntry myEntry,
                                     List<InstitutionCount> entriesByInstitution,
                                     List<VehicleSummary> vehicles,
                                     List<VehicleSummary> proposedVehicles,
                                     int capacityShortfall,
-                                    List<StopPoint> stops) {
+                                    List<StopPoint> stops,
+                                    MyTripTime myTripTime) {
         boolean enrolled = myEntry != null && myEntry.isActive();
         TripType tripType = enrolled ? myEntry.getTripType() : null;
         return new ListResponse(
@@ -62,7 +59,9 @@ public record ListResponse(
                 vehicles,
                 proposedVehicles,
                 capacityShortfall,
-                stops
+                stops,
+                list.getTripStartedAt() != null && list.getTripFinishedAt() == null,
+                myTripTime
         );
     }
 }

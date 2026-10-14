@@ -6,8 +6,6 @@ import lombok.*;
 import java.time.LocalDateTime;
 import java.util.UUID;
 
-/// Vínculo aluno↔instituição. Substitui users.institution_id, que só comportava
-/// uma — quem faz dois cursos precisava escolher qual declarar.
 @Entity
 @Table(name = "user_institutions")
 @Getter

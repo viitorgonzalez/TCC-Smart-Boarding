@@ -24,4 +24,12 @@ public class RouteInviteCodeRepositoryAdapter implements RouteInviteCodeReposito
     @Override public List<RouteInviteCode> findAllByRouteId(UUID routeId) {
         return jpa.findAllByRouteIdOrderByCreatedAtDesc(routeId);
     }
+
+    @Override public List<RouteInviteCode> findAllByRouteIdAndArchivedAtIsNull(UUID routeId) {
+        return jpa.findAllByRouteIdAndArchivedAtIsNullOrderByCreatedAtDesc(routeId);
+    }
+
+    @Override public List<RouteInviteCode> findAllById(List<UUID> ids) {
+        return jpa.findAllById(ids);
+    }
 }

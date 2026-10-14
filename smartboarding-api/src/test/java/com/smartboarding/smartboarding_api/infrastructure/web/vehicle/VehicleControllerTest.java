@@ -1,5 +1,7 @@
 package com.smartboarding.smartboarding_api.infrastructure.web.vehicle;
 
+import com.smartboarding.smartboarding_api.infrastructure.web.common.AdminGuard;
+
 import com.smartboarding.smartboarding_api.domain.vehicle.entity.Vehicle;
 import com.smartboarding.smartboarding_api.domain.vehicle.port.in.ManageVehiclesUseCase;
 import com.smartboarding.smartboarding_api.infrastructure.web.WebMvcTestSupport;
@@ -32,9 +34,8 @@ class VehicleControllerTest extends WebMvcTestSupport {
     @Autowired MockMvc mvc;
 
     @MockitoBean ManageVehiclesUseCase manageVehiclesUseCase;
+    @MockitoBean AdminGuard guard;
 
-    /// A frota é informação operacional do admin — o aluno não precisa saber
-    /// quantos ônibus existem nem a capacidade de cada um.
     @Test
     void frotaEVisivelSoParaOAdmin() throws Exception {
         mvc.perform(get("/api/routes/{routeId}/vehicles", ROUTE_ID).with(student()))
@@ -78,7 +79,6 @@ class VehicleControllerTest extends WebMvcTestSupport {
         org.assertj.core.api.Assertions.assertThat(captor.getValue().getRouteId()).isEqualTo(ROUTE_ID);
     }
 
-    /// Capacidade é o que alimenta a RN16: zero ou negativo quebraria a alocação.
     @Test
     void capacidadeNaoPositivaERecusada() throws Exception {
         mvc.perform(post("/api/routes/{routeId}/vehicles", ROUTE_ID).with(admin())

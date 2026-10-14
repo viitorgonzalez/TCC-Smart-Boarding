@@ -98,8 +98,6 @@ class DailyListAdminUseCaseImplTest {
                 .isInstanceOf(NotFoundException.class);
     }
 
-    /// Duas listas da mesma rota no mesmo dia dividiriam os inscritos e nenhuma
-    /// refletiria quem embarca de verdade.
     @Test
     void segundaListaDaMesmaRotaNoMesmoDiaEBloqueada() {
         when(dailyListRepository.existsByRouteIdAndDate(ROUTE, HOJE)).thenReturn(true);
@@ -111,7 +109,6 @@ class DailyListAdminUseCaseImplTest {
         verify(dailyListRepository, never()).save(any());
     }
 
-    /// RN18/RN24: mudança manual de status sempre avisa os alunos, com o motivo.
     @Test
     void fecharManualmenteAvisaOsAlunosComOMotivo() {
         DailyList list = lista(ListStatus.OPEN);
@@ -125,8 +122,6 @@ class DailyListAdminUseCaseImplTest {
                 eq("Ônibus quebrou"), eq(ROUTE), eq(24), eq(null));
     }
 
-    /// Manter closedAt de um fechamento desfeito faria o histórico afirmar algo
-    /// que deixou de valer.
     @Test
     void reabrirLimpaOFechamentoEAvisa() {
         DailyList list = lista(ListStatus.CLOSED);
@@ -174,8 +169,6 @@ class DailyListAdminUseCaseImplTest {
         verify(dailyListRepository).deleteById(list.getId());
     }
 
-    /// RN8: o relatório é a prova de quem embarcou. Apagar a lista por baixo dele
-    /// destruiria esse registro.
     @Test
     void listaComRelatorioNaoPodeSerApagada() {
         DailyList list = lista(ListStatus.CLOSED);

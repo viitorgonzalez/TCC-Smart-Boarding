@@ -22,7 +22,9 @@ import '../users/providers/user_provider.dart';
 import '../../core/utils/async_value.dart';
 import '../institutions/providers/institution_provider.dart';
 import '../institutions/screens/institutions_screen.dart';
+import '../routes/screens/invite_codes_screen.dart';
 import '../profile/screens/profile_screen.dart';
+import '../profile/screens/profile_requests_screen.dart';
 import '../users/screens/user_management_screen.dart';
 import '../users/services/user_service.dart';
 import 'widgets/today_summary.dart';
@@ -32,7 +34,6 @@ class AdminHomeScreen extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    // Providers escopados ao admin — criados aqui, destruídos ao sair
     return MultiProvider(
       providers: [
         ChangeNotifierProvider(
@@ -57,13 +58,9 @@ class AdminHomeScreen extends StatelessWidget {
   }
 }
 
-// ─── Painel do admin (dashboard de cards) ────────────────────────────────────
-
 class _AdminDashboard extends StatelessWidget {
   const _AdminDashboard();
 
-  /// O push sai no Navigator raiz, acima do MultiProvider — sem repassar as
-  /// instâncias, cada tela abriria sem o seu provider.
   void _open(
     BuildContext context,
     String title,
@@ -111,8 +108,6 @@ class _AdminDashboard extends StatelessWidget {
           AppHeader(
             overline: 'GESTÃO DE TRANSPORTE',
             title: 'Painel do Admin',
-            // O avatar vira o acesso ao perfil: e onde o usuario procura, e
-            // evita mais um icone no header.
             trailing: InkWell(
               key: const Key('admin_open_profile'),
               customBorder: const CircleBorder(),
@@ -137,17 +132,16 @@ class _AdminDashboard extends StatelessWidget {
             child: RefreshIndicator(
               onRefresh: () => _refresh(context),
               child: ListView(
-                padding: const EdgeInsets.all(20),
+                padding: const EdgeInsets.fromLTRB(20, 8, 20, 24),
                 children: [
-                  const SectionTitle('Funcionalidades'),
-                  const SizedBox(height: 12),
                   GridView.count(
+                    padding: EdgeInsets.zero,
                     crossAxisCount: 2,
                     shrinkWrap: true,
                     physics: const NeverScrollableScrollPhysics(),
                     crossAxisSpacing: 12,
                     mainAxisSpacing: 12,
-                    childAspectRatio: 1.25,
+                    childAspectRatio: AppGrid.featureAspectRatio,
                     children: [
                       FeatureCard(
                         icon: Icons.route_outlined,
@@ -156,6 +150,23 @@ class _AdminDashboard extends StatelessWidget {
                           context,
                           'Rotas e Listas',
                           const RoutesScreen(),
+                        ),
+                      ),
+                      FeatureCard(
+                        icon: Icons.vpn_key_outlined,
+                        label: 'Códigos de acesso',
+                        onTap: () => Navigator.push(
+                          context,
+                          MaterialPageRoute<void>(
+                            builder: (_) => InviteCodesScreen(
+                              routes: switch (context
+                                  .read<RouteProvider>()
+                                  .state) {
+                                AsyncData(:final value) => value,
+                                _ => const [],
+                              },
+                            ),
+                          ),
                         ),
                       ),
                       FeatureCard(
@@ -190,12 +201,6 @@ class _AdminDashboard extends StatelessWidget {
                         ),
                       ),
                       FeatureCard(
-                        icon: Icons.bar_chart_outlined,
-                        label: 'Relatórios',
-                        onTap: () =>
-                            _open(context, 'Relatórios', const ReportsScreen()),
-                      ),
-                      FeatureCard(
                         icon: Icons.group_outlined,
                         label: 'Usuários',
                         onTap: () => _open(
@@ -203,6 +208,12 @@ class _AdminDashboard extends StatelessWidget {
                           'Usuários',
                           const UserManagementScreen(),
                         ),
+                      ),
+                      FeatureCard(
+                        icon: Icons.bar_chart_outlined,
+                        label: 'Relatórios',
+                        onTap: () =>
+                            _open(context, 'Relatórios', const ReportsScreen()),
                       ),
                       FeatureCard(
                         icon: Icons.school_outlined,
@@ -221,6 +232,27 @@ class _AdminDashboard extends StatelessWidget {
                         ),
                       ),
                     ],
+                  ),
+                  const SizedBox(height: 16),
+                  Consumer<AdminStatsProvider>(
+                    builder: (context, provider, _) {
+                      final pending = switch (provider.state) {
+                        AsyncData(:final value) => value.pendingProfileRequests,
+                        _ => 0,
+                      };
+                      return AlertCard(
+                        icon: Icons.fact_check_outlined,
+                        title: 'Solicitações',
+                        subtitle: 'Pedidos de alteração de perfil pra revisar',
+                        count: pending,
+                        onTap: () => Navigator.push(
+                          context,
+                          MaterialPageRoute(
+                            builder: (_) => const ProfileRequestsScreen(),
+                          ),
+                        ),
+                      );
+                    },
                   ),
                   const SizedBox(height: 24),
                   const SectionTitle('Resumo de Hoje'),

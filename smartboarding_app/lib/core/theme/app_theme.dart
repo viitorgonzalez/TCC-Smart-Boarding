@@ -7,6 +7,18 @@ class AppRadius {
   static const pill = 20.0;
 }
 
+enum AppSurface { grouped, card, floating }
+
+class AppGrid {
+  static const featureAspectRatio = 1.9;
+}
+
+class AppShadow {
+  static const floating = [
+    BoxShadow(color: Color(0x14000000), blurRadius: 16, offset: Offset(0, 4)),
+  ];
+}
+
 class AppSpacing {
   static const xs = 4.0;
   static const sm = 8.0;
@@ -15,16 +27,13 @@ class AppSpacing {
   static const xl = 24.0;
 }
 
-/// Paleta do Figma (`docs/design/figma-screens/`). Os tons de apoio — fundo
-/// claro, stroke e texto secundário — não saem do `ColorScheme`: o Material
-/// deriva outros valores a partir do seed, e o desenho depende destes exatos.
 class AppColors {
-  static const ashGrey = Color(0xFFCAD2C5); // fundo das telas de autenticação
-  static const background = Color(0xFFF4F6F4); // fundo do app autenticado
+  static const ashGrey = Color(0xFFCAD2C5);
+  static const background = Color(0xFFF4F6F4);
   static const mutedTeal = Color(0xFF84A98C);
-  static const deepTeal = Color(0xFF52796F); // primária
+  static const deepTeal = Color(0xFF52796F);
   static const darkSlate = Color(0xFF354F52);
-  static const charcoal = Color(0xFF2F3E46); // header escuro e texto principal
+  static const charcoal = Color(0xFF2F3E46);
   static const stroke = Color(0xFFD1DCD6);
   static const textSecondary = Color(0xFF4F6566);
   static const surface = Colors.white;
@@ -38,8 +47,6 @@ class AppColors {
 class AppTheme {
   static ThemeData get light => _build();
 
-  /// O Figma desenhou só o tema claro; o app roda travado nele (`main.dart`).
-  /// Mantido pra não quebrar `MaterialApp.darkTheme`.
   static ThemeData get dark => _build();
 
   static ThemeData _build() {
@@ -108,8 +115,6 @@ class AppTheme {
           horizontal: 16,
           vertical: 18,
         ),
-        // Contorno fixo: sem ele o campo só ganhava borda ao focar e sumia
-        // contra o cartão branco no resto do tempo.
         border: OutlineInputBorder(
           borderRadius: BorderRadius.circular(AppRadius.control),
           borderSide: const BorderSide(color: AppColors.stroke),
@@ -133,19 +138,16 @@ class AppTheme {
         hintStyle: const TextStyle(color: AppColors.textSecondary),
         prefixIconColor: AppColors.deepTeal,
       ),
-      dividerTheme: const DividerThemeData(space: 1, color: AppColors.stroke),
-      listTileTheme: const ListTileThemeData(
-        shape: RoundedRectangleBorder(
-          borderRadius: BorderRadius.all(Radius.circular(AppRadius.card)),
-        ),
+      dividerTheme: const DividerThemeData(
+        space: 1,
+        thickness: 1,
+        color: AppColors.stroke,
       ),
     );
 
     return base.copyWith(textTheme: _textTheme(base.textTheme));
   }
 
-  /// O Figma usa 13 e 15px, que não existem na escala do Material 3 — sem
-  /// customizar o `TextTheme` os tamanhos não são reproduzíveis.
   static TextTheme _textTheme(TextTheme base) {
     final montserrat = GoogleFonts.montserratTextTheme(base);
     return montserrat.copyWith(
@@ -166,6 +168,11 @@ class AppTheme {
       ),
       titleMedium: montserrat.titleMedium?.copyWith(
         fontSize: 16,
+        fontWeight: FontWeight.w700,
+        color: AppColors.charcoal,
+      ),
+      titleSmall: montserrat.titleSmall?.copyWith(
+        fontSize: 15,
         fontWeight: FontWeight.w700,
         color: AppColors.charcoal,
       ),

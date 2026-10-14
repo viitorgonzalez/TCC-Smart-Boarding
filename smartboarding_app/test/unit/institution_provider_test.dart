@@ -35,8 +35,6 @@ void main() {
     expect(provider.all, hasLength(2));
   });
 
-  /// A tela da rota so oferece instituicao SEM rota: listar as ja vinculadas
-  /// convidaria a roubar de outra rota sem que ninguem percebesse.
   test('unlinked traz so as que nao tem rota', () async {
     http.on(
       'GET',
@@ -95,8 +93,6 @@ void main() {
     );
     await provider.linkRoute('i2', 'r1');
 
-    // Sem recarregar, a tela continuaria oferecendo a instituicao que acabou de
-    // ser vinculada.
     expect(provider.unlinked, isEmpty);
     expect(provider.servedBy('r1'), hasLength(1));
   });

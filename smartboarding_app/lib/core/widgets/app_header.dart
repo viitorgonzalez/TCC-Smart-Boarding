@@ -1,7 +1,6 @@
 import 'package:flutter/material.dart';
 import '../theme/app_theme.dart';
 
-/// Substitui a AppBar nas telas raiz — no desenho não existe AppBar ali.
 class AppHeader extends StatelessWidget {
   final String overline;
   final String title;
@@ -35,19 +34,18 @@ class AppHeader extends StatelessWidget {
                   children: [
                     Text(
                       overline,
-                      style: const TextStyle(
-                        color: Colors.white70,
-                        fontSize: 14,
-                      ),
+                      style: Theme.of(
+                        context,
+                      ).textTheme.bodyMedium?.copyWith(color: Colors.white70),
                     ),
                     const SizedBox(height: 2),
                     Text(
                       title,
-                      style: const TextStyle(
-                        color: Colors.white,
-                        fontSize: 22,
-                        fontWeight: FontWeight.w700,
-                      ),
+                      maxLines: 2,
+                      overflow: TextOverflow.ellipsis,
+                      style: Theme.of(
+                        context,
+                      ).textTheme.headlineSmall?.copyWith(color: Colors.white),
                     ),
                   ],
                 ),
@@ -90,6 +88,48 @@ class HeaderIconButton extends StatelessWidget {
           ),
         ),
       ),
+    );
+  }
+}
+
+class HeaderMenuItem {
+  final String label;
+  final IconData icon;
+  final VoidCallback onSelected;
+
+  const HeaderMenuItem({
+    required this.label,
+    required this.icon,
+    required this.onSelected,
+  });
+}
+
+class HeaderOverflowMenu extends StatelessWidget {
+  final List<HeaderMenuItem> items;
+
+  const HeaderOverflowMenu({super.key, required this.items});
+
+  @override
+  Widget build(BuildContext context) {
+    return PopupMenuButton<int>(
+      key: const Key('header_overflow_menu'),
+      tooltip: 'Mais opções',
+      icon: const Icon(Icons.more_vert, color: Colors.white),
+      color: AppColors.surface,
+      onSelected: (i) => items[i].onSelected(),
+      itemBuilder: (_) => [
+        for (final (i, item) in items.indexed)
+          PopupMenuItem<int>(
+            value: i,
+            child: Row(
+              children: [
+                Icon(item.icon, size: 20, color: AppColors.charcoal),
+                const SizedBox(width: 12),
+                Text(item.label),
+              ],
+            ),
+          ),
+      ],
     );
   }
 }

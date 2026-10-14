@@ -6,8 +6,6 @@ import lombok.*;
 import java.time.LocalDateTime;
 import java.util.UUID;
 
-/// Código que dá acesso a uma rota. Um por rota, distribuído pra turma toda, com
-/// prazo — igual código de turma do Classroom.
 @Entity
 @Table(name = "route_invite_codes")
 @Getter
@@ -30,9 +28,14 @@ public class RouteInviteCode {
     @Column(name = "expires_at", nullable = false)
     private LocalDateTime expiresAt;
 
-    /// Preenchido revoga na hora, sem esperar a expiração.
     @Column(name = "revoked_at")
     private LocalDateTime revokedAt;
+
+    @Column(name = "institution_id")
+    private UUID institutionId;
+
+    @Column(name = "archived_at")
+    private LocalDateTime archivedAt;
 
     @Column(name = "created_by")
     private UUID createdBy;
@@ -40,8 +43,6 @@ public class RouteInviteCode {
     @Column(name = "created_at", updatable = false)
     private LocalDateTime createdAt;
 
-    /// Revogado e expirado são estados distintos pro admin, mas valem o mesmo na
-    /// hora de usar: o código não serve mais.
     public boolean isUsable(LocalDateTime now) {
         return revokedAt == null && now.isBefore(expiresAt);
     }
@@ -57,5 +58,9 @@ public class RouteInviteCode {
     @PrePersist
     void onCreate() {
         createdAt = LocalDateTime.now();
+    }
+
+    public boolean isArchived() {
+        return archivedAt != null;
     }
 }

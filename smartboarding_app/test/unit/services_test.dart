@@ -38,13 +38,10 @@ void main() {
       expect(token.token, 'jwt-abc');
       expect(token.fullName, 'Fernanda Lima');
       expect(token.role, 'STUDENT');
-      // Sessão persistida: sem isso o app pediria login a cada abertura.
       expect(await StorageService().getToken(), 'jwt-abc');
       expect(await StorageService().getEmail(), 'fernanda@edu.unifor.br');
     });
 
-    // O interceptor converte DioException em AppException com texto legível —
-    // é o que a tela mostra.
     test('credencial inválida vira mensagem amigável', () async {
       http.on(
         'POST',
@@ -67,7 +64,6 @@ void main() {
     });
   });
 
-  /// RN22: o app não pode diferenciar conta existente de inexistente.
   test(
     'forgotPassword não devolve nada que revele a existência da conta',
     () async {
@@ -117,8 +113,16 @@ void main() {
   });
 
   group('UserService', () {
+    Map<String, dynamic> pagina(
+      List<Map<String, dynamic>> itens, {
+      int numero = 0,
+      int total = 1,
+    }) => {
+      'data': {'content': itens, 'number': numero, 'totalPages': total},
+    };
+
     test('sem routeId não manda o parâmetro', () async {
-      http.on('GET', '/api/users', body: {'data': []});
+      http.on('GET', '/api/users', body: pagina([]));
 
       await UserService().getUsers();
 
@@ -129,7 +133,7 @@ void main() {
     });
 
     test('com routeId filtra pela rota', () async {
-      http.on('GET', '/api/users', body: {'data': []});
+      http.on('GET', '/api/users', body: pagina([]));
 
       await UserService().getUsers(routeId: 'rota-1');
 
@@ -137,13 +141,19 @@ void main() {
     });
 
     test('lista vazia não quebra o parsing', () async {
-      http.on('GET', '/api/users', body: {'data': []});
+      http.on('GET', '/api/users', body: pagina([]));
 
-      expect(await UserService().getUsers(), isEmpty);
+      expect((await UserService().getUsers()).items, isEmpty);
     });
 
-    /// A ficha do usuário só precisa do número. Baixar /api/users pra contar
-    /// levaria e-mail, telefone, endereço e nascimento de toda a base no fio.
+    test('a ultima pagina diz que acabou', () async {
+      http.on('GET', '/api/users', body: pagina([], numero: 1, total: 3));
+      expect((await UserService().getUsers(page: 1)).hasMore, isTrue);
+
+      http.on('GET', '/api/users', body: pagina([], numero: 2, total: 3));
+      expect((await UserService().getUsers(page: 2)).hasMore, isFalse);
+    });
+
     test('getAdminCount pede só a contagem', () async {
       http.on(
         'GET',
@@ -200,11 +210,15 @@ void main() {
     );
   });
 
-  /// O JWT guardado tem que viajar em toda requisição — sem isso o app logado
-  /// tomaria 401 em tudo.
   test('token salvo vai no header Authorization', () async {
     http = await installFakeHttp(token: 'jwt-abc');
-    http.on('GET', '/api/users', body: {'data': []});
+    http.on(
+      'GET',
+      '/api/users',
+      body: {
+        'data': {'content': [], 'number': 0, 'totalPages': 1},
+      },
+    );
 
     await UserService().getUsers();
 
@@ -212,7 +226,13 @@ void main() {
   });
 
   test('sem token salvo não manda header de autorização', () async {
-    http.on('GET', '/api/users', body: {'data': []});
+    http.on(
+      'GET',
+      '/api/users',
+      body: {
+        'data': {'content': [], 'number': 0, 'totalPages': 1},
+      },
+    );
 
     await UserService().getUsers();
 

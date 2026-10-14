@@ -1,8 +1,6 @@
 import 'package:flutter/material.dart';
 import '../theme/app_theme.dart';
 
-/// Uma rota atende várias instituições (RN15); é esta divisão que o admin usa
-/// pra dimensionar o transporte.
 class InstitutionBreakdown extends StatelessWidget {
   final Map<String, int> counts;
   final bool compact;

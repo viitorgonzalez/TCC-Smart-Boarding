@@ -6,8 +6,6 @@ class StorageService {
   static const _roleKey = 'role';
   static const _emailKey = 'email';
 
-  // Cacheia a instância de SharedPreferences: evita reabrir o storage a cada
-  // getter (o interceptor JWT chama getToken() em toda requisição HTTP).
   static SharedPreferences? _prefs;
   static Future<SharedPreferences> _instance() async {
     return _prefs ??= await SharedPreferences.getInstance();

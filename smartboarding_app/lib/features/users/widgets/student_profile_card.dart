@@ -12,13 +12,9 @@ import '../models/student_profile_model.dart';
 import '../services/user_service.dart';
 import 'profile_info_rows.dart';
 
-/// Ficha do aluno, aberta ao tocar nele. Só o admin alcança: o endpoint por trás
-/// é hasRole("ADMIN") justamente porque aqui trafega dado de contato.
 class StudentProfileSheet extends StatefulWidget {
   final String userId;
 
-  /// Avisa quem abriu a folha que status ou papel mudaram — a lista de trás
-  /// precisa recarregar pra não seguir mostrando o dado antigo.
   final VoidCallback? onChanged;
 
   const StudentProfileSheet({super.key, required this.userId, this.onChanged});
@@ -31,16 +27,8 @@ class StudentProfileSheetState extends State<StudentProfileSheet> {
   final _service = UserService();
   StudentProfile? _profile;
   bool _busy = false;
-  // null = ainda nao sabemos (carregando ou a busca falhou). Enquanto for
-  // null, a trava do ultimo admin fica de fora -- desabilitar sem dado seria
-  // pior que deixar o backend recusar, que e o comportamento de hoje.
   int? _adminCount;
 
-  /// Resolve quando as duas buscas do initState (perfil e contagem de admins)
-  /// terminam -- sucesso ou falha, já que as duas tratam o próprio erro
-  /// internamente e nunca relançam. Existe só pro teste aguardar a ficha
-  /// carregar por condição, não por uma duração chutada -- ver
-  /// student_profile_card_test.dart.
   @visibleForTesting
   late final Future<void> carregado;
 
@@ -59,16 +47,11 @@ class StudentProfileSheetState extends State<StudentProfileSheet> {
     }
   }
 
-  /// Fica em silencio no erro: essa contagem so serve pra UI evitar um toque
-  /// que o backend ia recusar de qualquer forma, entao uma falha aqui nao pode
-  /// virar outro alerta pro admin.
   Future<void> _loadAdminCount() async {
     try {
       final count = await _service.getAdminCount();
       if (mounted) setState(() => _adminCount = count);
-    } catch (_) {
-      // _adminCount continua null de proposito.
-    }
+    } catch (_) {}
   }
 
   Future<void> _toggle(bool active) async {
@@ -105,8 +88,6 @@ class StudentProfileSheetState extends State<StudentProfileSheet> {
             ? 'Acesso de administrador concedido'
             : 'Acesso de administrador removido',
       );
-      // A contagem muda pra todo mundo depois de promover/rebaixar -- reflete
-      // aqui pra travar de novo se esta virou a ultima conta admin.
       await _loadAdminCount();
     } catch (e) {
       if (mounted) showErrorSnackBar(context, AppException.fromError(e));
@@ -118,22 +99,13 @@ class StudentProfileSheetState extends State<StudentProfileSheet> {
   @override
   Widget build(BuildContext context) {
     final profile = _profile;
-    // Identifica a propria conta pelo e-mail: e a mesma chave que o resto do
-    // app usa pra "sou eu" (StudentListProvider.setUserEmail em main.dart) --
-    // o token de sessao nunca carregou um id de usuario.
     final meuEmail = context.watch<AuthProvider>().token?.email;
     final ehAPropriaConta = profile != null && profile.email == meuEmail;
-    // null (ainda carregando/falhou) nao trava por engano -- só com contagem
-    // confirmada de exatamente 1 admin (esta conta) a trava entra.
     final ehUltimoAdmin =
         profile != null &&
         profile.role == 'ADMIN' &&
         _adminCount != null &&
         _adminCount! <= 1;
-    // Fechar no meio do PATCH faria a folha sumir antes de o `onChanged`
-    // disparar, e a lista de tras ficaria mostrando o papel antigo de uma conta
-    // que ja mudou. Segurar durante a requisicao e mais honesto que aceitar o
-    // fechamento e devolver um resultado desatualizado.
     return PopScope(
       canPop: !_busy,
       child: Padding(
@@ -153,7 +125,6 @@ class StudentProfileSheetState extends State<StudentProfileSheet> {
   }
 }
 
-/// Corpo do card, separado pra poder ser testado sem rede.
 class StudentProfileBody extends StatelessWidget {
   final StudentProfile profile;
   final bool busy;
@@ -216,10 +187,6 @@ class StudentProfileBody extends StatelessWidget {
         ),
         const SizedBox(height: 16),
         ProfileInfoRows(profile: profile),
-        // Mesma trava do backend (CANNOT_DEACTIVATE_ADMIN), na interface: o
-        // primeiro toque errado trancaria quem administra o sistema pra fora
-        // dele. Só o sentido "desativar" é barrado -- reativar um admin
-        // inativo continua valendo, e é o que o backend também aceita.
         SwitchListTile(
           key: const Key('profile_active_switch'),
           contentPadding: EdgeInsets.zero,

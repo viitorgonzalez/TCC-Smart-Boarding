@@ -22,7 +22,6 @@ public class UserStatusLog {
     @Column(name = "user_id", nullable = false)
     private UUID userId;
 
-    /// Nulo só se o admin for removido depois — o registro sobrevive a ele.
     @Column(name = "admin_id")
     private UUID adminId;
 

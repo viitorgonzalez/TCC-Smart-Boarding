@@ -7,15 +7,44 @@ import '../../../core/widgets/snackbar_utils.dart';
 import '../../institutions/models/institution_model.dart';
 import '../../institutions/providers/institution_provider.dart';
 
-/// Instituições atendidas pela rota. Aqui só se ESCOLHE entre as que existem —
-/// cadastrar e editar é na tela de Instituições.
-///
-/// Antes o caminho primário era "cadastrar nesta rota", o que espalhava o
-/// cadastro por dentro de cada rota e escondia a lista real do catálogo.
-class RouteInstitutionsCard extends StatelessWidget {
+class RouteInstitutionsCard extends StatefulWidget {
   final String routeId;
 
-  const RouteInstitutionsCard({super.key, required this.routeId});
+  final bool admitsNoInstitution;
+
+  final Future<void> Function(bool) onAdmitsNoInstitutionChanged;
+
+  const RouteInstitutionsCard({
+    super.key,
+    required this.routeId,
+    required this.admitsNoInstitution,
+    required this.onAdmitsNoInstitutionChanged,
+  });
+
+  @override
+  State<RouteInstitutionsCard> createState() => _RouteInstitutionsCardState();
+}
+
+class _RouteInstitutionsCardState extends State<RouteInstitutionsCard> {
+  late bool _aceita = widget.admitsNoInstitution;
+  bool _salvando = false;
+
+  String get routeId => widget.routeId;
+
+  Future<void> _virar(bool valor) async {
+    final anterior = _aceita;
+    setState(() {
+      _aceita = valor;
+      _salvando = true;
+    });
+    try {
+      await widget.onAdmitsNoInstitutionChanged(valor);
+    } catch (_) {
+      if (mounted) setState(() => _aceita = anterior);
+    } finally {
+      if (mounted) setState(() => _salvando = false);
+    }
+  }
 
   Future<void> _run(
     BuildContext context,
@@ -92,7 +121,10 @@ class RouteInstitutionsCard extends StatelessWidget {
                 ),
               for (final i in atendidas)
                 ListTile(
-                  leading: const Icon(Icons.school, color: AppColors.deepTeal),
+                  leading: const Icon(
+                    Icons.school_outlined,
+                    color: AppColors.deepTeal,
+                  ),
                   title: Text(i.name),
                   subtitle: i.address == null
                       ? null
@@ -104,8 +136,6 @@ class RouteInstitutionsCard extends StatelessWidget {
                   trailing: IconButton(
                     tooltip: 'Remover desta rota',
                     icon: const Icon(Icons.link_off, size: 20),
-                    // Desvincular nao apaga a instituicao: ela volta pro
-                    // catalogo, disponivel pra outra rota.
                     onPressed: () => _run(
                       context,
                       () => provider.linkRoute(i.id, null),
@@ -119,6 +149,24 @@ class RouteInstitutionsCard extends StatelessWidget {
                 leading: const Icon(Icons.add, color: AppColors.deepTeal),
                 title: const Text('Adicionar instituição'),
                 onTap: () => _escolher(context),
+              ),
+              const Divider(height: 1),
+              SwitchListTile(
+                key: const Key('route_admits_no_institution'),
+                value: _aceita,
+                onChanged: _salvando ? null : _virar,
+                secondary: const Icon(
+                  Icons.person_outline,
+                  color: AppColors.deepTeal,
+                ),
+                title: const Text('Aceitar aluno sem instituição'),
+                subtitle: Text(
+                  _aceita
+                      ? 'Quem não declarou instituição no perfil também entra '
+                            'nesta rota.'
+                      : 'Só entra quem declarou uma das instituições acima.',
+                  style: Theme.of(context).textTheme.bodySmall,
+                ),
               ),
             ],
           ),

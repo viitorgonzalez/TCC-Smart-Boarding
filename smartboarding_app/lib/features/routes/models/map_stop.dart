@@ -1,4 +1,3 @@
-/// Desacopla o mapa dos modelos de parada de cada feature.
 class MapStop {
   final String? id;
   final String name;
@@ -14,5 +13,3 @@ class MapStop {
     required this.sequence,
   });
 }
-
-/// Pensado também pra mouse: sem pinça, o zoom depende da roda ou dos botões,

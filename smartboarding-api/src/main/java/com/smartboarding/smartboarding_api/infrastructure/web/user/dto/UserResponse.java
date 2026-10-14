@@ -14,7 +14,7 @@ public record UserResponse(
         String course,
         String institution,
         String phone,
-        String address,
+        AddressResponse address,
         LocalDate birthDate,
         LocalDate expiryDate,
         boolean isActive
@@ -28,7 +28,7 @@ public record UserResponse(
                 user.getCourse(),
                 institutionName,
                 user.getPhone(),
-                user.getAddress(),
+                AddressResponse.from(user.getAddress()),
                 user.getBirthDate(),
                 user.getExpiryDate(),
                 user.isActive()

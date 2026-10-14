@@ -1,8 +1,6 @@
 import 'package:flutter/material.dart';
 import '../theme/app_theme.dart';
 
-/// Confirmação de ação destrutiva. Existe pra o app não repetir o mesmo
-/// AlertDialog em cada tela — e pra a ação perigosa ter sempre a mesma cor.
 Future<bool> confirmDestructive(
   BuildContext context, {
   required String title,
