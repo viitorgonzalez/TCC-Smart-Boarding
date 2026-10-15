@@ -80,6 +80,37 @@ void main() {
       expect(timeUntilListClose('16:00:00', agora), isNull);
     });
 
+    // Os testes acima injetam um DateTime local, que NÃO é o que roda no
+    // aparelho: lá o valor vem de brazilTimeFromUtc, marcado como UTC. Foi essa
+    // diferença que escondeu um contador 3h adiantado.
+    //
+    // O instante entra como UTC de propósito: com DateTime local o resultado
+    // mudaria com o fuso da máquina, e o CI (que roda em UTC) reprovaria um
+    // código correto. 22:00Z é 19:00 em Brasília.
+    test(
+      'no horário exato, com o relógio real do app, já conta como fechado',
+      () {
+        final agora = brazilTimeFromUtc(DateTime.utc(2026, 10, 14, 22, 0));
+
+        expect(timeUntilListClose('19:00:00', agora), isNull);
+      },
+    );
+
+    test('antes do fechamento, com o relógio real, devolve o tempo certo', () {
+      final agora = brazilTimeFromUtc(DateTime.utc(2026, 10, 14, 21, 30));
+
+      expect(
+        timeUntilListClose('19:00:00', agora),
+        const Duration(minutes: 30),
+      );
+    });
+
+    test('depois do fechamento, com o relógio real, devolve null', () {
+      final agora = brazilTimeFromUtc(DateTime.utc(2026, 10, 14, 22, 30));
+
+      expect(timeUntilListClose('19:00:00', agora), isNull);
+    });
+
     test('rota com horário diferente é respeitada', () {
       final agora = DateTime(2026, 9, 9, 16, 30);
       expect(

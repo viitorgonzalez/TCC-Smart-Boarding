@@ -187,4 +187,29 @@ void main() {
 
     verify(() => service.status('l1')).called(1);
   });
+
+  testWidgets('nome de parada longo nao estoura a linha do tempo', (
+    tester,
+  ) async {
+    // Em tela estreita e com nome comprido o Row estourava 4px — o teste
+    // falha sozinho se a Text voltar a ficar sem Expanded.
+    tester.view.physicalSize = const Size(360, 800);
+    tester.view.devicePixelRatio = 1.0;
+    addTearDown(tester.view.reset);
+
+    await montar(
+      tester,
+      viagem(
+        myStop: {
+          'stopId': 'p3',
+          'stopName': 'IFMG — Campus Formiga, Bloco de Engenharia',
+          'fallback': false,
+          'alreadyReached': false,
+          'etaMinutes': 41,
+        },
+      ),
+    );
+
+    expect(find.byKey(const Key('trip_follow_eta')), findsOneWidget);
+  });
 }

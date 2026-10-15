@@ -16,9 +16,11 @@ class StopPin extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    final (color, icon) = switch ((isFirst, isLast)) {
-      (true, _) => (AppColors.positiveFg, Icons.trip_origin),
-      (_, true) => (AppColors.charcoal, Icons.flag),
+    final (color, icon) = switch ((stop.reached, isFirst, isLast)) {
+      (true, _, _) => (AppColors.positiveFg, Icons.check),
+      (false, _, _) => (AppColors.textSecondary, null),
+      (_, true, _) => (AppColors.positiveFg, Icons.trip_origin),
+      (_, _, true) => (AppColors.charcoal, Icons.flag),
       _ => (AppColors.deepTeal, null),
     };
 

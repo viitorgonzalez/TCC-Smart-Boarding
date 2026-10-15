@@ -38,9 +38,14 @@ Duration? timeUntilListClose(String? closeTime, [DateTime? now]) {
   final parsed = parseTimeOfDay(closeTime);
   if (parsed == null) return null;
   final n = now ?? brazilTimeFromUtc(DateTime.now());
-  final close = DateTime(n.year, n.month, n.day, parsed.hour, parsed.minute);
-  if (!n.isBefore(close)) return null;
-  return close.difference(n);
+
+  // Compara hora do dia, não instantes: `brazilTimeFromUtc` devolve um DateTime
+  // marcado como UTC carregando a hora de Brasília, e subtrair dele um DateTime
+  // local faria a conta atravessar o fuso — o contador saía 3h a mais.
+  final agora = Duration(hours: n.hour, minutes: n.minute, seconds: n.second);
+  final fecha = Duration(hours: parsed.hour, minutes: parsed.minute);
+  if (agora >= fecha) return null;
+  return fecha - agora;
 }
 
 String formatCloseTime(String? raw) {

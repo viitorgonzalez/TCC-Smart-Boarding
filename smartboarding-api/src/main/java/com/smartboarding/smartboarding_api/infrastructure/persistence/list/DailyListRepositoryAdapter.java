@@ -24,6 +24,7 @@ public class DailyListRepositoryAdapter implements DailyListRepositoryPort {
     @Override public List<DailyList> findAllByDateAndStatus(LocalDate date, ListStatus status) { return jpa.findAllByDateAndStatus(date, status); }
     @Override public List<DailyList> findAllByStatus(ListStatus status) { return jpa.findAllByStatus(status); }
     @Override public List<DailyList> findAllByDate(LocalDate date) { return jpa.findAllByDate(date); }
+    @Override public Optional<DailyList> findByRouteIdAndDate(UUID routeId, LocalDate date) { return jpa.findByRouteIdAndDate(routeId, date); }
     @Override public boolean existsByRouteIdAndDate(UUID routeId, LocalDate date) { return jpa.existsByRouteIdAndDate(routeId, date); }
     @Override public void deleteById(UUID id) { jpa.deleteById(id); }
 }

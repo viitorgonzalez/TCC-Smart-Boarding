@@ -159,7 +159,17 @@ class _EntriesView extends StatelessWidget {
                         trailing: Row(
                           mainAxisSize: MainAxisSize.min,
                           children: [
-                            TripTypeChip(tripType: entries[i].tripType),
+                            // Só informa. O onTap vazio engole o toque: o
+                            // InkWell da linha é ancestral e o pegaria.
+                            GestureDetector(
+                              onTap: () {},
+                              child: TripTypeChip(
+                                key: Key(
+                                  'entry_trip_type_${entries[i].userId}',
+                                ),
+                                tripType: entries[i].tripType,
+                              ),
+                            ),
                             IconButton(
                               visualDensity: VisualDensity.compact,
                               icon: const Icon(

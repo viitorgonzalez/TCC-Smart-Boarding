@@ -5,6 +5,15 @@ name: e2e
 # ruído que escondia falha de verdade. O teste continua aqui porque é válido --
 # o que não presta é o emulador no runner. Rode com:
 #   gh workflow run e2e.yml
+#
+# ⚠️ AINDA NÃO PASSA, e agora por um motivo a mais: o teste loga com uma conta do
+# seed, cujos hashes Argon2id só batem com o PASSWORD_PEPPER que os gerou. Aqui o
+# pepper é gerado por execução (não versionamos segredo), então o login do seed
+# falha. Resolver exige escolher um caminho:
+#   (a) um pepper de dev fixo e documentado, com os hashes do seed regerados; ou
+#   (b) o workflow montar o ambiente todo pela API (admin, rota, parada, código,
+#       aluno) -- o BOOTSTRAP_ADMIN_EMAIL não serve junto do seed, porque ele só
+#       promove quando não existe nenhum admin.
 on:
   workflow_dispatch:
 
@@ -32,6 +41,7 @@ jobs:
             echo "DB_USER=e2e_$(openssl rand -hex 6)"
             echo "DB_PASSWORD=$(openssl rand -hex 24)"
             echo "JWT_SECRET=$(openssl rand -hex 32)"
+            echo "PASSWORD_PEPPER=$(openssl rand -hex 32)"
           } >> "$GITHUB_ENV"
 
       - name: Sobe Postgres 16
@@ -59,12 +69,15 @@ jobs:
           chmod +x ./mvnw
           ./mvnw -B -DskipTests package
           nohup java -jar target/*.jar \
-            --spring.profiles.active=local \
+            --spring.profiles.active=local,dev \
             > ../api.log 2>&1 &
-          # /api/routes é GET público (SecurityConfig permitAll) — não precisa de token
-          # nem de Actuator (não está no pom.xml) só pra saber que a API subiu.
+          # /api/routes exige token desde a correcao do IDOR. Sem Actuator no
+          # pom, o sinal de "subiu" passa a ser o proprio login respondendo —
+          # 401 serve: significa que a aplicacao esta atendendo e decidindo.
           for _ in $(seq 1 30); do
-            if curl -sf http://localhost:8080/api/routes >/dev/null 2>&1; then
+            if [ "$(curl -s -o /dev/null -w '%{http_code}' -X POST \
+                  http://localhost:8080/api/auth/login \
+                  -H 'Content-Type: application/json' -d '{}')" != "000" ]; then
               echo "API pronta"
               exit 0
             fi

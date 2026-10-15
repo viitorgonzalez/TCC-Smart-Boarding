@@ -73,9 +73,10 @@ public class JoinRouteUseCaseImpl implements JoinRouteUseCase {
         boolean alguma = minhas.stream()
                 .anyMatch(i -> atendidas.contains(i.getInstitutionId()));
         if (!alguma) {
-            throw new BadRequestException("INSTITUTION_NOT_SERVED",
-                    "Essa rota não atende a sua instituição. Confira o perfil ou "
-                            + "peça o código da rota certa.");
+            // Mensagem generica de proposito: dizer que o codigo e de outra instituicao
+            // confirmaria a quem esta adivinhando codigos que aquele existe e e valido.
+            log.info("Código recusado: a rota {} não atende nenhuma instituição do usuário", routeId);
+            throw new BadRequestException("INVALID_CODE", "Código inválido.");
         }
     }
 
@@ -111,12 +112,9 @@ public class JoinRouteUseCaseImpl implements JoinRouteUseCase {
         UUID exigida = invite.getInstitutionId();
         if (exigida != null
                 && minhasInstituicoes.stream().noneMatch(i -> exigida.equals(i.getInstitutionId()))) {
-            String nome = institutionRepository.findById(exigida)
-                    .map(Institution::getName)
-                    .orElse("outra instituição");
-            throw new BadRequestException("INSTITUTION_MISMATCH",
-                    "Esse código é só para alunos de " + nome
-                            + ". Adicione essa instituição no seu perfil ou peça outro código.");
+            log.info("Código recusado: exige a instituição {} e o usuário {} não a tem",
+                    exigida, userId);
+            throw new BadRequestException("INVALID_CODE", "Código inválido.");
         }
 
         RouteMember saved = memberRepository.save(RouteMember.builder()

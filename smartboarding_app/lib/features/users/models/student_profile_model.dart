@@ -32,7 +32,7 @@ class StudentProfile {
     fullName: json['fullName'] as String,
     email: json['email'] as String?,
     phone: json['phone'] as String?,
-    address: json['address'] as String?,
+    address: _endereco(json['address']),
     birthDate: json['birthDate'] as String?,
     course: json['course'] as String?,
     institution: json['institution'] as String?,
@@ -46,6 +46,18 @@ class StudentProfile {
         .toList(),
   );
 }
+
+/// O endereço virou objeto quando o cadastro passou a ser estruturado; antes
+/// era texto livre. Ler só uma das formas estourava TypeError e a tela do admin
+/// ficava presa carregando, porque quem chama engole a exceção.
+String? _endereco(Object? raw) => switch (raw) {
+  String texto when texto.isNotEmpty => texto,
+  Map<String, dynamic> mapa => switch (mapa['fullForm'] as String?) {
+    final String completo when completo.isNotEmpty => completo,
+    _ => null,
+  },
+  _ => null,
+};
 
 class StatusChange {
   final String action;

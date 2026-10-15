@@ -57,21 +57,29 @@ class TripStop {
   final String name;
   final int sequence;
   final String? reachedAt;
+  final double? latitude;
+  final double? longitude;
 
   const TripStop({
     required this.stopId,
     required this.name,
     required this.sequence,
     this.reachedAt,
+    this.latitude,
+    this.longitude,
   });
 
   bool get reached => reachedAt != null;
+
+  bool get hasCoordinates => latitude != null && longitude != null;
 
   factory TripStop.fromJson(Map<String, dynamic> json) => TripStop(
     stopId: json['stopId'] as String,
     name: json['name'] as String,
     sequence: json['sequence'] as int,
     reachedAt: json['reachedAt'] as String?,
+    latitude: (json['latitude'] as num?)?.toDouble(),
+    longitude: (json['longitude'] as num?)?.toDouble(),
   );
 }
 

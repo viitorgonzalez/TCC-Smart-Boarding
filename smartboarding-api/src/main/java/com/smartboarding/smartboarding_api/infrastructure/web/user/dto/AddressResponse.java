@@ -11,13 +11,16 @@ public record AddressResponse(
         String streetNumber,
         String complement,
         boolean complete,
-        String shortForm
+        String shortForm,
+        /// Com cidade e CEP. Só telas de admin usam; a carteirinha fica no
+        /// shortForm de propósito, porque ela é apontada pra outra pessoa.
+        String fullForm
 ) {
     public static AddressResponse from(Address a) {
         if (a == null) a = new Address();
         return new AddressResponse(
                 a.getZipCode(), a.getStreet(), a.getNeighborhood(),
                 a.getCity(), a.getState(), a.getStreetNumber(), a.getComplement(),
-                a.isComplete(), a.shortForm());
+                a.isComplete(), a.shortForm(), a.fullForm());
     }
 }

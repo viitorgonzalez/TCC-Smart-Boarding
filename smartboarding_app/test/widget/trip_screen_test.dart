@@ -3,7 +3,11 @@ import 'package:flutter_test/flutter_test.dart';
 import 'package:smartboarding_app/features/trip/models/trip_status_model.dart';
 import 'package:smartboarding_app/features/trip/widgets/finish_trip_dialog.dart';
 import 'package:smartboarding_app/features/trip/widgets/next_stop_card.dart';
+import 'package:smartboarding_app/features/trip/widgets/trip_map.dart';
 import 'package:smartboarding_app/features/trip/widgets/trip_progress_card.dart';
+import 'package:smartboarding_app/features/routes/services/road_route_service.dart';
+import 'package:smartboarding_app/features/routes/widgets/stop_pin.dart';
+import 'package:dio/dio.dart';
 
 TripStatus viagem({
   String? startedAt,
@@ -21,14 +25,42 @@ TripStatus viagem({
   'stops': stops,
 });
 
-Map<String, dynamic> parada(String nome, int seq, {String? reachedAt}) => {
+Map<String, dynamic> parada(
+  String nome,
+  int seq, {
+  String? reachedAt,
+  double? lat,
+  double? lng,
+}) => {
   'stopId': 'p$seq',
   'name': nome,
   'sequence': seq,
   'reachedAt': reachedAt,
+  'latitude': lat,
+  'longitude': lng,
 };
 
 Widget envolve(Widget w) => MaterialApp(home: Scaffold(body: w));
+
+/// OSRM que responde na hora: sem isto o mapa deixa um timer de rede pendente
+/// e o teste falha por causa da chamada, não do que ele quer verificar.
+class _OsrmAdapter implements HttpClientAdapter {
+  @override
+  Future<ResponseBody> fetch(RequestOptions options, _, _) async =>
+      ResponseBody.fromString(
+        '{"routes":[]}',
+        200,
+        headers: {
+          Headers.contentTypeHeader: [Headers.jsonContentType],
+        },
+      );
+
+  @override
+  void close({bool force = false}) {}
+}
+
+RoadRouteService osrmFalso() =>
+    RoadRouteService(dio: Dio()..httpClientAdapter = _OsrmAdapter());
 
 void main() {
   group('TripProgressCard', () {
@@ -287,6 +319,96 @@ void main() {
 
       expect(find.text('Cheguei aqui'), findsOneWidget);
       expect(find.text('UNIFOR-MG'), findsOneWidget);
+    });
+  });
+
+  group('TripMap', () {
+    testWidgets('desenha o mapa quando ha parada com coordenada', (
+      tester,
+    ) async {
+      await tester.pumpWidget(
+        envolve(
+          TripMap(
+            roadRoute: osrmFalso(),
+            trip: viagem(
+              stops: [
+                parada('Rodoviária', 1, lat: -20.46, lng: -45.42),
+                parada('Unifor', 2, lat: -20.47, lng: -45.43),
+              ],
+            ),
+          ),
+        ),
+      );
+      await tester.pumpAndSettle();
+
+      expect(find.byKey(const Key('trip_map')), findsOneWidget);
+    });
+
+    testWidgets('sem coordenada nenhuma o mapa nao aparece', (tester) async {
+      await tester.pumpWidget(
+        envolve(
+          TripMap(
+            trip: viagem(stops: [parada('Rodoviária', 1), parada('Unifor', 2)]),
+          ),
+        ),
+      );
+      await tester.pumpAndSettle();
+
+      expect(find.byKey(const Key('trip_map')), findsNothing);
+    });
+
+    testWidgets('ignora so a parada sem ponto, nao o mapa inteiro', (
+      tester,
+    ) async {
+      await tester.pumpWidget(
+        envolve(
+          TripMap(
+            roadRoute: osrmFalso(),
+            trip: viagem(
+              stops: [
+                parada('Rodoviária', 1, lat: -20.46, lng: -45.42),
+                parada('Sem ponto', 2),
+              ],
+            ),
+          ),
+        ),
+      );
+      await tester.pumpAndSettle();
+
+      expect(find.byKey(const Key('trip_map')), findsOneWidget);
+    });
+
+    testWidgets('a parada ja alcancada vem marcada como alcancada', (
+      tester,
+    ) async {
+      await tester.pumpWidget(
+        envolve(
+          TripMap(
+            roadRoute: osrmFalso(),
+            trip: viagem(
+              startedAt: '2026-09-12T06:00:00',
+              stops: [
+                parada(
+                  'Rodoviária',
+                  1,
+                  reachedAt: '2026-09-12T06:10:00',
+                  lat: -20.46,
+                  lng: -45.42,
+                ),
+                parada('Unifor', 2, lat: -20.47, lng: -45.43),
+              ],
+            ),
+          ),
+        ),
+      );
+      await tester.pumpAndSettle();
+
+      final pinos = tester
+          .widgetList<StopPin>(find.byType(StopPin))
+          .map((p) => (p.stop.name, p.stop.reached))
+          .toList();
+      expect(pinos, contains(('Rodoviária', true)));
+      expect(pinos, contains(('Unifor', false)));
     });
   });
 }

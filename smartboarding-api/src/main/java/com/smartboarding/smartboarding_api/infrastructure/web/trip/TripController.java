@@ -111,7 +111,8 @@ public class TripController {
                 .sorted(ordem)
                 .map(stop -> new TripStatusResponse.TripStopStatus(
                         stop.getId(), stop.getName(), stop.getSequence(),
-                        reached.containsKey(stop.getId()) ? reached.get(stop.getId()).getReachedAt() : null))
+                        reached.containsKey(stop.getId()) ? reached.get(stop.getId()).getReachedAt() : null,
+                        stop.getLatitude(), stop.getLongitude()))
                 .toList();
 
         return new TripStatusResponse(list.getId(), list.getRoute().getName(),

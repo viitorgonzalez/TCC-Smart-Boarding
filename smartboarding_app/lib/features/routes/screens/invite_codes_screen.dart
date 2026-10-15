@@ -58,11 +58,11 @@ class _InviteCodesScreenState extends State<InviteCodesScreen> {
   }
 
   Future<void> _gerar() async {
-    final rota = widget.routes.length == 1
-        ? widget.routes.single
-        : await escolherOpcao<RouteModel>(context, 'Para qual rota?', [
-            for (final r in widget.routes) (r.name, '', r),
-          ]);
+    // Pergunta mesmo com uma rota só: o código dá acesso a uma rota específica,
+    // e confirmar qual é evita gerar para a errada sem perceber.
+    final rota = await escolherOpcao<RouteModel>(context, 'Para qual rota?', [
+      for (final r in widget.routes) (r.name, '', r),
+    ]);
     if (rota == null || !mounted) return;
 
     final validade = await escolherOpcao<CodeValidity>(

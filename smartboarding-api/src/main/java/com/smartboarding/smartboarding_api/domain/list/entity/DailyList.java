@@ -5,6 +5,7 @@ import jakarta.persistence.*;
 import lombok.*;
 
 import java.time.LocalDate;
+import java.time.LocalTime;
 import java.time.LocalDateTime;
 import java.util.UUID;
 
@@ -49,4 +50,15 @@ public class DailyList {
 
     @Column(name = "trip_finished_at")
     private LocalDateTime tripFinishedAt;
+
+    /// Se a lista deveria estar aberta agora, pelo horario atual da rota.
+    ///
+    /// Mora aqui porque duas decisoes dependem dela e precisam concordar: o
+    /// scheduler de minuto e a mudanca de horario feita pelo admin.
+    public boolean isWithinSchedule(LocalDate today, LocalTime now) {
+        if (!date.isEqual(today)) {
+            return false;
+        }
+        return !now.isBefore(route.getOpenTime()) && now.isBefore(route.getCloseTime());
+    }
 }
