@@ -269,7 +269,8 @@ class JoinRouteUseCaseImplTest {
 
         assertThatThrownBy(() -> useCase.join(ALUNO, "UNI123"))
                 .isInstanceOf(BadRequestException.class)
-                .hasMessageContaining("UNIFOR-MG");
+                .hasMessage("Código inválido.")
+                .hasMessageNotContaining("UNIFOR-MG");
 
         verify(memberRepository, never()).save(any());
     }
@@ -297,7 +298,7 @@ class JoinRouteUseCaseImplTest {
 
         assertThatThrownBy(() -> useCase.join(ALUNO, "UNI123"))
                 .isInstanceOf(BadRequestException.class)
-                .hasMessageContaining("não atende a sua instituição");
+                .hasMessageContaining("Código inválido");
 
         verify(memberRepository, never()).save(any());
     }
@@ -350,7 +351,7 @@ class JoinRouteUseCaseImplTest {
         alunoDe(IFMG);
 
         assertThatThrownBy(() -> useCase.join(ALUNO, "UNI123"))
-                .hasMessageContaining("não atende a sua instituição");
+                .hasMessageContaining("Código inválido");
     }
 
     @Test
@@ -362,6 +363,33 @@ class JoinRouteUseCaseImplTest {
                 Institution.builder().id(UNIFOR).name("UNIFOR-MG").build()));
 
         assertThatThrownBy(() -> useCase.join(ALUNO, "UNI123"))
-                .hasMessageContaining("só para alunos de UNIFOR-MG");
+                .hasMessageContaining("Código inválido");
     }
+
+    @Test
+    void mensagemDeRecusaNaoRevelaAInstituicaoDoCodigo() {
+        codigoDa(UNIFOR);
+        rotaAceitaSemInstituicao(true);
+        when(userInstitutionRepository.findAllByUserId(ALUNO)).thenReturn(List.of());
+        when(institutionRepository.findById(UNIFOR)).thenReturn(Optional.of(
+                Institution.builder().id(UNIFOR).name("UNIFOR-MG").build()));
+
+        assertThatThrownBy(() -> useCase.join(ALUNO, "UNI123"))
+                .isInstanceOf(BadRequestException.class)
+                .hasMessageNotContaining("UNIFOR")
+                .hasMessageNotContaining("instituição");
+    }
+
+    @Test
+    void codigoDeRotaQueNaoAtendeOAlunoRecusaSemDizerPorque() {
+        codigoDa(null);
+        rotaAtende(UNIFOR);
+        alunoDe(IFMG);
+
+        assertThatThrownBy(() -> useCase.join(ALUNO, "UNI123"))
+                .isInstanceOf(BadRequestException.class)
+                .hasMessageNotContaining("instituição")
+                .hasMessageNotContaining("rota");
+    }
+
 }
