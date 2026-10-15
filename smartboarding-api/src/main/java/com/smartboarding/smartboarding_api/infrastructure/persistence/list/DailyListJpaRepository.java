@@ -6,11 +6,13 @@ import org.springframework.data.jpa.repository.JpaRepository;
 
 import java.time.LocalDate;
 import java.util.List;
+import java.util.Optional;
 import java.util.UUID;
 
 public interface DailyListJpaRepository extends JpaRepository<DailyList, UUID> {
     List<DailyList> findAllByDateAndStatus(LocalDate date, ListStatus status);
     List<DailyList> findAllByStatus(ListStatus status);
     List<DailyList> findAllByDate(LocalDate date);
+    Optional<DailyList> findByRouteIdAndDate(UUID routeId, LocalDate date);
     boolean existsByRouteIdAndDate(UUID routeId, LocalDate date);
 }
