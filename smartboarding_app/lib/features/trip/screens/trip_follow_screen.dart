@@ -8,6 +8,7 @@ import '../../../core/widgets/app_card.dart';
 import '../models/trip_status_model.dart';
 import '../services/trip_service.dart';
 import '../widgets/trip_step_tile.dart';
+import '../widgets/trip_map.dart';
 
 class TripFollowScreen extends StatefulWidget {
   final String listId;
@@ -80,6 +81,7 @@ class _TripFollowScreenState extends State<TripFollowScreen> {
       child: ListView(
         padding: const EdgeInsets.all(20),
         children: [
+          TripMap(trip: trip),
           if (trip.notStarted)
             const AppCard(
               key: Key('trip_follow_not_started'),
@@ -170,11 +172,13 @@ class _MinhaParada extends StatelessWidget {
               children: [
                 const Icon(Icons.schedule, size: 18, color: AppColors.deepTeal),
                 const SizedBox(width: 8),
-                Text(
-                  'Cerca de $min min até ${minha.stopName}',
-                  style: const TextStyle(
-                    fontWeight: FontWeight.w600,
-                    color: AppColors.charcoal,
+                Expanded(
+                  child: Text(
+                    'Cerca de $min min até ${minha.stopName}',
+                    style: const TextStyle(
+                      fontWeight: FontWeight.w600,
+                      color: AppColors.charcoal,
+                    ),
                   ),
                 ),
               ],
