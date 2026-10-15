@@ -16,6 +16,7 @@ import '../membership/widgets/route_selector.dart';
 import '../notifications/screens/notifications_inbox_screen.dart';
 import '../reports/screens/my_attendance_screen.dart';
 import '../warnings/screens/warnings_screen.dart';
+import 'my_route_screen.dart';
 import 'my_routes_screen.dart';
 
 class StudentHomeScreen extends StatelessWidget {
@@ -53,15 +54,22 @@ class StudentHomeScreen extends StatelessWidget {
           AppHeader(
             overline: _greeting(),
             title: saudacao,
-            leading: CircleAvatar(
-              radius: 26,
-              backgroundColor: AppColors.mutedTeal,
-              child: Text(
-                initial,
-                style: const TextStyle(
-                  color: Colors.white,
-                  fontSize: 20,
-                  fontWeight: FontWeight.w700,
+            leading: InkWell(
+              key: const Key('student_open_profile'),
+              customBorder: const CircleBorder(),
+              onTap: () => Navigator.of(
+                context,
+              ).push(MaterialPageRoute(builder: (_) => const ProfileScreen())),
+              child: CircleAvatar(
+                radius: 26,
+                backgroundColor: AppColors.mutedTeal,
+                child: Text(
+                  initial,
+                  style: const TextStyle(
+                    color: Colors.white,
+                    fontSize: 20,
+                    fontWeight: FontWeight.w700,
+                  ),
                 ),
               ),
             ),
@@ -78,15 +86,6 @@ class StudentHomeScreen extends StatelessWidget {
                 ),
                 HeaderOverflowMenu(
                   items: [
-                    HeaderMenuItem(
-                      label: 'Meu perfil',
-                      icon: Icons.person_outline,
-                      onSelected: () => Navigator.of(context).push(
-                        MaterialPageRoute(
-                          builder: (_) => const ProfileScreen(),
-                        ),
-                      ),
-                    ),
                     HeaderMenuItem(
                       label: 'Sair',
                       icon: Icons.logout,
@@ -108,7 +107,19 @@ class StudentHomeScreen extends StatelessWidget {
                     const SizedBox(height: 24),
                   ] else ...[
                     const RouteSelector(),
-                    const _TodayStatus(),
+                    _TodayStatus(
+                      onTap: switch (context
+                          .watch<StudentListProvider>()
+                          .state) {
+                        AsyncData(:final value) when value.isNotEmpty =>
+                          () => _open(
+                            context,
+                            const MyRouteScreen(),
+                            keepList: true,
+                          ),
+                        _ => null,
+                      },
+                    ),
                     const SizedBox(height: 24),
                   ],
                   const SectionTitle('O que você pode fazer'),
@@ -160,7 +171,10 @@ class StudentHomeScreen extends StatelessWidget {
 }
 
 class _TodayStatus extends StatelessWidget {
-  const _TodayStatus();
+  /// Nulo quando não há lista pra abrir (carregando, erro ou dia sem lista).
+  final VoidCallback? onTap;
+
+  const _TodayStatus({this.onTap});
 
   @override
   Widget build(BuildContext context) {
@@ -208,6 +222,8 @@ class _TodayStatus extends StatelessWidget {
         };
 
         return AppCard(
+          key: const Key('student_today_status'),
+          onTap: onTap,
           child: Row(
             children: [
               Icon(icon, color: color, size: 28),
