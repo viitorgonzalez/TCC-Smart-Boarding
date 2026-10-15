@@ -1,5 +1,6 @@
 package com.smartboarding.smartboarding_api.domain.user.entity;
 
+import org.hibernate.annotations.CreationTimestamp;
 import jakarta.persistence.*;
 import lombok.*;
 import org.springframework.security.core.GrantedAuthority;
@@ -65,6 +66,11 @@ public class User implements UserDetails {
     @Column(name = "expiry_date")
     private LocalDate expiryDate;
 
+    /// Preenchido pelo Hibernate: a coluna tem DEFAULT NOW(), mas o INSERT manda
+    /// NULL explícito e o default do banco não entra nesse caso. Sem isto, todo
+    /// usuário criado pelo app nascia sem data — só o seed tinha, porque o .sql
+    /// escreve o valor à mão.
+    @CreationTimestamp
     @Column(name = "created_at", updatable = false)
     private LocalDateTime createdAt;
 
