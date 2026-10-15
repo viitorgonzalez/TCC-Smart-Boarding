@@ -160,11 +160,26 @@ void main() {
     expect(find.byKey(const Key('generate_code_fab')), findsOneWidget);
   });
 
-  testWidgets('com uma rota so, pula direto pra validade', (tester) async {
+  testWidgets('com uma rota so, ainda pede confirmacao da rota', (
+    tester,
+  ) async {
     final http = await abrir(tester, codigos: [codigo()]);
     http.on('GET', '/api/institutions', body: {'data': []});
 
     await tester.tap(find.byKey(const Key('generate_code_fab')));
+    await tester.pumpAndSettle();
+
+    expect(find.text('Para qual rota?'), findsOneWidget);
+    expect(find.text('Rota Universitária de Formiga'), findsWidgets);
+  });
+
+  testWidgets('escolher a rota leva pra validade', (tester) async {
+    final http = await abrir(tester, codigos: [codigo()]);
+    http.on('GET', '/api/institutions', body: {'data': []});
+
+    await tester.tap(find.byKey(const Key('generate_code_fab')));
+    await tester.pumpAndSettle();
+    await tester.tap(find.text('Rota Universitária de Formiga').last);
     await tester.pumpAndSettle();
 
     expect(find.text('Por quanto tempo o código vale?'), findsOneWidget);
