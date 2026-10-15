@@ -21,6 +21,9 @@ class RouteMap extends StatefulWidget {
 
   final VoidCallback? onCancelMode;
 
+  /// Injetável só para teste: o padrão fala com o OSRM de verdade.
+  final RoadRouteService? roadRoute;
+
   const RouteMap({
     super.key,
     required this.stops,
@@ -30,6 +33,7 @@ class RouteMap extends StatefulWidget {
     this.onTapStop,
     this.modeLabel,
     this.onCancelMode,
+    this.roadRoute,
   });
 
   @override
@@ -38,7 +42,7 @@ class RouteMap extends StatefulWidget {
 
 class _RouteMapState extends State<RouteMap> {
   final _controller = MapController();
-  final _roadRoute = RoadRouteService();
+  late final RoadRouteService _roadRoute;
   bool _addMode = false;
   List<LatLng>? _roadPath;
   bool _loadingPath = false;
@@ -48,6 +52,7 @@ class _RouteMapState extends State<RouteMap> {
   @override
   void initState() {
     super.initState();
+    _roadRoute = widget.roadRoute ?? RoadRouteService();
     _loadRoadPath();
   }
 

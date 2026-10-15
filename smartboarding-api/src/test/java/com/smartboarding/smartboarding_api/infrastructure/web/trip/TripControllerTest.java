@@ -58,6 +58,7 @@ class TripControllerTest extends WebMvcTestSupport {
         when(manageStopsUseCase.listByRoute(ROUTE_ID)).thenReturn(List.of(
                 Stop.builder().id(STOP_ID).routeId(ROUTE_ID).name("Rodoviária")
                         .sequence(1).isMainPoint(true)
+                        .latitude(-20.4644).longitude(-45.4269)
                         .avgMinutesFromStart(minutosRodoviaria).build(),
                 Stop.builder().id(STOP_UNIFOR).routeId(ROUTE_ID).name("UNIFOR-MG")
                         .sequence(2).isMainPoint(true).institutionId(INSTITUICAO)
@@ -363,5 +364,25 @@ class TripControllerTest extends WebMvcTestSupport {
         mvc.perform(get("/api/trip/{listId}", LIST_ID).with(admin()))
                 .andExpect(status().isOk())
                 .andExpect(jsonPath("$.data.myStop").doesNotExist());
+    }
+
+    @Test
+    void aParadaLevaACoordenadaParaOMapa() throws Exception {
+        rotaComInstituicao(1, 13);
+
+        mvc.perform(get("/api/trip/{id}", LIST_ID).with(admin()))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.data.stops[0].latitude").value(-20.4644))
+                .andExpect(jsonPath("$.data.stops[0].longitude").value(-45.4269));
+    }
+
+    @Test
+    void paradaSemCoordenadaViajaNulaEmVezDeSumir() throws Exception {
+        rotaComInstituicao(1, 13);
+
+        mvc.perform(get("/api/trip/{id}", LIST_ID).with(admin()))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.data.stops[1].name").value("UNIFOR-MG"))
+                .andExpect(jsonPath("$.data.stops[1].latitude").doesNotExist());
     }
 }

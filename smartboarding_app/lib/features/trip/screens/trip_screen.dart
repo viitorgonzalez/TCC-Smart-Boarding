@@ -7,6 +7,7 @@ import '../models/trip_status_model.dart';
 import '../providers/trip_provider.dart';
 import '../widgets/finish_trip_dialog.dart';
 import '../widgets/next_stop_card.dart';
+import '../widgets/trip_map.dart';
 import '../widgets/trip_progress_card.dart';
 import '../widgets/trip_step_tile.dart';
 
@@ -84,6 +85,7 @@ class _TripBody extends StatelessWidget {
     return ListView(
       padding: const EdgeInsets.all(20),
       children: [
+        TripMap(trip: trip),
         TripProgressCard(trip: trip),
         const SizedBox(height: 20),
 
